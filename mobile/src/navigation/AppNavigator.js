@@ -56,6 +56,16 @@ function MoreStack() {
       <Stack.Screen name="PettyCash" component={PettyCashScreen} options={{ headerShown: true }} />
       <Stack.Screen name="Reminders" component={RemindersScreen} options={{ headerShown: true }} />
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true }} />
+      <Stack.Screen 
+        name="AddDeposit" 
+        component={AddDepositScreen}
+        options={{ headerShown: true, title: 'Add Deposit' }}
+      />
+      <Stack.Screen 
+        name="AddWithdrawal" 
+        component={AddWithdrawalScreen}
+        options={{ headerShown: true, title: 'Record Withdrawal' }}
+      />
     </Stack.Navigator>
   );
 }
