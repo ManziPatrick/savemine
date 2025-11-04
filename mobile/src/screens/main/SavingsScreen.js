@@ -19,9 +19,10 @@ export default function SavingsScreen() {
     }),
   });
 
-  const deleteMutation = useMutation(savingsAPI.deleteSavings, {
+  const deleteMutation = useMutation({
+    mutationFn: savingsAPI.deleteSavings,
     onSuccess: () => {
-      queryClient.invalidateQueries('savings');
+      queryClient.invalidateQueries({ queryKey: ['savings'] });
     },
   });
 

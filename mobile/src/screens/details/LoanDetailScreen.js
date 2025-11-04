@@ -17,9 +17,10 @@ export default function LoanDetailScreen() {
     queryFn: () => loansAPI.getLoan(loanId),
   });
 
-  const deleteMutation = useMutation(loansAPI.deleteLoan, {
+  const deleteMutation = useMutation({
+    mutationFn: loansAPI.deleteLoan,
     onSuccess: () => {
-      queryClient.invalidateQueries('loans');
+      queryClient.invalidateQueries({ queryKey: ['loans'] });
       navigation.goBack();
     },
   });

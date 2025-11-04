@@ -21,9 +21,10 @@ export default function AddContactScreen() {
     },
   });
 
-  const createMutation = useMutation(contactsAPI.createContact, {
+  const createMutation = useMutation({
+    mutationFn: contactsAPI.createContact,
     onSuccess: () => {
-      queryClient.invalidateQueries('contacts');
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       navigation.goBack();
     },
   });

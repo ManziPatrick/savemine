@@ -17,9 +17,10 @@ export default function ContactDetailScreen() {
     queryFn: () => contactsAPI.getContact(contactId),
   });
 
-  const deleteMutation = useMutation(contactsAPI.deleteContact, {
+  const deleteMutation = useMutation({
+    mutationFn: contactsAPI.deleteContact,
     onSuccess: () => {
-      queryClient.invalidateQueries('contacts');
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
       navigation.goBack();
     },
   });

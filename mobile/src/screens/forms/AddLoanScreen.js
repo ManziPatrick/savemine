@@ -41,22 +41,21 @@ export default function AddLoanScreen() {
     queryFn: () => contactsAPI.getContacts({ limit: 1000 }),
   });
 
-  const createMutation = useMutation(loansAPI.createLoan, {
+  const createMutation = useMutation({
+    mutationFn: loansAPI.createLoan,
     onSuccess: () => {
-      queryClient.invalidateQueries('loans');
+      queryClient.invalidateQueries({ queryKey: ['loans'] });
       navigation.goBack();
     },
   });
 
-  const updateMutation = useMutation(
-    ({ id, data }) => loansAPI.updateLoan(id, data),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('loans');
-        navigation.goBack();
-      },
-    }
-  );
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => loansAPI.updateLoan(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['loans'] });
+      navigation.goBack();
+    },
+  });
 
   const onSubmit = async (data) => {
     if (!selectedSourceType) {

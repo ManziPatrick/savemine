@@ -22,9 +22,10 @@ export default function TransactionsScreen() {
     }),
   });
 
-  const deleteMutation = useMutation(transactionsAPI.deleteTransaction, {
+  const deleteMutation = useMutation({
+    mutationFn: transactionsAPI.deleteTransaction,
     onSuccess: () => {
-      queryClient.invalidateQueries('transactions');
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 

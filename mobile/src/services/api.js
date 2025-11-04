@@ -43,11 +43,8 @@ export const authAPI = {
 // Loans API
 export const loansAPI = {
   getLoans: async (params = {}) => {
-    const token = await getAuthToken();
-    return api.get('/loans', {
-      params,
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    // Token is automatically added by axios interceptor
+    return api.get('/loans', { params });
   },
   getLoan: async (id) => {
     const token = await getAuthToken();
