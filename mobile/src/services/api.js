@@ -33,10 +33,10 @@ export const authAPI = {
     await AsyncStorage.removeItem('user');
   },
   getProfile: async () => {
-    const token = await getAuthToken();
-    return api.get('/auth/me', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return api.get('/auth/me');
+  },
+  updateProfile: async (userData) => {
+    return api.put('/auth/me', userData);
   },
 };
 

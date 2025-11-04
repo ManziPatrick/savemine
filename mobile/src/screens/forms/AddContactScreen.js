@@ -1,16 +1,19 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { TextInput, Button, Text, HelperText, SegmentedButtons } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { contactsAPI } from '../../services/api';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 export default function AddContactScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const queryClient = useQueryClient();
+  const { contactId } = route.params || {};
+  const isEditing = !!contactId;
 
-  const { control, handleSubmit, formState: { errors } } = useForm({
+  const { control, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
       phone: '',
@@ -21,6 +24,25 @@ export default function AddContactScreen() {
     },
   });
 
+  useEffect(() => {
+    if (isEditing && contactId) {
+      // Load contact data for editing
+      contactsAPI.getContact(contactId).then((response) => {
+        const contact = response.data?.data?.contact || response.data?.data || response.data;
+        if (contact) {
+          setValue('name', contact.name || '');
+          setValue('phone', contact.phone || '');
+          setValue('email', contact.email || '');
+          setValue('type', contact.type || 'debtor');
+          setValue('address', contact.address || '');
+          setValue('notes', contact.notes || '');
+        }
+      }).catch((error) => {
+        Alert.alert('Error', 'Failed to load contact');
+      });
+    }
+  }, [isEditing, contactId, setValue]);
+
   const createMutation = useMutation({
     mutationFn: contactsAPI.createContact,
     onSuccess: () => {
@@ -29,8 +51,24 @@ export default function AddContactScreen() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => contactsAPI.updateContact(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      navigation.goBack();
+    },
+  });
+
   const onSubmit = async (data) => {
-    createMutation.mutate(data);
+    try {
+      if (isEditing) {
+        updateMutation.mutate({ id: contactId, data });
+      } else {
+        createMutation.mutate(data);
+      }
+    } catch (error) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to save contact');
+    }
   };
 
   return (
@@ -41,7 +79,7 @@ export default function AddContactScreen() {
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
           <Text variant="headlineSmall" style={styles.title}>
-            Add New Contact
+            {isEditing ? 'Edit Contact' : 'Add New Contact'}
           </Text>
 
           <Controller

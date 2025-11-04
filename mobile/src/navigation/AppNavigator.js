@@ -15,6 +15,13 @@ import ContactsScreen from '../screens/main/ContactsScreen';
 import TransactionsScreen from '../screens/main/TransactionsScreen';
 import SavingsScreen from '../screens/main/SavingsScreen';
 import ExpensesScreen from '../screens/main/ExpensesScreen';
+import AssetsScreen from '../screens/main/AssetsScreen';
+import InvestmentsScreen from '../screens/main/InvestmentsScreen';
+import BusinessScreen from '../screens/main/BusinessScreen';
+import GiftsScreen from '../screens/main/GiftsScreen';
+import PettyCashScreen from '../screens/main/PettyCashScreen';
+import RemindersScreen from '../screens/main/RemindersScreen';
+import ProfileScreen from '../screens/main/ProfileScreen';
 
 // Detail Screens
 import LoanDetailScreen from '../screens/details/LoanDetailScreen';
@@ -50,6 +57,8 @@ function MainTabs() {
             iconName = focused ? 'piggy-bank' : 'piggy-bank-outline';
           } else if (route.name === 'Expenses') {
             iconName = focused ? 'cash-minus' : 'cash-minus';
+          } else if (route.name === 'More') {
+            iconName = focused ? 'menu' : 'menu';
           }
 
           return <Icon name={iconName} size={size} color={color} />;
@@ -65,6 +74,52 @@ function MainTabs() {
       <Tab.Screen name="Transactions" component={TransactionsScreen} />
       <Tab.Screen name="Savings" component={SavingsScreen} />
       <Tab.Screen name="Expenses" component={ExpensesScreen} />
+      <Tab.Screen 
+        name="More" 
+        component={MoreTabsNavigator}
+        options={{ headerShown: false }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+function MoreTabsNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+
+          if (route.name === 'Assets') {
+            iconName = focused ? 'package-variant' : 'package-variant-closed';
+          } else if (route.name === 'Investments') {
+            iconName = focused ? 'trending-up' : 'trending-up';
+          } else if (route.name === 'Business') {
+            iconName = focused ? 'office-building' : 'office-building-outline';
+          } else if (route.name === 'Gifts') {
+            iconName = focused ? 'gift' : 'gift-outline';
+          } else if (route.name === 'PettyCash') {
+            iconName = focused ? 'wallet' : 'wallet-outline';
+          } else if (route.name === 'Reminders') {
+            iconName = focused ? 'bell' : 'bell-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'account' : 'account-outline';
+          }
+
+          return <Icon name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#2563eb',
+        tabBarInactiveTintColor: 'gray',
+        headerShown: true,
+      })}
+    >
+      <Tab.Screen name="Assets" component={AssetsScreen} />
+      <Tab.Screen name="Investments" component={InvestmentsScreen} />
+      <Tab.Screen name="Business" component={BusinessScreen} />
+      <Tab.Screen name="Gifts" component={GiftsScreen} />
+      <Tab.Screen name="PettyCash" component={PettyCashScreen} />
+      <Tab.Screen name="Reminders" component={RemindersScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
