@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { TextInput, Button, Text, HelperText, SegmentedButtons, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity } from 'react-native';
+import { TextInput, Button, Text, HelperText, SegmentedButtons, Chip, Modal } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { transactionsAPI, contactsAPI } from '../../services/api';
@@ -15,6 +15,8 @@ export default function AddTransactionScreen() {
   const isEditing = !!transactionId;
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showContactPicker, setShowContactPicker] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
 
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
@@ -31,10 +33,16 @@ export default function AddTransactionScreen() {
 
   const transactionType = watch('type');
 
-  const { data: contacts } = useQuery({
+  const { data: contactsData, isLoading: contactsLoading } = useQuery({
     queryKey: ['contacts'],
     queryFn: () => contactsAPI.getContacts({ limit: 1000 }),
   });
+
+  const contactsList = contactsData?.data?.data || [];
+  const filteredContacts = contactsList.filter(contact => 
+    contact.name?.toLowerCase().includes(contactSearch.toLowerCase()) ||
+    contact.phone?.includes(contactSearch)
+  );
 
   const createMutation = useMutation({
     mutationFn: transactionsAPI.createTransaction,
@@ -54,10 +62,21 @@ export default function AddTransactionScreen() {
 
   const onSubmit = async (data) => {
     try {
+      if (!data.amount || parseFloat(data.amount) <= 0) {
+        Alert.alert('Error', 'Please enter a valid amount');
+        return;
+      }
+
+      if (!data.category) {
+        Alert.alert('Error', 'Please select a category');
+        return;
+      }
+
       const transactionData = {
         ...data,
         amount: parseFloat(data.amount),
         date: data.date.toISOString(),
+        contactId: data.contactId || undefined,
       };
 
       if (isEditing) {
@@ -190,6 +209,96 @@ export default function AddTransactionScreen() {
 
           <Controller
             control={control}
+            name="contactId"
+            render={({ field: { onChange, value } }) => {
+              const selectedContact = contactsList.find(c => c._id === value);
+              
+              return (
+                <View>
+                  <Text variant="bodyMedium" style={styles.label}>Contact (Optional)</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowContactPicker(true)}
+                    style={styles.contactButton}
+                  >
+                    <TextInput
+                      label="Select Contact"
+                      value={selectedContact ? `${selectedContact.name} (${selectedContact.phone})` : ''}
+                      mode="outlined"
+                      editable={false}
+                      right={<TextInput.Icon icon="chevron-down" />}
+                      style={styles.input}
+                      placeholder="Tap to select contact"
+                    />
+                  </TouchableOpacity>
+                  {value && (
+                    <Button
+                      mode="text"
+                      onPress={() => onChange('')}
+                      style={styles.clearButton}
+                    >
+                      Clear Selection
+                    </Button>
+                  )}
+
+                  <Modal
+                    visible={showContactPicker}
+                    onDismiss={() => setShowContactPicker(false)}
+                    contentContainerStyle={styles.modalContent}
+                  >
+                    <View style={styles.modalHeader}>
+                      <Text variant="titleLarge" style={styles.modalTitle}>Select Contact</Text>
+                      <Button onPress={() => setShowContactPicker(false)}>Close</Button>
+                    </View>
+                    <TextInput
+                      placeholder="Search contacts..."
+                      value={contactSearch}
+                      onChangeText={setContactSearch}
+                      mode="outlined"
+                      style={styles.searchInput}
+                      left={<TextInput.Icon icon="magnify" />}
+                    />
+                    <ScrollView style={styles.contactList}>
+                      {contactsLoading ? (
+                        <Text style={styles.loadingText}>Loading contacts...</Text>
+                      ) : filteredContacts.length === 0 ? (
+                        <Text style={styles.emptyText}>No contacts found</Text>
+                      ) : (
+                        filteredContacts.map((contact) => (
+                          <TouchableOpacity
+                            key={contact._id}
+                            onPress={() => {
+                              onChange(contact._id);
+                              setShowContactPicker(false);
+                              setContactSearch('');
+                            }}
+                            style={[
+                              styles.contactItem,
+                              value === contact._id && styles.selectedContactItem
+                            ]}
+                          >
+                            <View>
+                              <Text variant="titleMedium" style={styles.contactName}>
+                                {contact.name}
+                              </Text>
+                              <Text variant="bodySmall" style={styles.contactPhone}>
+                                {contact.phone}
+                              </Text>
+                            </View>
+                            {value === contact._id && (
+                              <Text style={styles.checkmark}>✓</Text>
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
+                  </Modal>
+                </View>
+              );
+            }}
+          />
+
+          <Controller
+            control={control}
             name="notes"
             render={({ field: { onChange, value } }) => (
               <TextInput
@@ -258,6 +367,67 @@ const styles = StyleSheet.create({
   submitButton: {
     marginTop: 20,
     paddingVertical: 8,
+  },
+  contactButton: {
+    marginBottom: 8,
+  },
+  clearButton: {
+    marginBottom: 16,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    margin: 20,
+    borderRadius: 10,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontWeight: 'bold',
+  },
+  searchInput: {
+    marginBottom: 16,
+  },
+  contactList: {
+    maxHeight: 400,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  selectedContactItem: {
+    backgroundColor: '#eff6ff',
+  },
+  contactName: {
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  contactPhone: {
+    color: '#6b7280',
+  },
+  checkmark: {
+    color: '#2563eb',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  loadingText: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#6b7280',
+  },
+  emptyText: {
+    textAlign: 'center',
+    padding: 20,
+    color: '#9ca3af',
   },
 });
 
