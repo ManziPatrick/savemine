@@ -40,6 +40,7 @@ export default function AddExpenseScreen() {
       const expenseData = {
         ...data,
         amount: parseFloat(data.amount),
+        date: data.expenseDate.toISOString(),
         expenseDate: data.expenseDate.toISOString(),
       };
       createMutation.mutate(expenseData);

@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
-import { Card, Text, ActivityIndicator, Divider } from 'react-native-paper';
+import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { Card, Text, ActivityIndicator } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { 
   loansAPI, 
@@ -116,285 +116,236 @@ export default function DashboardScreen() {
                    (pettyCash?.balance || 0) - 
                    (loanData.totalRemaining || 0);
 
-  return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={isLoading} onRefresh={refetchAll} />
-      }
-    >
-      <View style={styles.content}>
-        <Text variant="headlineMedium" style={styles.mainTitle}>
-          Dashboard
-        </Text>
+  // Prepare dashboard items as an array for table-like rendering
+  const dashboardItems = [
+    {
+      id: 'netWorth',
+      title: 'Net Worth',
+      value: formatCurrency(netWorth, 'FRW'),
+      icon: 'wallet',
+      iconColor: '#2563eb',
+      type: 'highlight',
+      onPress: null,
+    },
+    {
+      id: 'income',
+      title: 'Total Income',
+      value: formatCurrency(totalIncome, 'FRW'),
+      icon: 'arrow-down-circle',
+      iconColor: '#059669',
+      type: 'stat',
+      onPress: () => navigation.navigate('Transactions'),
+    },
+    {
+      id: 'expenses',
+      title: 'Total Expenses',
+      value: formatCurrency(totalExpenses, 'FRW'),
+      icon: 'arrow-up-circle',
+      iconColor: '#dc2626',
+      type: 'stat',
+      onPress: () => navigation.navigate('Expenses'),
+    },
+    {
+      id: 'loans',
+      title: 'Loans',
+      subtitle: `${loanData.totalLoans || 0} active loans`,
+      value: formatCurrency(loanData.totalAmount || 0, 'FRW'),
+      subValue: `${formatCurrency(loanData.totalRemaining || 0, 'FRW')} outstanding`,
+      icon: 'cash-multiple',
+      iconColor: '#2563eb',
+      type: 'detail',
+      alert: loanData.overdueLoans > 0 ? `${loanData.overdueLoans} overdue` : null,
+      onPress: () => navigation.navigate('Loans'),
+    },
+    {
+      id: 'assets',
+      title: 'Assets',
+      subtitle: `${assetData.totalCount || 0} items`,
+      value: formatCurrency(assetData.totalValue || 0, 'FRW'),
+      icon: 'package-variant',
+      iconColor: '#2563eb',
+      type: 'detail',
+      onPress: () => navigation.navigate('More', { screen: 'Assets' }),
+    },
+    {
+      id: 'investments',
+      title: 'Investments',
+      subtitle: `${investmentData.totalCount || 0} items`,
+      value: formatCurrency(investmentData.totalValue || 0, 'FRW'),
+      icon: 'trending-up',
+      iconColor: '#059669',
+      type: 'detail',
+      onPress: () => navigation.navigate('More', { screen: 'Investments' }),
+    },
+    {
+      id: 'savings',
+      title: 'Savings',
+      subtitle: `${savingsData.totalCount || 0} accounts`,
+      value: formatCurrency(savingsData.totalBalance || 0, 'FRW'),
+      icon: 'piggy-bank',
+      iconColor: '#8b5cf6',
+      type: 'detail',
+      onPress: () => navigation.navigate('Savings'),
+    },
+    {
+      id: 'pettyCash',
+      title: 'Petty Cash',
+      value: formatCurrency(pettyCash?.balance || 0, pettyCash?.currency || 'FRW'),
+      icon: 'wallet',
+      iconColor: '#f59e0b',
+      type: 'detail',
+      onPress: () => navigation.navigate('More', { screen: 'PettyCash' }),
+    },
+    {
+      id: 'contacts',
+      title: 'Contacts',
+      value: contactsTotal.toString(),
+      icon: 'contacts',
+      iconColor: '#64748b',
+      type: 'quick',
+      onPress: () => navigation.navigate('Contacts'),
+    },
+    {
+      id: 'businesses',
+      title: 'Businesses',
+      value: (businessData.totalCount || 0).toString(),
+      icon: 'office-building',
+      iconColor: '#dc2626',
+      type: 'quick',
+      onPress: () => navigation.navigate('More', { screen: 'Business' }),
+    },
+    {
+      id: 'gifts',
+      title: 'Gifts',
+      value: (giftsData.totalCount || 0).toString(),
+      icon: 'gift',
+      iconColor: '#ec4899',
+      type: 'quick',
+      onPress: () => navigation.navigate('More', { screen: 'Gifts' }),
+    },
+    {
+      id: 'reminders',
+      title: 'Reminders',
+      value: (remindersData.totalCount || 0).toString(),
+      icon: 'bell',
+      iconColor: '#8b5cf6',
+      type: 'quick',
+      onPress: () => navigation.navigate('More', { screen: 'Reminders' }),
+    },
+  ];
 
-        {isLoading ? (
-          <ActivityIndicator size="large" style={styles.loader} />
-        ) : (
-          <>
-            {/* Net Worth Card */}
-            <Card style={[styles.card, styles.netWorthCard]}>
-              <Card.Content>
-                <View style={styles.netWorthHeader}>
-                  <Icon name="wallet" size={32} color="#2563eb" />
-                  <View style={styles.netWorthText}>
-                    <Text variant="bodySmall" style={styles.netWorthLabel}>
-                      Net Worth
-                    </Text>
-                    <Text variant="headlineLarge" style={styles.netWorthValue}>
-                      {formatCurrency(netWorth, 'FRW')}
-                    </Text>
-                  </View>
+  const renderDashboardItem = ({ item }) => {
+    if (item.type === 'highlight') {
+      return (
+        <Card style={[styles.card, styles.highlightCard]}>
+          <Card.Content>
+            <View style={styles.rowItem}>
+              <View style={[styles.iconContainer, { backgroundColor: `${item.iconColor}20` }]}>
+                <Icon name={item.icon} size={28} color={item.iconColor} />
+              </View>
+              <View style={styles.rowContent}>
+                <Text variant="bodySmall" style={styles.rowLabel}>{item.title}</Text>
+                <Text variant="headlineLarge" style={styles.rowValue}>{item.value}</Text>
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
+      );
+    }
+
+    if (item.type === 'stat') {
+      return (
+        <TouchableOpacity onPress={item.onPress} style={styles.halfWidth}>
+          <Card style={styles.card}>
+            <Card.Content style={styles.statCardContent}>
+              <View style={styles.rowItem}>
+                <Icon name={item.icon} size={24} color={item.iconColor} />
+                <View style={styles.rowContent}>
+                  <Text variant="headlineSmall" style={[styles.rowValue, { color: item.iconColor }]}>
+                    {item.value}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.rowLabel}>{item.title}</Text>
                 </View>
-              </Card.Content>
-            </Card>
-
-            {/* Financial Overview */}
-            <View style={styles.section}>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                Financial Overview
-              </Text>
-              <View style={styles.statsGrid}>
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('Transactions')}
-                  style={styles.statCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.statContent}>
-                      <Icon name="arrow-down-circle" size={24} color="#059669" />
-                      <Text variant="headlineSmall" style={[styles.statValue, styles.success]}>
-                        {formatCurrency(totalIncome, 'FRW')}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.statLabel}>
-                        Total Income
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('Expenses')}
-                  style={styles.statCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.statContent}>
-                      <Icon name="arrow-up-circle" size={24} color="#dc2626" />
-                      <Text variant="headlineSmall" style={[styles.statValue, styles.danger]}>
-                        {formatCurrency(totalExpenses, 'FRW')}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.statLabel}>
-                        Total Expenses
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
               </View>
-            </View>
+            </Card.Content>
+          </Card>
+        </TouchableOpacity>
+      );
+    }
 
-            {/* Loans Section */}
-            <View style={styles.section}>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                Loans
-              </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Loans')}>
-                <Card style={styles.card}>
-                  <Card.Content>
-                    <View style={styles.horizontalStat}>
-                      <View style={styles.statLeft}>
-                        <Icon name="cash-multiple" size={24} color="#2563eb" />
-                        <View style={styles.statInfo}>
-                          <Text variant="titleMedium" style={styles.statLabel}>
-                            Total Loans
-                          </Text>
-                          <Text variant="bodySmall" style={styles.statSubLabel}>
-                            {loanData.totalLoans || 0} active loans
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.statRight}>
-                        <Text variant="titleLarge" style={styles.statValue}>
-                          {formatCurrency(loanData.totalAmount || 0, 'FRW')}
-                        </Text>
-                        <Text variant="bodySmall" style={[styles.statSubLabel, styles.warning]}>
-                          {formatCurrency(loanData.totalRemaining || 0, 'FRW')} outstanding
-                        </Text>
-                      </View>
-                    </View>
-                    {loanData.overdueLoans > 0 && (
-                      <View style={styles.alertBadge}>
-                        <Text variant="bodySmall" style={styles.alertText}>
-                          ⚠️ {loanData.overdueLoans} overdue loans
-                        </Text>
-                      </View>
-                    )}
-                  </Card.Content>
-                </Card>
-              </TouchableOpacity>
-            </View>
-
-            {/* Assets & Investments */}
-            <View style={styles.section}>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                Assets & Investments
-              </Text>
-              <View style={styles.statsGrid}>
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('Assets')}
-                  style={styles.statCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.statContent}>
-                      <Icon name="package-variant" size={24} color="#2563eb" />
-                      <Text variant="headlineSmall" style={styles.statValue}>
-                        {formatCurrency(assetData.totalValue || 0, 'FRW')}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.statLabel}>
-                        Assets ({assetData.totalCount || 0})
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('Investments')}
-                  style={styles.statCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.statContent}>
-                      <Icon name="trending-up" size={24} color="#059669" />
-                      <Text variant="headlineSmall" style={[styles.statValue, styles.success]}>
-                        {formatCurrency(investmentData.totalValue || 0, 'FRW')}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.statLabel}>
-                        Investments ({investmentData.totalCount || 0})
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
+    if (item.type === 'detail') {
+      return (
+        <TouchableOpacity onPress={item.onPress}>
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.rowItem}>
+                <View style={[styles.iconContainer, { backgroundColor: `${item.iconColor}20` }]}>
+                  <Icon name={item.icon} size={24} color={item.iconColor} />
+                </View>
+                <View style={styles.rowContent}>
+                  <Text variant="titleMedium" style={styles.rowTitle}>{item.title}</Text>
+                  {item.subtitle && (
+                    <Text variant="bodySmall" style={styles.rowSubtitle}>{item.subtitle}</Text>
+                  )}
+                </View>
+                <View style={styles.rowRight}>
+                  <Text variant="titleLarge" style={styles.rowValue}>{item.value}</Text>
+                  {item.subValue && (
+                    <Text variant="bodySmall" style={styles.rowSubValue}>{item.subValue}</Text>
+                  )}
+                </View>
               </View>
-            </View>
+              {item.alert && (
+                <View style={styles.alertBadge}>
+                  <Text variant="bodySmall" style={styles.alertText}>⚠️ {item.alert}</Text>
+                </View>
+              )}
+            </Card.Content>
+          </Card>
+        </TouchableOpacity>
+      );
+    }
 
-            {/* Savings & Petty Cash */}
-            <View style={styles.section}>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                Savings & Cash
-              </Text>
-              <View style={styles.statsGrid}>
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('Savings')}
-                  style={styles.statCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.statContent}>
-                      <Icon name="piggy-bank" size={24} color="#8b5cf6" />
-                      <Text variant="headlineSmall" style={styles.statValue}>
-                        {formatCurrency(savingsData.totalBalance || 0, 'FRW')}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.statLabel}>
-                        Savings ({savingsData.totalCount || 0})
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
+    // Quick stat
+    return (
+      <TouchableOpacity onPress={item.onPress} style={styles.quickStatItem}>
+        <Card style={styles.card}>
+          <Card.Content style={styles.quickStatContent}>
+            <Icon name={item.icon} size={20} color={item.iconColor} />
+            <Text variant="headlineSmall" style={styles.quickStatValue}>{item.value}</Text>
+            <Text variant="bodySmall" style={styles.quickStatLabel}>{item.title}</Text>
+          </Card.Content>
+        </Card>
+      </TouchableOpacity>
+    );
+  };
 
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('More', { screen: 'PettyCash' })}
-                  style={styles.statCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.statContent}>
-                      <Icon name="wallet" size={24} color="#f59e0b" />
-                      <Text variant="headlineSmall" style={styles.statValue}>
-                        {formatCurrency(pettyCash?.balance || 0, pettyCash?.currency || 'FRW')}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.statLabel}>
-                        Petty Cash
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Quick Stats Grid */}
-            <View style={styles.section}>
-              <Text variant="titleLarge" style={styles.sectionTitle}>
-                Quick Stats
-              </Text>
-              <View style={styles.quickStatsGrid}>
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('Contacts')}
-                  style={styles.quickStatCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.quickStatContent}>
-                      <Icon name="contacts" size={20} color="#64748b" />
-                      <Text variant="headlineSmall" style={styles.quickStatValue}>
-                        {contactsTotal}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.quickStatLabel}>
-                        Contacts
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('More', { screen: 'Business' })}
-                  style={styles.quickStatCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.quickStatContent}>
-                      <Icon name="office-building" size={20} color="#dc2626" />
-                      <Text variant="headlineSmall" style={styles.quickStatValue}>
-                        {businessData.totalCount || 0}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.quickStatLabel}>
-                        Businesses
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('More', { screen: 'Gifts' })}
-                  style={styles.quickStatCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.quickStatContent}>
-                      <Icon name="gift" size={20} color="#ec4899" />
-                      <Text variant="headlineSmall" style={styles.quickStatValue}>
-                        {giftsData.totalCount || 0}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.quickStatLabel}>
-                        Gifts
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  onPress={() => navigation.navigate('More', { screen: 'Reminders' })}
-                  style={styles.quickStatCard}
-                >
-                  <Card style={styles.card}>
-                    <Card.Content style={styles.quickStatContent}>
-                      <Icon name="bell" size={20} color="#8b5cf6" />
-                      <Text variant="headlineSmall" style={styles.quickStatValue}>
-                        {remindersData.totalCount || 0}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.quickStatLabel}>
-                        Reminders
-                      </Text>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </>
-        )}
+  if (isLoading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" />
       </View>
-    </ScrollView>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={dashboardItems}
+        renderItem={renderDashboardItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={refetchAll} />
+        }
+        ListHeaderComponent={
+          <Text variant="headlineMedium" style={styles.mainTitle}>Dashboard</Text>
+        }
+        numColumns={2}
+        columnWrapperStyle={styles.row}
+        scrollEnabled={true}
+      />
+    </View>
   );
 }
 
@@ -403,132 +354,86 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  content: {
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContent: {
     padding: 16,
   },
   mainTitle: {
     marginBottom: 20,
     fontWeight: 'bold',
     color: '#1e293b',
+    width: '100%',
   },
-  loader: {
-    marginTop: 50,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 12,
-  },
-  netWorthCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    marginBottom: 24,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  netWorthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  netWorthText: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  netWorthLabel: {
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  netWorthValue: {
-    fontWeight: '700',
-    color: '#2563eb',
-  },
-  statsGrid: {
-    flexDirection: 'row',
+  row: {
     justifyContent: 'space-between',
     gap: 12,
-  },
-  statCard: {
-    flex: 1,
   },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
+    marginBottom: 12,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
   },
-  statContent: {
-    alignItems: 'center',
-    paddingVertical: 12,
+  highlightCard: {
+    marginBottom: 20,
+    width: '100%',
   },
-  statValue: {
-    fontWeight: '700',
-    marginTop: 8,
-    marginBottom: 4,
-    color: '#1e293b',
-  },
-  statLabel: {
-    color: '#64748b',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  success: {
-    color: '#059669',
-  },
-  danger: {
-    color: '#dc2626',
-  },
-  warning: {
-    color: '#f59e0b',
-  },
-  horizontalStat: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statLeft: {
+  rowItem: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  rowContent: {
     flex: 1,
   },
-  statInfo: {
-    marginLeft: 12,
+  rowTitle: {
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 2,
   },
-  statSubLabel: {
+  rowLabel: {
+    color: '#64748b',
+    fontSize: 12,
+  },
+  rowSubtitle: {
     color: '#94a3b8',
     fontSize: 11,
     marginTop: 2,
   },
-  statRight: {
+  rowRight: {
     alignItems: 'flex-end',
   },
-  alertBadge: {
-    marginTop: 12,
-    padding: 8,
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#dc2626',
+  rowValue: {
+    fontWeight: '700',
+    color: '#1e293b',
   },
-  alertText: {
-    color: '#dc2626',
-    fontWeight: '500',
+  rowSubValue: {
+    color: '#94a3b8',
+    fontSize: 11,
+    marginTop: 2,
   },
-  quickStatsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
+  statCardContent: {
+    paddingVertical: 12,
   },
-  quickStatCard: {
+  halfWidth: {
+    width: '48%',
+  },
+  quickStatItem: {
     width: '48%',
   },
   quickStatContent: {
@@ -545,5 +450,17 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 11,
     textAlign: 'center',
+  },
+  alertBadge: {
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#dc2626',
+  },
+  alertText: {
+    color: '#dc2626',
+    fontWeight: '500',
   },
 });
