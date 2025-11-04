@@ -1,0 +1,6 @@
+name,phone,type,email,address,notes
+Test User 1,0788123456,debtor,test1@example.com,Kigali,Test contact 1
+Test User 2,+250788654321,creditor,test2@example.com,Butare,Test contact 2
+Test User 3,250788111222,partner,test3@example.com,Musanze,Test contact 3
+
+

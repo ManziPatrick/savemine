@@ -1,0 +1,6 @@
+Name,Given Name,Family Name,Phone 1 - Value,Phone 1 - Type,E-mail 1 - Value,Address 1 - Formatted,Notes
+John Mukamana,John,Mukamana,0788123456,Mobile,john@example.com,"Kigali, Rwanda",Regular customer
+Alice Uwimana,Alice,Uwimana,+250788222222,Mobile,alice@example.com,"Butare, Rwanda",Business partner
+Bob Nkurunziza,Bob,Nkurunziza,250788333333,Mobile,bob@example.com,"Musanze, Rwanda",Needs reminders
+
+

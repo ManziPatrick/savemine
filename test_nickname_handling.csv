@@ -1,0 +1,9 @@
+First Name,Middle Name,Last Name,Nickname,Phone 1 - Value,E-mail 1 - Value,Organization 1 - Name,Notes
+Samilla,,Airtell,,+250732761633,,,Test contact
+John,Michael,Smith,Johnny,+250788123456,john@example.com,ABC Company,Good friend
+,,,myContacts,+250789123456,,,Group contact
+Jane,,Doe,Jane,+250787123456,jane@example.com,XYZ Corp,Business partner
+,,,,+250786123456,,,No name - should use phone
+Dr.,Robert,Johnson,Bob,+250785123456,dr.johnson@example.com,Medical Center,Doctor
+
+

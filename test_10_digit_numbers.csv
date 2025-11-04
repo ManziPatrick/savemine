@@ -1,0 +1,7 @@
+name,phone,type,email,address,organization,notes
+John Mukamana,0788123456,debtor,john@example.com,Kigali,Kigali Tech,10-digit with 0
+Jane Smith,7881234567,creditor,jane@example.com,Butare,Rwanda Bank,10-digit without 0
+Alice Uwimana,788123456,partner,alice@example.com,Musanze,Musanze Coffee,9-digit
+Bob Nkurunziza,+250788123456,debtor,bob@example.com,Rubavu,Rubavu Tech,12-digit with +250
+
+

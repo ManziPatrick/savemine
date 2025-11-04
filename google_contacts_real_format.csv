@@ -1,0 +1,6 @@
+First Name,Middle Name,Last Name,Name Prefix,Phonetic First Name,Phonetic Middle Name,Phonetic Last Name,Name Suffix,Nickname,File As,Organization 1 - Name,Organization 1 - Type,Organization 1 - Title,Organization 1 - Department,Birthday,Notes,Photo,Labels,E-mail 1 - Type,E-mail 1 - Value,Phone 1 - Type,Phone 1 - Value,Phone 2 - Type,Phone 2 - Value,Address 1 - Type,Address 1 - Formatted,Address 1 - Street,Address 1 - City,Address 1 - PO Box,Address 1 - Region,Address 1 - Postal Code,Address 1 - Country,Website 1 - Type,Website 1 - Value,Website 2 - Type,Website 2 - Value,Event 1 - Type,Event 1 - Label,Event 1 - Value
+John,,Mukamana,,,,,,,,,Kigali Tech,Work,Developer,IT,,,,,Work,john.mukamana@kigalitech.com,Mobile,0788123456,,,,Home,"Kigali, Rwanda",KG 123 St,Kigali,,Kigali,00000,Rwanda,,,,,,
+Alice,,Uwimana,,,,,,,,,Rwanda Bank,Work,Manager,Finance,,,,,Work,alice.uwimana@rwandabank.com,Mobile,+250788222222,Home,250788333333,Work,"Butare, Rwanda",BT 456 Ave,Butare,,Butare,00000,Rwanda,,,,,,
+Bob,,Nkurunziza,,,,,,,,,Musanze Coffee,Work,Owner,Business,,,,,Work,bob@musanzecoffee.com,Mobile,250788444444,,,,Home,"Musanze, Rwanda",MZ 789 Rd,Musanze,,Musanze,00000,Rwanda,,,,,,
+
+

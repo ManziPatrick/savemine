@@ -1,0 +1,13 @@
+name,phone,type,email,address,notes
+John Mukamana,+250788111111,debtor,john@example.com,Kigali,Regular customer
+Alice Uwimana,+250788222222,creditor,alice@example.com,Butare,Business partner
+Bob Nkurunziza,+250788333333,debtor,bob@example.com,Musanze,Needs reminders
+Jane Mukamana,+250788444444,partner,jane@example.com,Rubavu,Investment partner
+Charles Uwimana,+250788555555,debtor,charles@example.com,Gisenyi,New customer
+Mary Nkurunziza,+250788666666,creditor,mary@example.com,Karongi,Supplier
+Peter Mukamana,+250788777777,debtor,peter@example.com,Nyagatare,Family friend
+Sarah Uwimana,+250788888888,partner,sarah@example.com,Kamonyi,Co-investor
+David Nkurunziza,+250788999999,debtor,david@example.com,Ruhango,Local business
+Grace Mukamana,+250788000000,creditor,grace@example.com,Nyanza,Service provider
+
+

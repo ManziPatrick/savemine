@@ -1,0 +1,9 @@
+Name,Phone,Type,Email,Organization
+John Doe,+250788123456,debtor,john@example.com,ABC Company
+Jane Smith,+250789123456,creditor,jane@example.com,XYZ Corp
+John Doe,+250788123456,partner,john.new@example.com,New Company
+Bob Wilson,+250787123456,debtor,bob@example.com,Test Inc
+Jane Smith,+250789123456,debtor,jane.updated@example.com,Updated Corp
+Alice Brown,+250786123456,partner,alice@example.com,Alice Corp
+
+

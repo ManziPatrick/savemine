@@ -1,0 +1,8 @@
+First Name,Middle Name,Last Name,Phonetic Fi,Phonetic M,Phonetic La,Name Prefi,Name Suffi,Nickname,Phone 1 - Value,E-mail 1 - Value,Organization 1 - Name,Notes
+John,Michael,Smith,,,,,Mr.,,Johnny,+250788123456,john@example.com,ABC Company,Good friend
+Jane,,Doe,,,,,Ms.,,Jane,+250789123456,jane@example.com,XYZ Corp,Business partner
+,,,,,,,,,+250787123456,,,Test Inc,No name - should use phone
+Dr.,Robert,Johnson,,,,,Dr.,Jr.,Bob,+250786123456,dr.johnson@example.com,Medical Center,Doctor
+,,,,,,,,,+250785123456,,,Another Test,Another no name
+
+

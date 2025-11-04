@@ -1,0 +1,7 @@
+name,phone,type,email,address,organization,notes
+John Mukamana,0788123456,debtor,john@example.com,Kigali,Kigali Tech,Test 07 number
+Jane Smith,0798765432,creditor,jane@example.com,Butare,Rwanda Bank,Another 07 number
+Alice Uwimana,0723456789,partner,alice@example.com,Musanze,Musanze Coffee,Third 07 number
+Bob Nkurunziza,0734567890,debtor,bob@example.com,Rubavu,Rubavu Tech,Fourth 07 number
+
+
