@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import { Text, Card, FAB, Searchbar, Chip, Menu, IconButton } from 'react-native-paper';
+import { View, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { Text, Card, FAB, Searchbar, Chip, Menu, IconButton, ActivityIndicator } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { transactionsAPI } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
@@ -31,6 +31,21 @@ export default function TransactionsScreen() {
 
   const transactionsList = transactions?.data?.data || [];
 
+  const handleDelete = (id) => {
+    Alert.alert(
+      'Delete Transaction',
+      'Are you sure you want to delete this transaction?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteMutation.mutate(id),
+        },
+      ]
+    );
+  };
+
   const renderTransaction = ({ item }) => (
     <Card style={styles.card}>
       <Card.Content>
@@ -50,7 +65,7 @@ export default function TransactionsScreen() {
               item.type === 'income' ? styles.income : styles.expense
             ]}
           >
-            {item.type === 'income' ? '+' : '-'} {formatCurrency(item.amount, item.currency)}
+            {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount, item.currency)}
           </Text>
         </View>
         {item.description && (
@@ -59,91 +74,82 @@ export default function TransactionsScreen() {
           </Text>
         )}
         <View style={styles.cardFooter}>
-          <Chip 
-            style={[
-              styles.typeChip,
-              item.type === 'income' ? styles.typeIncome : styles.typeExpense
-            ]}
-            textStyle={styles.chipText}
-          >
-            {item.type}
-          </Chip>
-          <IconButton
-            icon="delete"
-            size={20}
-            onPress={() => deleteMutation.mutate(item._id)}
-          />
+          <Chip style={styles.chip}>{item.type}</Chip>
+          {item.status && (
+            <Chip style={styles.chip}>{item.status}</Chip>
+          )}
         </View>
       </Card.Content>
     </Card>
   );
 
+  if (isLoading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Searchbar
-          placeholder="Search transactions..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchbar}
-        />
-        <View style={styles.filterRow}>
-          <Chip
-            selected={filter === 'all'}
-            onPress={() => setFilter('all')}
-            style={styles.filterChip}
-          >
-            All
-          </Chip>
-          <Chip
-            selected={filter === 'completed'}
-            onPress={() => setFilter('completed')}
-            style={styles.filterChip}
-          >
-            Completed
-          </Chip>
-          <Chip
-            selected={filter === 'pending'}
-            onPress={() => setFilter('pending')}
-            style={styles.filterChip}
-          >
-            Pending
-          </Chip>
-        </View>
-        <View style={styles.filterRow}>
-          <Chip
-            selected={typeFilter === 'all'}
-            onPress={() => setTypeFilter('all')}
-            style={styles.filterChip}
-          >
-            All Types
-          </Chip>
-          <Chip
-            selected={typeFilter === 'income'}
-            onPress={() => setTypeFilter('income')}
-            style={styles.filterChip}
-          >
-            Income
-          </Chip>
-          <Chip
-            selected={typeFilter === 'expense'}
-            onPress={() => setTypeFilter('expense')}
-            style={styles.filterChip}
-          >
-            Expense
-          </Chip>
-        </View>
+      <View style={styles.filters}>
+        <Chip
+          selected={filter === 'all'}
+          onPress={() => setFilter('all')}
+          style={styles.filterChip}
+        >
+          All
+        </Chip>
+        <Chip
+          selected={filter === 'pending'}
+          onPress={() => setFilter('pending')}
+          style={styles.filterChip}
+        >
+          Pending
+        </Chip>
+        <Chip
+          selected={filter === 'completed'}
+          onPress={() => setFilter('completed')}
+          style={styles.filterChip}
+        >
+          Completed
+        </Chip>
       </View>
-
+      <View style={styles.typeFilters}>
+        <Chip
+          selected={typeFilter === 'all'}
+          onPress={() => setTypeFilter('all')}
+          style={styles.filterChip}
+        >
+          All Types
+        </Chip>
+        <Chip
+          selected={typeFilter === 'income'}
+          onPress={() => setTypeFilter('income')}
+          style={styles.filterChip}
+        >
+          Income
+        </Chip>
+        <Chip
+          selected={typeFilter === 'expense'}
+          onPress={() => setTypeFilter('expense')}
+          style={styles.filterChip}
+        >
+          Expense
+        </Chip>
+      </View>
       <FlatList
         data={transactionsList}
         renderItem={renderTransaction}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.list}
-        refreshing={isLoading}
-        onRefresh={() => queryClient.invalidateQueries('transactions')}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text variant="bodyLarge">No transactions found</Text>
+          </View>
+        }
       />
-
       <FAB
         icon="plus"
         style={styles.fab}
@@ -156,29 +162,27 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f5f5f5',
   },
-  header: {
-    padding: 16,
-    backgroundColor: '#ffffff',
-  },
-  searchbar: {
-    marginBottom: 12,
-  },
-  filterRow: {
+  filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 8,
+    padding: 10,
+    gap: 8,
+  },
+  typeFilters: {
+    flexDirection: 'row',
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    gap: 8,
   },
   filterChip: {
     marginRight: 8,
-    marginBottom: 8,
   },
   list: {
-    padding: 16,
+    padding: 10,
   },
   card: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -191,10 +195,10 @@ const styles = StyleSheet.create({
   },
   category: {
     fontWeight: 'bold',
-    marginBottom: 4,
   },
   date: {
-    color: '#6b7280',
+    color: '#666',
+    marginTop: 4,
   },
   amount: {
     fontWeight: 'bold',
@@ -206,30 +210,31 @@ const styles = StyleSheet.create({
     color: '#ef4444',
   },
   description: {
-    color: '#6b7280',
-    marginBottom: 8,
+    marginTop: 8,
+    color: '#666',
   },
   cardFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
   },
-  typeChip: {
-    height: 24,
-  },
-  typeIncome: {
-    backgroundColor: '#d1fae5',
-  },
-  typeExpense: {
-    backgroundColor: '#fee2e2',
-  },
-  chipText: {
-    fontSize: 12,
+  chip: {
+    height: 28,
   },
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
+    backgroundColor: '#2563eb',
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
   },
 });

@@ -23,6 +23,10 @@ import ContactDetailScreen from '../screens/details/ContactDetailScreen';
 // Form Screens
 import AddLoanScreen from '../screens/forms/AddLoanScreen';
 import AddContactScreen from '../screens/forms/AddContactScreen';
+import AddTransactionScreen from '../screens/forms/AddTransactionScreen';
+import AddExpenseScreen from '../screens/forms/AddExpenseScreen';
+import AddSavingsScreen from '../screens/forms/AddSavingsScreen';
+import AddPaymentScreen from '../screens/forms/AddPaymentScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -114,22 +118,32 @@ export default function AppNavigator() {
           />
           <Stack.Screen 
             name="AddTransaction" 
-            component={AddLoanScreen}
+            component={AddTransactionScreen}
             options={{ headerShown: true, title: 'Add Transaction' }}
           />
           <Stack.Screen 
+            name="EditTransaction" 
+            component={AddTransactionScreen}
+            options={{ headerShown: true, title: 'Edit Transaction' }}
+          />
+          <Stack.Screen 
             name="AddExpense" 
-            component={AddLoanScreen}
+            component={AddExpenseScreen}
             options={{ headerShown: true, title: 'Add Expense' }}
           />
           <Stack.Screen 
             name="AddSavings" 
-            component={AddLoanScreen}
+            component={AddSavingsScreen}
             options={{ headerShown: true, title: 'Add Savings' }}
           />
           <Stack.Screen 
+            name="EditSavings" 
+            component={AddSavingsScreen}
+            options={{ headerShown: true, title: 'Edit Savings' }}
+          />
+          <Stack.Screen 
             name="AddPayment" 
-            component={AddLoanScreen}
+            component={AddPaymentScreen}
             options={{ headerShown: true, title: 'Add Payment' }}
           />
         </>

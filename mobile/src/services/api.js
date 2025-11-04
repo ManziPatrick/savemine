@@ -224,24 +224,175 @@ export const savingsAPI = {
 // Expenses API
 export const expensesAPI = {
   getExpenses: async (params = {}) => {
-    const token = await getAuthToken();
-    return api.get('/expenses', {
-      params,
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return api.get('/expenses', { params });
+  },
+  getExpense: async (id) => {
+    return api.get(`/expenses/${id}`);
   },
   createExpense: async (expenseData) => {
-    const token = await getAuthToken();
-    return api.post('/expenses', expenseData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return api.post('/expenses', expenseData);
+  },
+  updateExpense: async (id, expenseData) => {
+    return api.put(`/expenses/${id}`, expenseData);
+  },
+  deleteExpense: async (id) => {
+    return api.delete(`/expenses/${id}`);
   },
   getExpenseStats: async (params = {}) => {
-    const token = await getAuthToken();
-    return api.get('/expenses/stats', {
-      params,
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return api.get('/expenses/stats', { params });
+  },
+};
+
+// Assets API
+export const assetsAPI = {
+  getAssets: async (params = {}) => {
+    return api.get('/assets', { params });
+  },
+  getAsset: async (id) => {
+    return api.get(`/assets/${id}`);
+  },
+  createAsset: async (assetData) => {
+    return api.post('/assets', assetData);
+  },
+  updateAsset: async (id, assetData) => {
+    return api.put(`/assets/${id}`, assetData);
+  },
+  deleteAsset: async (id) => {
+    return api.delete(`/assets/${id}`);
+  },
+  updateValue: async (id, value, depreciationRate) => {
+    return api.post(`/assets/${id}/update-value`, { value, depreciationRate });
+  },
+  getAssetStats: async () => {
+    return api.get('/assets/stats');
+  },
+};
+
+// Investments API
+export const investmentsAPI = {
+  getInvestments: async (params = {}) => {
+    return api.get('/investments', { params });
+  },
+  getInvestment: async (id) => {
+    return api.get(`/investments/${id}`);
+  },
+  createInvestment: async (investmentData) => {
+    return api.post('/investments', investmentData);
+  },
+  updateInvestment: async (id, investmentData) => {
+    return api.put(`/investments/${id}`, investmentData);
+  },
+  deleteInvestment: async (id) => {
+    return api.delete(`/investments/${id}`);
+  },
+  updateValue: async (id, value, notes) => {
+    return api.post(`/investments/${id}/update-value`, { value, notes });
+  },
+  addDividend: async (id, amount, type, notes) => {
+    return api.post(`/investments/${id}/dividends`, { amount, type, notes });
+  },
+  getInvestmentStats: async () => {
+    return api.get('/investments/stats');
+  },
+};
+
+// Business API
+export const businessesAPI = {
+  getBusinesses: async (params = {}) => {
+    return api.get('/businesses', { params });
+  },
+  getBusiness: async (id) => {
+    return api.get(`/businesses/${id}`);
+  },
+  createBusiness: async (businessData) => {
+    return api.post('/businesses', businessData);
+  },
+  updateBusiness: async (id, businessData) => {
+    return api.put(`/businesses/${id}`, businessData);
+  },
+  deleteBusiness: async (id) => {
+    return api.delete(`/businesses/${id}`);
+  },
+  updateProgress: async (id, progress) => {
+    return api.post(`/businesses/${id}/progress`, { progress });
+  },
+  addMonthlyIncome: async (id, month, amount, notes) => {
+    return api.post(`/businesses/${id}/income`, { month, amount, notes });
+  },
+  addMonthlyExpense: async (id, month, amount, category, notes) => {
+    return api.post(`/businesses/${id}/expense`, { month, amount, category, notes });
+  },
+  getBusinessStats: async () => {
+    return api.get('/businesses/stats');
+  },
+};
+
+// Gifts API
+export const giftsAPI = {
+  getGifts: async (params = {}) => {
+    return api.get('/gifts', { params });
+  },
+  getGift: async (id) => {
+    return api.get(`/gifts/${id}`);
+  },
+  createGift: async (giftData) => {
+    return api.post('/gifts', giftData);
+  },
+  updateGift: async (id, giftData) => {
+    return api.put(`/gifts/${id}`, giftData);
+  },
+  deleteGift: async (id) => {
+    return api.delete(`/gifts/${id}`);
+  },
+  getGiftStats: async () => {
+    return api.get('/gifts/stats');
+  },
+};
+
+// Reminders API
+export const remindersAPI = {
+  getReminders: async (params = {}) => {
+    return api.get('/reminders', { params });
+  },
+  getReminder: async (id) => {
+    return api.get(`/reminders/${id}`);
+  },
+  createReminder: async (reminderData) => {
+    return api.post('/reminders', reminderData);
+  },
+  updateReminder: async (id, reminderData) => {
+    return api.put(`/reminders/${id}`, reminderData);
+  },
+  deleteReminder: async (id) => {
+    return api.delete(`/reminders/${id}`);
+  },
+  sendReminderNow: async (id) => {
+    return api.post(`/reminders/${id}/send`);
+  },
+  getReminderStats: async () => {
+    return api.get('/reminders/stats');
+  },
+};
+
+// Petty Cash API
+export const pettyCashAPI = {
+  getPettyCash: async () => {
+    return api.get('/petty-cash');
+  },
+  updatePettyCash: async (data) => {
+    return api.put('/petty-cash', data);
+  },
+  addDeposit: async (data) => {
+    return api.post('/petty-cash/deposit', data);
+  },
+  makeWithdrawal: async (data) => {
+    return api.post('/petty-cash/withdraw', data);
+  },
+  getTransactions: async (params = {}) => {
+    return api.get('/petty-cash/transactions', { params });
+  },
+  getPettyCashStats: async () => {
+    return api.get('/petty-cash/stats');
   },
 };
 
