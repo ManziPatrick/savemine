@@ -37,6 +37,11 @@ import AddSavingsScreen from '../screens/forms/AddSavingsScreen';
 import AddPaymentScreen from '../screens/forms/AddPaymentScreen';
 import AddDepositScreen from '../screens/forms/AddDepositScreen';
 import AddWithdrawalScreen from '../screens/forms/AddWithdrawalScreen';
+import AddAssetScreen from '../screens/forms/AddAssetScreen';
+import AddInvestmentScreen from '../screens/forms/AddInvestmentScreen';
+import AddBusinessScreen from '../screens/forms/AddBusinessScreen';
+import AddGiftScreen from '../screens/forms/AddGiftScreen';
+import AddReminderScreen from '../screens/forms/AddReminderScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -201,6 +206,31 @@ export default function AppNavigator() {
             name="AddWithdrawal" 
             component={AddWithdrawalScreen}
             options={{ headerShown: true, title: 'Record Withdrawal' }}
+          />
+          <Stack.Screen 
+            name="AddAsset" 
+            component={AddAssetScreen}
+            options={{ headerShown: true, title: 'Add Asset' }}
+          />
+          <Stack.Screen 
+            name="AddInvestment" 
+            component={AddInvestmentScreen}
+            options={{ headerShown: true, title: 'Add Investment' }}
+          />
+          <Stack.Screen 
+            name="AddBusiness" 
+            component={AddBusinessScreen}
+            options={{ headerShown: true, title: 'Add Business' }}
+          />
+          <Stack.Screen 
+            name="AddGift" 
+            component={AddGiftScreen}
+            options={{ headerShown: true, title: 'Add Gift' }}
+          />
+          <Stack.Screen 
+            name="AddReminder" 
+            component={AddReminderScreen}
+            options={{ headerShown: true, title: 'Add Reminder' }}
           />
         </>
       )}
