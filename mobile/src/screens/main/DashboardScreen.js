@@ -73,6 +73,11 @@ export default function DashboardScreen() {
     queryFn: () => remindersAPI.getReminderStats(),
   });
 
+  const { data: giftsStats, isLoading: giftsLoading, refetch: refetchGifts } = useQuery({
+    queryKey: ['giftStats'],
+    queryFn: () => giftsAPI.getGiftStats(),
+  });
+
   const isLoading = loansLoading || transactionsLoading || savingsLoading || expensesLoading || 
                     assetsLoading || investmentsLoading || businessesLoading || pettyCashLoading || 
                     contactsLoading || remindersLoading || giftsLoading;
