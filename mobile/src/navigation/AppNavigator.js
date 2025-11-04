@@ -35,6 +35,8 @@ import AddTransactionScreen from '../screens/forms/AddTransactionScreen';
 import AddExpenseScreen from '../screens/forms/AddExpenseScreen';
 import AddSavingsScreen from '../screens/forms/AddSavingsScreen';
 import AddPaymentScreen from '../screens/forms/AddPaymentScreen';
+import AddDepositScreen from '../screens/forms/AddDepositScreen';
+import AddWithdrawalScreen from '../screens/forms/AddWithdrawalScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -179,6 +181,16 @@ export default function AppNavigator() {
             name="AddPayment" 
             component={AddPaymentScreen}
             options={{ headerShown: true, title: 'Add Payment' }}
+          />
+          <Stack.Screen 
+            name="AddDeposit" 
+            component={AddDepositScreen}
+            options={{ headerShown: true, title: 'Add Deposit' }}
+          />
+          <Stack.Screen 
+            name="AddWithdrawal" 
+            component={AddWithdrawalScreen}
+            options={{ headerShown: true, title: 'Record Withdrawal' }}
           />
         </>
       )}
