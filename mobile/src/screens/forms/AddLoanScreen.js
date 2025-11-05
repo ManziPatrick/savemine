@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } f
 import { TextInput, Button, Text, HelperText, SegmentedButtons, ActivityIndicator } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { loansAPI } from '../../services/api';
+import { loansAPI, contactsAPI } from '../../services/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import ContactPicker from '../../components/ContactPicker';
@@ -86,6 +86,25 @@ export default function AddLoanScreen() {
       return;
     }
 
+    // Check if device contact was selected (starts with "device_")
+    let finalContactId = data.contactId;
+    if (data.contactId.startsWith('device_')) {
+      // Find the device contact data
+      const deviceContactId = data.contactId.replace('device_', '');
+      // Try to find matching backend contact by phone number
+      const contactsData = await contactsAPI.getContacts({ limit: 1000 }).catch(() => null);
+      const allContacts = contactsData?.data?.data || [];
+      
+      // Get the selected contact from ContactPicker - we need to check if it exists
+      // For now, show error asking user to use app contacts
+      Alert.alert(
+        'Device Contact Selected',
+        'Please select a contact from your app contacts, or add this contact to your app first.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     if (!selectedSourceType) {
       Alert.alert('Error', 'Please select a source type');
       return;
@@ -103,6 +122,7 @@ export default function AddLoanScreen() {
 
     const loanData = {
       ...data,
+      contactId: finalContactId,
       principalAmount: parseFloat(data.amount),
       source: {
         type: selectedSourceType,

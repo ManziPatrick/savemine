@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, Pressable, FlatList, Modal, SafeAreaView } from 'react-native';
+import { View, StyleSheet, Pressable, FlatList, Modal, SafeAreaView, Alert } from 'react-native';
 import { TextInput, Button, Text, HelperText, ActivityIndicator, Checkbox } from 'react-native-paper';
 import { Controller, useWatch } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
@@ -136,22 +136,42 @@ export default function ContactPicker({
       setShowPhonePicker(true);
     } else {
       setSelectedPhoneNumber(phoneNumbers[0] || null);
+      
+      // For device contacts, warn user if required
+      if (contact.isDeviceContact && required) {
+        Alert.alert(
+          'Device Contact Selected',
+          'Device contacts cannot be used for loans. Please select a contact from your app contacts.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
       onChange(contact._id);
       setShowContactPicker(false);
       setContactSearch('');
     }
-  }, []);
+  }, [required]);
 
   const handlePhoneSelect = useCallback((phone, onChange) => {
     setSelectedPhoneNumber(phone);
     if (contactForPhonePicker) {
+      // For device contacts, warn user if required
+      if (contactForPhonePicker.isDeviceContact && required) {
+        Alert.alert(
+          'Device Contact Selected',
+          'Device contacts cannot be used for loans. Please select a contact from your app contacts.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
       onChange(contactForPhonePicker._id);
     }
     setShowPhonePicker(false);
     setShowContactPicker(false);
     setContactSearch('');
     setContactForPhonePicker(null);
-  }, [contactForPhonePicker]);
+  }, [contactForPhonePicker, required]);
 
   // Sync selectedContactData when watchedValue changes
   useEffect(() => {
