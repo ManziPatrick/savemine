@@ -2,7 +2,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Aggressive bundle size optimization
+// Moderate bundle size optimization (less aggressive to avoid build errors)
 config.transformer = {
   ...config.transformer,
   minifierConfig: {
@@ -11,49 +11,20 @@ config.transformer = {
     mangle: {
       keep_classnames: false,
       keep_fnames: false,
-      properties: {
-        regex: /^_/
-      }
     },
     output: {
       ascii_only: true,
       quote_style: 3,
-      wrap_iife: true,
-      comments: false, // Remove all comments
+      comments: false,
     },
-    sourceMap: {
-      includeSources: false,
-    },
-    toplevel: true, // Enable top-level minification
     compress: {
-      // Ultra-aggressive compression
       dead_code: true,
       drop_console: true,
       drop_debugger: true,
-      passes: 5, // More passes for better compression
-      unsafe: false,
-      unsafe_comps: false,
-      unsafe_math: false,
-      unsafe_methods: false,
-      pure_funcs: ['console.log', 'console.info', 'console.debug'], // Remove these functions
+      passes: 2, // Reduced from 5 to 2 for stability
       unused: true,
     },
   },
-};
-
-// Optimize resolver - exclude unused file types
-config.resolver = {
-  ...config.resolver,
-  sourceExts: [...config.resolver.sourceExts],
-  assetExts: config.resolver.assetExts.filter(
-    ext => !['svg', 'md', 'txt'].includes(ext)
-  ),
-};
-
-// Optimize serializer
-config.serializer = {
-  ...config.serializer,
-  customSerializer: undefined, // Use default serializer
 };
 
 module.exports = config;
