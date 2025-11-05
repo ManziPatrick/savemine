@@ -84,7 +84,7 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
-          const iconSize = focused ? 28 : 24; // Bigger icons
+          const iconSize = focused ? 32 : 26; // Bigger, more visible icons
 
           if (route.name === 'Dashboard') {
             iconName = focused ? 'view-dashboard' : 'view-dashboard-outline';
@@ -99,43 +99,97 @@ function MainTabs() {
           } else if (route.name === 'Expenses') {
             iconName = focused ? 'cash-minus' : 'cash-minus';
           } else if (route.name === 'More') {
-            iconName = focused ? 'menu' : 'menu';
+            iconName = focused ? 'view-grid' : 'view-grid-outline';
           }
 
           return <Icon name={iconName} size={iconSize} color={color} />;
         },
-        tabBarActiveTintColor: '#1a365d',
-        tabBarInactiveTintColor: '#718096',
+        tabBarActiveTintColor: '#2563eb',
+        tabBarInactiveTintColor: '#64748b',
         tabBarStyle: {
-          height: 65,
+          height: 60,
           paddingBottom: 8,
           paddingTop: 8,
+          paddingHorizontal: 6,
           backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#e2e8f0',
-          elevation: 8,
+          borderTopWidth: 2,
+          borderTopColor: '#e5e7eb',
+          elevation: 12,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          display: 'none',
+        },
+        tabBarShowLabel: false,
+        tabBarItemStyle: {
+          paddingVertical: 8,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        tabBarIconStyle: {
+          marginTop: 0,
+        },
+        tabBarBadgeStyle: {
+          backgroundColor: '#ef4444',
+          fontSize: 10,
+          minWidth: 18,
+          height: 18,
         },
         headerShown: true,
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-      <Tab.Screen name="Loans" component={LoansScreen} />
-      <Tab.Screen name="Contacts" component={ContactsScreen} />
-      <Tab.Screen name="Transactions" component={TransactionsScreen} />
-      <Tab.Screen name="Savings" component={SavingsScreen} />
-      <Tab.Screen name="Expenses" component={ExpensesScreen} />
+      <Tab.Screen 
+        name="Dashboard" 
+        component={DashboardScreen}
+        options={{
+          tabBarLabel: 'Home',
+        }}
+      />
+      <Tab.Screen 
+        name="Loans" 
+        component={LoansScreen}
+        options={{
+          tabBarLabel: 'Loans',
+        }}
+      />
+      <Tab.Screen 
+        name="Contacts" 
+        component={ContactsScreen}
+        options={{
+          tabBarLabel: 'Contacts',
+        }}
+      />
+      <Tab.Screen 
+        name="Transactions" 
+        component={TransactionsScreen}
+        options={{
+          tabBarLabel: 'Transactions',
+        }}
+      />
+      <Tab.Screen 
+        name="Savings" 
+        component={SavingsScreen}
+        options={{
+          tabBarLabel: 'Savings',
+        }}
+      />
+      <Tab.Screen 
+        name="Expenses" 
+        component={ExpensesScreen}
+        options={{
+          tabBarLabel: 'Expenses',
+        }}
+      />
       <Tab.Screen 
         name="More" 
         component={MoreStack}
-        options={{ headerShown: false }}
+        options={{ 
+          headerShown: false,
+          tabBarLabel: 'More',
+        }}
       />
     </Tab.Navigator>
   );

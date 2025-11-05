@@ -1,5 +1,6 @@
 import api from '../config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { offlineApiCall } from './offlineSync';
 
 // Helper to get auth token
 const getAuthToken = async () => {
@@ -54,21 +55,51 @@ export const loansAPI = {
   },
   createLoan: async (loanData) => {
     const token = await getAuthToken();
-    return api.post('/loans', loanData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.post('/loans', loanData, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'create',
+        resourceType: 'loan',
+        endpoint: '/loans',
+        method: 'POST',
+        data: loanData,
+      }
+    );
   },
   updateLoan: async (id, loanData) => {
     const token = await getAuthToken();
-    return api.put(`/loans/${id}`, loanData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.put(`/loans/${id}`, loanData, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'update',
+        resourceType: 'loan',
+        resourceId: id,
+        endpoint: `/loans/${id}`,
+        method: 'PUT',
+        data: loanData,
+        id,
+      }
+    );
   },
   deleteLoan: async (id) => {
     const token = await getAuthToken();
-    return api.delete(`/loans/${id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.delete(`/loans/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'delete',
+        resourceType: 'loan',
+        resourceId: id,
+        endpoint: `/loans/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   addPayment: async (id, paymentData) => {
     const token = await getAuthToken();
@@ -113,21 +144,51 @@ export const contactsAPI = {
   },
   createContact: async (contactData) => {
     const token = await getAuthToken();
-    return api.post('/contacts', contactData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.post('/contacts', contactData, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'create',
+        resourceType: 'contact',
+        endpoint: '/contacts',
+        method: 'POST',
+        data: contactData,
+      }
+    );
   },
   updateContact: async (id, contactData) => {
     const token = await getAuthToken();
-    return api.put(`/contacts/${id}`, contactData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.put(`/contacts/${id}`, contactData, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'update',
+        resourceType: 'contact',
+        resourceId: id,
+        endpoint: `/contacts/${id}`,
+        method: 'PUT',
+        data: contactData,
+        id,
+      }
+    );
   },
   deleteContact: async (id) => {
     const token = await getAuthToken();
-    return api.delete(`/contacts/${id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.delete(`/contacts/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'delete',
+        resourceType: 'contact',
+        resourceId: id,
+        endpoint: `/contacts/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   searchContacts: async (query, type) => {
     const token = await getAuthToken();
@@ -149,21 +210,51 @@ export const transactionsAPI = {
   },
   createTransaction: async (transactionData) => {
     const token = await getAuthToken();
-    return api.post('/transactions', transactionData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.post('/transactions', transactionData, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'create',
+        resourceType: 'transaction',
+        endpoint: '/transactions',
+        method: 'POST',
+        data: transactionData,
+      }
+    );
   },
   updateTransaction: async (id, transactionData) => {
     const token = await getAuthToken();
-    return api.put(`/transactions/${id}`, transactionData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.put(`/transactions/${id}`, transactionData, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'update',
+        resourceType: 'transaction',
+        resourceId: id,
+        endpoint: `/transactions/${id}`,
+        method: 'PUT',
+        data: transactionData,
+        id,
+      }
+    );
   },
   deleteTransaction: async (id) => {
     const token = await getAuthToken();
-    return api.delete(`/transactions/${id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.delete(`/transactions/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'delete',
+        resourceType: 'transaction',
+        resourceId: id,
+        endpoint: `/transactions/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   getTransactionStats: async (params = {}) => {
     const token = await getAuthToken();
@@ -191,21 +282,51 @@ export const savingsAPI = {
   },
   createSavings: async (savingsData) => {
     const token = await getAuthToken();
-    return api.post('/savings', savingsData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.post('/savings', savingsData, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'create',
+        resourceType: 'savings',
+        endpoint: '/savings',
+        method: 'POST',
+        data: savingsData,
+      }
+    );
   },
   updateSavings: async (id, savingsData) => {
     const token = await getAuthToken();
-    return api.put(`/savings/${id}`, savingsData, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.put(`/savings/${id}`, savingsData, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'update',
+        resourceType: 'savings',
+        resourceId: id,
+        endpoint: `/savings/${id}`,
+        method: 'PUT',
+        data: savingsData,
+        id,
+      }
+    );
   },
   deleteSavings: async (id) => {
     const token = await getAuthToken();
-    return api.delete(`/savings/${id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    return offlineApiCall(
+      () => api.delete(`/savings/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      {
+        type: 'delete',
+        resourceType: 'savings',
+        resourceId: id,
+        endpoint: `/savings/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   addAmount: async (id, amount, notes) => {
     const token = await getAuthToken();
@@ -236,13 +357,43 @@ export const expensesAPI = {
     return api.get(`/expenses/${id}`);
   },
   createExpense: async (expenseData) => {
-    return api.post('/expenses', expenseData);
+    return offlineApiCall(
+      () => api.post('/expenses', expenseData),
+      {
+        type: 'create',
+        resourceType: 'expense',
+        endpoint: '/expenses',
+        method: 'POST',
+        data: expenseData,
+      }
+    );
   },
   updateExpense: async (id, expenseData) => {
-    return api.put(`/expenses/${id}`, expenseData);
+    return offlineApiCall(
+      () => api.put(`/expenses/${id}`, expenseData),
+      {
+        type: 'update',
+        resourceType: 'expense',
+        resourceId: id,
+        endpoint: `/expenses/${id}`,
+        method: 'PUT',
+        data: expenseData,
+        id,
+      }
+    );
   },
   deleteExpense: async (id) => {
-    return api.delete(`/expenses/${id}`);
+    return offlineApiCall(
+      () => api.delete(`/expenses/${id}`),
+      {
+        type: 'delete',
+        resourceType: 'expense',
+        resourceId: id,
+        endpoint: `/expenses/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   getExpenseStats: async (params = {}) => {
     return api.get('/expenses/stats', { params });
@@ -258,13 +409,43 @@ export const assetsAPI = {
     return api.get(`/assets/${id}`);
   },
   createAsset: async (assetData) => {
-    return api.post('/assets', assetData);
+    return offlineApiCall(
+      () => api.post('/assets', assetData),
+      {
+        type: 'create',
+        resourceType: 'asset',
+        endpoint: '/assets',
+        method: 'POST',
+        data: assetData,
+      }
+    );
   },
   updateAsset: async (id, assetData) => {
-    return api.put(`/assets/${id}`, assetData);
+    return offlineApiCall(
+      () => api.put(`/assets/${id}`, assetData),
+      {
+        type: 'update',
+        resourceType: 'asset',
+        resourceId: id,
+        endpoint: `/assets/${id}`,
+        method: 'PUT',
+        data: assetData,
+        id,
+      }
+    );
   },
   deleteAsset: async (id) => {
-    return api.delete(`/assets/${id}`);
+    return offlineApiCall(
+      () => api.delete(`/assets/${id}`),
+      {
+        type: 'delete',
+        resourceType: 'asset',
+        resourceId: id,
+        endpoint: `/assets/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   updateValue: async (id, value, depreciationRate) => {
     return api.post(`/assets/${id}/update-value`, { value, depreciationRate });
@@ -283,13 +464,43 @@ export const investmentsAPI = {
     return api.get(`/investments/${id}`);
   },
   createInvestment: async (investmentData) => {
-    return api.post('/investments', investmentData);
+    return offlineApiCall(
+      () => api.post('/investments', investmentData),
+      {
+        type: 'create',
+        resourceType: 'investment',
+        endpoint: '/investments',
+        method: 'POST',
+        data: investmentData,
+      }
+    );
   },
   updateInvestment: async (id, investmentData) => {
-    return api.put(`/investments/${id}`, investmentData);
+    return offlineApiCall(
+      () => api.put(`/investments/${id}`, investmentData),
+      {
+        type: 'update',
+        resourceType: 'investment',
+        resourceId: id,
+        endpoint: `/investments/${id}`,
+        method: 'PUT',
+        data: investmentData,
+        id,
+      }
+    );
   },
   deleteInvestment: async (id) => {
-    return api.delete(`/investments/${id}`);
+    return offlineApiCall(
+      () => api.delete(`/investments/${id}`),
+      {
+        type: 'delete',
+        resourceType: 'investment',
+        resourceId: id,
+        endpoint: `/investments/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   updateValue: async (id, value, notes) => {
     return api.post(`/investments/${id}/update-value`, { value, notes });
@@ -311,13 +522,43 @@ export const businessesAPI = {
     return api.get(`/businesses/${id}`);
   },
   createBusiness: async (businessData) => {
-    return api.post('/businesses', businessData);
+    return offlineApiCall(
+      () => api.post('/businesses', businessData),
+      {
+        type: 'create',
+        resourceType: 'business',
+        endpoint: '/businesses',
+        method: 'POST',
+        data: businessData,
+      }
+    );
   },
   updateBusiness: async (id, businessData) => {
-    return api.put(`/businesses/${id}`, businessData);
+    return offlineApiCall(
+      () => api.put(`/businesses/${id}`, businessData),
+      {
+        type: 'update',
+        resourceType: 'business',
+        resourceId: id,
+        endpoint: `/businesses/${id}`,
+        method: 'PUT',
+        data: businessData,
+        id,
+      }
+    );
   },
   deleteBusiness: async (id) => {
-    return api.delete(`/businesses/${id}`);
+    return offlineApiCall(
+      () => api.delete(`/businesses/${id}`),
+      {
+        type: 'delete',
+        resourceType: 'business',
+        resourceId: id,
+        endpoint: `/businesses/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   updateProgress: async (id, progress) => {
     return api.post(`/businesses/${id}/progress`, { progress });
@@ -342,13 +583,43 @@ export const giftsAPI = {
     return api.get(`/gifts/${id}`);
   },
   createGift: async (giftData) => {
-    return api.post('/gifts', giftData);
+    return offlineApiCall(
+      () => api.post('/gifts', giftData),
+      {
+        type: 'create',
+        resourceType: 'gift',
+        endpoint: '/gifts',
+        method: 'POST',
+        data: giftData,
+      }
+    );
   },
   updateGift: async (id, giftData) => {
-    return api.put(`/gifts/${id}`, giftData);
+    return offlineApiCall(
+      () => api.put(`/gifts/${id}`, giftData),
+      {
+        type: 'update',
+        resourceType: 'gift',
+        resourceId: id,
+        endpoint: `/gifts/${id}`,
+        method: 'PUT',
+        data: giftData,
+        id,
+      }
+    );
   },
   deleteGift: async (id) => {
-    return api.delete(`/gifts/${id}`);
+    return offlineApiCall(
+      () => api.delete(`/gifts/${id}`),
+      {
+        type: 'delete',
+        resourceType: 'gift',
+        resourceId: id,
+        endpoint: `/gifts/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   getGiftStats: async () => {
     return api.get('/gifts/stats');
@@ -364,13 +635,43 @@ export const remindersAPI = {
     return api.get(`/reminders/${id}`);
   },
   createReminder: async (reminderData) => {
-    return api.post('/reminders', reminderData);
+    return offlineApiCall(
+      () => api.post('/reminders', reminderData),
+      {
+        type: 'create',
+        resourceType: 'reminder',
+        endpoint: '/reminders',
+        method: 'POST',
+        data: reminderData,
+      }
+    );
   },
   updateReminder: async (id, reminderData) => {
-    return api.put(`/reminders/${id}`, reminderData);
+    return offlineApiCall(
+      () => api.put(`/reminders/${id}`, reminderData),
+      {
+        type: 'update',
+        resourceType: 'reminder',
+        resourceId: id,
+        endpoint: `/reminders/${id}`,
+        method: 'PUT',
+        data: reminderData,
+        id,
+      }
+    );
   },
   deleteReminder: async (id) => {
-    return api.delete(`/reminders/${id}`);
+    return offlineApiCall(
+      () => api.delete(`/reminders/${id}`),
+      {
+        type: 'delete',
+        resourceType: 'reminder',
+        resourceId: id,
+        endpoint: `/reminders/${id}`,
+        method: 'DELETE',
+        id,
+      }
+    );
   },
   sendReminderNow: async (id) => {
     return api.post(`/reminders/${id}/send`);
@@ -389,10 +690,28 @@ export const pettyCashAPI = {
     return api.put('/petty-cash', data);
   },
   addDeposit: async (data) => {
-    return api.post('/petty-cash/deposit', data);
+    return offlineApiCall(
+      () => api.post('/petty-cash/deposit', data),
+      {
+        type: 'create',
+        resourceType: 'pettyCash',
+        endpoint: '/petty-cash/deposit',
+        method: 'POST',
+        data,
+      }
+    );
   },
   makeWithdrawal: async (data) => {
-    return api.post('/petty-cash/withdraw', data);
+    return offlineApiCall(
+      () => api.post('/petty-cash/withdraw', data),
+      {
+        type: 'create',
+        resourceType: 'pettyCash',
+        endpoint: '/petty-cash/withdraw',
+        method: 'POST',
+        data,
+      }
+    );
   },
   getTransactions: async (params = {}) => {
     return api.get('/petty-cash/transactions', { params });

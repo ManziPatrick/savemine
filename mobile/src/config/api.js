@@ -1,16 +1,20 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Get your computer's IP address:
-// Windows: ipconfig -> IPv4 Address  
-// Mac/Linux: ifconfig or ip addr
-// Use your computer's IP, not localhost, for mobile devices
+// API Configuration
+// Production: Use deployed backend URL
+// Development: Use local IP address for testing
 
-// For development, replace with your computer's IP address
-// Example: 'http://192.168.1.100:5000'
-const API_URL = __DEV__ 
-  ? 'http://192.168.234.11:5000' // Replace with YOUR computer's IP address
-  : 'https://your-production-api.com'; // For production (Vercel backend URL)
+// IMPORTANT: Update this with your actual deployed backend URL
+// Find your backend URL after deploying to Vercel
+// Example: https://smartmoney-backend-abc123.vercel.app
+const PRODUCTION_API_URL = 'https://smartmoney-backend.vercel.app'; // UPDATE THIS WITH YOUR DEPLOYED URL
+
+// Development URL - Use your computer's IP for local testing
+const DEVELOPMENT_API_URL = 'http://192.168.234.11:5000';
+
+// Determine API URL based on build type
+const API_URL = __DEV__ ? DEVELOPMENT_API_URL : PRODUCTION_API_URL;
 
 const api = axios.create({
   baseURL: API_URL,
@@ -20,9 +24,45 @@ const api = axios.create({
   },
 });
 
+// Function to update API URL dynamically (for runtime configuration)
+export const updateApiUrl = async (newUrl) => {
+  try {
+    if (newUrl) {
+      await AsyncStorage.setItem('CUSTOM_API_URL', newUrl);
+      api.defaults.baseURL = newUrl;
+    } else {
+      await AsyncStorage.removeItem('CUSTOM_API_URL');
+      api.defaults.baseURL = API_URL;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error updating API URL:', error);
+    return false;
+  }
+};
+
+// Load custom API URL from storage on app start
+AsyncStorage.getItem('CUSTOM_API_URL').then(url => {
+  if (url) {
+    api.defaults.baseURL = url;
+  }
+}).catch(() => {
+  // Use default if storage read fails
+});
+
 // Request interceptor to add auth token automatically
 api.interceptors.request.use(
   async (config) => {
+    // Check for custom API URL override
+    try {
+      const customUrl = await AsyncStorage.getItem('CUSTOM_API_URL');
+      if (customUrl) {
+        config.baseURL = customUrl;
+      }
+    } catch (error) {
+      // Use default baseURL
+    }
+    
     // Add token from AsyncStorage
     try {
       const token = await AsyncStorage.getItem('token');
@@ -60,4 +100,4 @@ api.interceptors.response.use(
 );
 
 export default api;
-export { API_URL };
+export { API_URL, PRODUCTION_API_URL, DEVELOPMENT_API_URL, updateApiUrl };

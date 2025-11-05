@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { pettyCashAPI } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import { formatCurrency } from '../../utils/formatters';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function AddWithdrawalScreen() {
   const navigation = useNavigation();
@@ -39,10 +40,15 @@ export default function AddWithdrawalScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to record withdrawal. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Withdrawal saved locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to record withdrawal. Please try again.');
+      }
     },
   });
 

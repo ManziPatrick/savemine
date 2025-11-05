@@ -1,20 +1,20 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable, FlatList } from 'react-native';
-import { TextInput, Button, Text, HelperText, Chip, Checkbox } from 'react-native-paper';
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { TextInput, Button, Text, HelperText, Chip } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { remindersAPI, contactsAPI, loansAPI } from '../../services/api';
+import { remindersAPI, loansAPI } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import ContactPicker from '../../components/ContactPicker';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function AddReminderScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showContactPicker, setShowContactPicker] = useState(false);
-  const [contactSearch, setContactSearch] = useState('');
 
-  const { control, handleSubmit, formState: { errors } } = useForm({
+  const { control, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
       title: '',
       message: '',
@@ -28,27 +28,14 @@ export default function AddReminderScreen() {
     },
   });
 
-  const { data: contactsData } = useQuery({
-    queryKey: ['contacts'],
-    queryFn: () => contactsAPI.getContacts({ limit: 1000 }),
-  });
-
-  const { data: loansData } = useQuery({
+  const { data: loansData, isLoading: loansLoading } = useQuery({
     queryKey: ['loans'],
-    queryFn: () => loansAPI.getLoans({ limit: 100 }),
+    queryFn: () => loansAPI.getLoans({ limit: 50 }),
+    staleTime: 30000, // Cache for 30 seconds
+    retry: 1,
   });
 
-  const contactsList = contactsData?.data?.data || [];
   const loansList = loansData?.data?.data || [];
-
-  const filteredContacts = useMemo(() => {
-    if (!contactSearch) return contactsList;
-    const searchLower = contactSearch.toLowerCase();
-    return contactsList.filter(contact => 
-      contact.name?.toLowerCase().includes(searchLower) ||
-      contact.phone?.includes(contactSearch)
-    );
-  }, [contactsList, contactSearch]);
 
   const createMutation = useMutation({
     mutationFn: remindersAPI.createReminder,
@@ -59,10 +46,15 @@ export default function AddReminderScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to create reminder. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Reminder saved locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to create reminder. Please try again.');
+      }
     },
   });
 
@@ -186,7 +178,9 @@ export default function AddReminderScreen() {
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     onChange={(event, selectedDate) => {
                       setShowDatePicker(false);
-                      if (selectedDate) onChange(selectedDate);
+                      if (selectedDate) {
+                        onChange(selectedDate);
+                      }
                     }}
                   />
                 )}
@@ -238,164 +232,13 @@ export default function AddReminderScreen() {
             )}
           />
 
-          <Controller
+          <ContactPicker
             control={control}
             name="contactId"
-            render={({ field: { onChange, value } }) => {
-              const selectedContact = contactsList.find(c => c._id === value);
-              
-              return (
-                <View style={styles.contactSection}>
-                  <Text variant="titleMedium" style={styles.sectionLabel}>Contact (Optional)</Text>
-                  
-                  {selectedContact ? (
-                    <Pressable
-                      onPress={() => setShowContactPicker(true)}
-                      style={styles.selectedContactCard}
-                    >
-                      <View style={styles.selectedContactContent}>
-                        <View style={styles.selectedContactAvatar}>
-                          <Text style={styles.selectedContactAvatarText}>
-                            {selectedContact.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?'}
-                          </Text>
-                        </View>
-                        <View style={styles.selectedContactInfo}>
-                          <Text variant="titleMedium" style={styles.selectedContactName}>
-                            {selectedContact.name}
-                          </Text>
-                          <Text variant="bodySmall" style={styles.selectedContactPhone}>
-                            {selectedContact.phone || 'No phone'}
-                          </Text>
-                        </View>
-                        <View style={styles.editIconContainer}>
-                          <Text style={styles.editIcon}>✏️</Text>
-                        </View>
-                      </View>
-                    </Pressable>
-                  ) : (
-                    <Button
-                      mode="outlined"
-                      onPress={() => setShowContactPicker(true)}
-                      style={styles.contactButton}
-                      icon="account-plus"
-                    >
-                      Select Contact
-                    </Button>
-                  )}
-
-                  {selectedContact && (
-                    <Button
-                      mode="text"
-                      onPress={() => onChange('')}
-                      style={styles.clearButton}
-                      icon="close"
-                    >
-                      Clear Selection
-                    </Button>
-                  )}
-
-                  {showContactPicker && (
-                    <View style={styles.contactPickerContainer}>
-                      <View style={styles.contactPickerHeader}>
-                        <Text variant="titleMedium" style={styles.contactPickerTitle}>Select Contact</Text>
-                        <Button 
-                          mode="text" 
-                          onPress={() => {
-                            setShowContactPicker(false);
-                            setContactSearch('');
-                          }}
-                          icon="close"
-                        >
-                          Close
-                        </Button>
-                      </View>
-                      
-                      <View style={styles.searchContainer}>
-                        <TextInput
-                          placeholder="Search contacts..."
-                          value={contactSearch}
-                          onChangeText={setContactSearch}
-                          mode="outlined"
-                          style={styles.searchInput}
-                          left={<TextInput.Icon icon="magnify" />}
-                          right={
-                            contactSearch ? (
-                              <TextInput.Icon 
-                                icon="close-circle" 
-                                onPress={() => setContactSearch('')}
-                              />
-                            ) : null
-                          }
-                        />
-                      </View>
-
-                      <FlatList
-                        data={filteredContacts}
-                        style={styles.contactList}
-                        contentContainerStyle={styles.contactListContent}
-                        keyboardShouldPersistTaps="handled"
-                        showsVerticalScrollIndicator={true}
-                        keyExtractor={(item) => item._id}
-                        renderItem={({ item: contact }) => {
-                          const isSelected = value === contact._id;
-                          const initials = contact.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?';
-                          
-                          return (
-                            <Pressable
-                              onPress={() => {
-                                onChange(contact._id);
-                                setShowContactPicker(false);
-                                setContactSearch('');
-                              }}
-                              style={({ pressed }) => [
-                                styles.contactItem,
-                                pressed && styles.contactItemPressed,
-                                isSelected && styles.selectedContactItem
-                              ]}
-                            >
-                              <View style={styles.checkboxContainer}>
-                                <Checkbox
-                                  status={isSelected ? 'checked' : 'unchecked'}
-                                  onPress={() => {
-                                    onChange(contact._id);
-                                    setShowContactPicker(false);
-                                    setContactSearch('');
-                                  }}
-                                  color="#25D366"
-                                />
-                              </View>
-                              <View style={[
-                                styles.avatarContainer,
-                                isSelected && styles.avatarContainerSelected
-                              ]}>
-                                <Text style={styles.avatarText}>{initials}</Text>
-                              </View>
-                              <View style={styles.contactItemInfo}>
-                                <Text variant="titleMedium" style={styles.contactName}>
-                                  {contact.name}
-                                </Text>
-                                <Text variant="bodySmall" style={styles.contactPhone}>
-                                  {contact.phone}
-                                </Text>
-                              </View>
-                            </Pressable>
-                          );
-                        }}
-                        ListEmptyComponent={
-                          <View style={styles.centerContainer}>
-                            <Text style={styles.emptyText}>No contacts found</Text>
-                          </View>
-                        }
-                        initialNumToRender={20}
-                        maxToRenderPerBatch={10}
-                        windowSize={10}
-                        removeClippedSubviews={true}
-                      />
-                    </View>
-                  )}
-                </View>
-              );
-            }}
+            label="Contact (Optional)"
+            required={false}
+            errors={errors}
+            setValue={setValue}
           />
 
           <Controller

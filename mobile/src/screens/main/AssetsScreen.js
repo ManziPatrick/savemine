@@ -16,6 +16,7 @@ export default function AssetsScreen() {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [sortBy, setSortBy] = useState('name');
+  const [menuVisible, setMenuVisible] = useState({});
 
   const { data: assets, isLoading, error } = useQuery({
     queryKey: ['assets', filter, categoryFilter],
@@ -149,7 +150,7 @@ export default function AssetsScreen() {
     return (
       <TouchableOpacity
         activeOpacity={0.85}
-        onPress={() => navigation.getParent()?.navigate('AssetDetail', { assetId: item._id })}
+        onPress={() => navigation.navigate('AssetDetail', { assetId: item._id })}
         style={styles.cardWrapper}
       >
         <Card style={styles.card}>
@@ -190,23 +191,31 @@ export default function AssetsScreen() {
                 </View>
               </View>
               <Menu
+                visible={menuVisible[item._id] || false}
+                onDismiss={() => setMenuVisible({ ...menuVisible, [item._id]: false })}
                 anchor={
                   <IconButton
                     icon="dots-vertical"
                     size={22}
                     iconColor="#64748b"
                     style={styles.menuButton}
-                    onPress={() => {}}
+                    onPress={() => setMenuVisible({ ...menuVisible, [item._id]: true })}
                   />
                 }
               >
                 <Menu.Item
-                  onPress={() => navigation.getParent()?.navigate('EditAsset', { assetId: item._id })}
+                  onPress={() => {
+                    setMenuVisible({ ...menuVisible, [item._id]: false });
+                    navigation.navigate('EditAsset', { assetId: item._id });
+                  }}
                   title="Edit"
                   leadingIcon="pencil"
                 />
                 <Menu.Item
-                  onPress={() => handleDelete(item._id, item.name)}
+                  onPress={() => {
+                    setMenuVisible({ ...menuVisible, [item._id]: false });
+                    handleDelete(item._id, item.name);
+                  }}
                   title="Delete"
                   leadingIcon="delete"
                   titleStyle={{ color: '#ef4444' }}
@@ -460,7 +469,7 @@ export default function AssetsScreen() {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => navigation.getParent()?.navigate('AddAsset')}
+        onPress={() => navigation.navigate('AddAsset')}
         color="#ffffff"
       />
     </View>

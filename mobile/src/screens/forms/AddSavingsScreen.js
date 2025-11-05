@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { savingsAPI } from '../../services/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function AddSavingsScreen() {
   const navigation = useNavigation();
@@ -63,7 +64,15 @@ export default function AddSavingsScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create savings');
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Savings saved locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to create savings');
+      }
     },
   });
 
@@ -76,7 +85,15 @@ export default function AddSavingsScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update savings');
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Savings updated locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to update savings');
+      }
     },
   });
 

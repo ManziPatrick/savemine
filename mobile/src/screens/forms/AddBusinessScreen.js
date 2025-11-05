@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { businessesAPI } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function AddBusinessScreen() {
   const navigation = useNavigation();
@@ -34,10 +35,15 @@ export default function AddBusinessScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to add business. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Business saved locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to add business. Please try again.');
+      }
     },
   });
 

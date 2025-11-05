@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { investmentsAPI } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function AddInvestmentScreen() {
   const navigation = useNavigation();
@@ -42,10 +43,15 @@ export default function AddInvestmentScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to add investment. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Investment saved locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to add investment. Please try again.');
+      }
     },
   });
 

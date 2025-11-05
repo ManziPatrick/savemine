@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { loansAPI } from '../../services/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { formatCurrency } from '../../utils/formatters';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function AddPaymentScreen() {
   const navigation = useNavigation();
@@ -38,10 +39,15 @@ export default function AddPaymentScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to add payment. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Payment saved locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to add payment. Please try again.');
+      }
     },
   });
 

@@ -15,7 +15,18 @@ export default function AssetDetailScreen() {
 
   const { data: assetData, isLoading, error } = useQuery({
     queryKey: ['asset', assetId],
-    queryFn: () => assetsAPI.getAsset(assetId),
+    queryFn: () => {
+      if (!assetId) {
+        throw new Error('Asset ID is required');
+      }
+      return assetsAPI.getAsset(assetId);
+    },
+    enabled: !!assetId,
+    retry: (failureCount, error) => {
+      if (error?.response?.status === 429 || error?.response?.status === 404) return false;
+      return failureCount < 1;
+    },
+    staleTime: 60000, // Cache for 60 seconds
   });
 
   const deleteMutation = useMutation({
@@ -24,7 +35,14 @@ export default function AssetDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
       queryClient.invalidateQueries({ queryKey: ['assetStats'] });
       queryClient.invalidateQueries({ queryKey: ['asset', assetId] });
+      Alert.alert('Success', 'Asset deleted successfully');
       navigation.goBack();
+    },
+    onError: (error) => {
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || error.message || 'Failed to delete asset. Please try again.'
+      );
     },
   });
 
@@ -42,6 +60,15 @@ export default function AssetDetailScreen() {
       ]
     );
   };
+
+  if (!assetId) {
+    return (
+      <View style={styles.loaderContainer}>
+        <Text style={styles.errorText}>Asset ID is missing</Text>
+        <Text style={styles.errorSubtext}>Please try selecting the asset again.</Text>
+      </View>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -61,14 +88,19 @@ export default function AssetDetailScreen() {
     );
   }
 
-  const asset = assetData?.data?.data || assetData?.data;
+  const asset = assetData?.data?.asset || assetData?.data?.data || assetData?.data;
 
-  if (!asset) {
+  if (!asset && !isLoading && !error) {
     return (
       <View style={styles.loaderContainer}>
         <Text style={styles.errorText}>Asset not found</Text>
+        <Text style={styles.errorSubtext}>The asset you're looking for doesn't exist or has been deleted.</Text>
       </View>
     );
+  }
+
+  if (!asset) {
+    return null; // Will show loading state or error state
   }
 
   const statusColors = {

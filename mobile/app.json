@@ -27,11 +27,15 @@
         "NOTIFICATIONS",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "READ_CONTACTS"
-      ]
+        "READ_CONTACTS",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ],
+      "versionCode": 1
     },
-    "web": {
-    },
+    "web": {},
     "plugins": [
       "expo-notifications",
       [
@@ -40,7 +44,11 @@
           "contactsPermission": "Allow SmartMoney to access your contacts to select contacts for loans and transactions."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3217b0d1-8418-405f-97d6-491cee95f6de"
+      }
+    }
   }
 }
-

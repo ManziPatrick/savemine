@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { pettyCashAPI } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function AddDepositScreen() {
   const navigation = useNavigation();
@@ -28,10 +29,15 @@ export default function AddDepositScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to add deposit. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Deposit saved locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to add deposit. Please try again.');
+      }
     },
   });
 

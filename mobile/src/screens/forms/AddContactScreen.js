@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { contactsAPI } from '../../services/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function AddContactScreen() {
   const navigation = useNavigation();
@@ -51,10 +52,15 @@ export default function AddContactScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to create contact. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Contact saved locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to create contact. Please try again.');
+      }
     },
   });
 
@@ -66,10 +72,15 @@ export default function AddContactScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to update contact. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Contact updated locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to update contact. Please try again.');
+      }
     },
   });
 

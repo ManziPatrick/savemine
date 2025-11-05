@@ -20,25 +20,29 @@ export default function PettyCashScreen() {
     queryFn: () => pettyCashAPI.getTransactions({ limit: 20 }),
   });
 
-  const { data: statsData } = useQuery({
+  const { data: statsData, error: statsError } = useQuery({
     queryKey: ['pettyCashStats'],
     queryFn: () => pettyCashAPI.getPettyCashStats(),
+    retry: 1,
   });
 
-  const pettyCash = pettyCashData?.data?.data || pettyCashData?.data;
-  const transactions = transactionsData?.data?.data || [];
-  const stats = statsData?.data?.data || {};
+  const pettyCash = pettyCashData?.data || null;
+  const transactions = transactionsData?.data?.data || transactionsData?.data || [];
+  const stats = statsData?.data?.data?.overview || statsData?.data?.overview || statsData?.data || {};
 
   if (isLoading) {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>Loading petty cash...</Text>
       </View>
     );
   }
 
-  const balance = pettyCash?.balance || 0;
+  const balance = pettyCash?.currentBalance || pettyCash?.balance || stats?.currentBalance || 0;
   const currency = pettyCash?.currency || 'FRW';
+  const totalDeposits = stats?.totalDeposits || 0;
+  const totalWithdrawals = stats?.totalWithdrawals || 0;
 
   return (
     <ScrollView style={styles.container}>
@@ -54,13 +58,13 @@ export default function PettyCashScreen() {
               <View style={styles.statItem}>
                 <Text variant="bodySmall" style={styles.statLabel}>Total Deposits</Text>
                 <Text variant="titleMedium" style={styles.statValue}>
-                  {formatCurrency(stats.totalDeposits || 0, currency)}
+                  {statsError ? 'N/A' : formatCurrency(totalDeposits, currency)}
                 </Text>
               </View>
               <View style={styles.statItem}>
                 <Text variant="bodySmall" style={styles.statLabel}>Total Withdrawals</Text>
                 <Text variant="titleMedium" style={[styles.statValue, styles.withdrawalValue]}>
-                  {formatCurrency(stats.totalWithdrawals || 0, currency)}
+                  {statsError ? 'N/A' : formatCurrency(totalWithdrawals, currency)}
                 </Text>
               </View>
             </View>
@@ -157,6 +161,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#64748b',
+    fontSize: 14,
   },
   content: {
     padding: 16,

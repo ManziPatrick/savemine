@@ -60,7 +60,11 @@ const corsOptions = {
       // Vercel production
       process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
       // Custom production domain
-      process.env.PRODUCTION_URL || null
+      process.env.PRODUCTION_URL || null,
+      // Mobile apps (React Native/Expo)
+      /^exp:\/\//,
+      /^http:\/\/.*/,
+      /^https:\/\/.*/
     ].filter(Boolean);
     
     // Check if origin matches any allowed pattern
@@ -73,7 +77,10 @@ const corsOptions = {
       return false;
     });
     
-    if (isAllowed) {
+    // Allow all origins in production for mobile app compatibility
+    if (process.env.NODE_ENV === 'production') {
+      callback(null, true);
+    } else if (isAllowed) {
       callback(null, true);
     } else {
       // In development, allow all origins for easier testing
@@ -85,8 +92,9 @@ const corsOptions = {
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Authorization']
 };
 
 app.use(cors(corsOptions));

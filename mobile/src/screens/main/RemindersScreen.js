@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, FlatList, Alert } from 'react-native';
-import { Text, Card, FAB, Searchbar, Chip, Menu, IconButton, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, FAB, Searchbar, Chip, Menu, IconButton, ActivityIndicator, Button } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { remindersAPI } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
@@ -11,19 +11,33 @@ export default function RemindersScreen() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [menuVisible, setMenuVisible] = useState({});
 
-  const { data: reminders, isLoading } = useQuery({
+  const { data: reminders, isLoading, error, refetch } = useQuery({
     queryKey: ['reminders', filter],
     queryFn: () => remindersAPI.getReminders({ 
       status: filter === 'all' ? undefined : filter,
       limit: 100
     }),
+    staleTime: 30000, // Cache for 30 seconds
+    retry: (failureCount, error) => {
+      if (error?.response?.status === 429) return false;
+      return failureCount < 1;
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: remindersAPI.deleteReminder,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      queryClient.invalidateQueries({ queryKey: ['reminderStats'] });
+      Alert.alert('Success', 'Reminder deleted successfully');
+    },
+    onError: (error) => {
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || error.message || 'Failed to delete reminder. Please try again.'
+      );
     },
   });
 
@@ -31,7 +45,14 @@ export default function RemindersScreen() {
     mutationFn: remindersAPI.sendReminderNow,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      queryClient.invalidateQueries({ queryKey: ['reminderStats'] });
       Alert.alert('Success', 'Reminder sent successfully');
+    },
+    onError: (error) => {
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || error.message || 'Failed to send reminder. Please try again.'
+      );
     },
   });
 
@@ -95,28 +116,39 @@ export default function RemindersScreen() {
               </View>
             </View>
             <Menu
+              visible={menuVisible[item._id] || false}
+              onDismiss={() => setMenuVisible({ ...menuVisible, [item._id]: false })}
               anchor={
                 <IconButton
                   icon="dots-vertical"
                   size={20}
-                  onPress={() => {}}
+                  onPress={() => setMenuVisible({ ...menuVisible, [item._id]: true })}
                 />
               }
             >
               {item.status === 'pending' && (
                 <Menu.Item
-                  onPress={() => sendNowMutation.mutate(item._id)}
+                  onPress={() => {
+                    setMenuVisible({ ...menuVisible, [item._id]: false });
+                    sendNowMutation.mutate(item._id);
+                  }}
                   title="Send Now"
                   leadingIcon="send"
                 />
               )}
               <Menu.Item
-                onPress={() => navigation.navigate('EditReminder', { reminderId: item._id })}
+                onPress={() => {
+                  setMenuVisible({ ...menuVisible, [item._id]: false });
+                  navigation.navigate('EditReminder', { reminderId: item._id });
+                }}
                 title="Edit"
                 leadingIcon="pencil"
               />
               <Menu.Item
-                onPress={() => handleDelete(item._id)}
+                onPress={() => {
+                  setMenuVisible({ ...menuVisible, [item._id]: false });
+                  handleDelete(item._id);
+                }}
                 title="Delete"
                 leadingIcon="delete"
                 titleStyle={{ color: '#ef4444' }}
@@ -159,10 +191,38 @@ export default function RemindersScreen() {
     );
   };
 
+  // Filter reminders based on search query
+  const filteredReminders = useMemo(() => {
+    if (!searchQuery) return remindersList;
+    const query = searchQuery.toLowerCase();
+    return remindersList.filter(reminder =>
+      reminder.title?.toLowerCase().includes(query) ||
+      reminder.message?.toLowerCase().includes(query) ||
+      reminder.description?.toLowerCase().includes(query)
+    );
+  }, [remindersList, searchQuery]);
+
   if (isLoading) {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>Loading reminders...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.loaderContainer}>
+        <Text style={styles.errorText}>Error loading reminders</Text>
+        <Text style={styles.errorSubtext}>{error.message}</Text>
+        <Button
+          mode="contained"
+          onPress={() => refetch()}
+          style={{ marginTop: 16 }}
+        >
+          Retry
+        </Button>
       </View>
     );
   }
@@ -202,15 +262,25 @@ export default function RemindersScreen() {
       </View>
 
       <FlatList
-        data={remindersList}
+        data={filteredReminders}
         renderItem={renderReminder}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.list}
+        refreshing={isLoading}
+        onRefresh={() => refetch()}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews={true}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text variant="headlineSmall" style={styles.emptyText}>No reminders found</Text>
+            <Text variant="headlineSmall" style={styles.emptyText}>
+              {searchQuery ? 'No reminders found' : 'No reminders yet'}
+            </Text>
             <Text variant="bodyMedium" style={styles.emptySubtext}>
-              Set up reminders for your loans and events
+              {searchQuery 
+                ? 'Try adjusting your search term' 
+                : 'Set up reminders for your loans and events'}
             </Text>
           </View>
         }
@@ -233,6 +303,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#64748b',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#dc2626',
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 16,
   },
   header: {
     backgroundColor: '#ffffff',

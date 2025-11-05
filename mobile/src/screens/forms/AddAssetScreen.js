@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { TextInput, Button, Text, HelperText, Chip } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { assetsAPI } from '../../services/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { handleApiError } from '../../utils/errorHandler';
 
 export default function AddAssetScreen() {
   const navigation = useNavigation();
@@ -31,26 +32,35 @@ export default function AddAssetScreen() {
     },
   });
 
-  const { data: assetData } = useQuery({
+  const { data: assetData, isLoading: isLoadingAsset } = useQuery({
     queryKey: ['asset', assetId],
-    queryFn: () => assetsAPI.getAsset(assetId),
+    queryFn: () => {
+      if (!assetId) {
+        throw new Error('Asset ID is required');
+      }
+      return assetsAPI.getAsset(assetId);
+    },
     enabled: isEditing && !!assetId,
+    retry: 1,
   });
 
   useEffect(() => {
-    if (isEditing && assetData?.data?.data) {
-      const asset = assetData.data.data;
-      setValue('name', asset.name || '');
-      setValue('description', asset.description || '');
-      setValue('value', asset.value?.toString() || '');
-      setValue('currency', asset.currency || 'FRW');
-      setValue('category', asset.category || 'Electronics');
-      setValue('status', asset.status || 'owned');
-      setValue('location', asset.location || '');
-      setValue('serialNumber', asset.serialNumber || '');
-      setValue('purchaseDate', asset.purchaseDate ? new Date(asset.purchaseDate) : new Date());
-      setValue('depreciationRate', asset.depreciationRate?.toString() || '');
-      setValue('notes', asset.notes || '');
+    if (isEditing && assetData) {
+      const asset = assetData?.data?.asset || assetData?.data?.data || assetData?.data;
+      
+      if (asset) {
+        setValue('name', asset.name || '');
+        setValue('description', asset.description || '');
+        setValue('value', asset.value?.toString() || '');
+        setValue('currency', asset.currency || 'FRW');
+        setValue('category', asset.category || 'Electronics');
+        setValue('status', asset.status || 'owned');
+        setValue('location', asset.location || '');
+        setValue('serialNumber', asset.serialNumber || '');
+        setValue('purchaseDate', asset.purchaseDate ? new Date(asset.purchaseDate) : new Date());
+        setValue('depreciationRate', asset.depreciationRate?.toString() || '');
+        setValue('notes', asset.notes || '');
+      }
     }
   }, [isEditing, assetData, setValue]);
 
@@ -63,10 +73,15 @@ export default function AddAssetScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to add asset. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Asset saved locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to add asset. Please try again.');
+      }
     },
   });
 
@@ -80,10 +95,15 @@ export default function AddAssetScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert(
-        'Error', 
-        error.response?.data?.message || error.message || 'Failed to update asset. Please try again.'
-      );
+      if (error.isOffline || error.name === 'OfflineError') {
+        Alert.alert(
+          'Offline Mode',
+          'Asset updated locally and will sync when online.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        handleApiError(error, 'Failed to update asset. Please try again.');
+      }
     },
   });
 
@@ -126,11 +146,17 @@ export default function AddAssetScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <Text variant="headlineSmall" style={styles.title}>
-            {isEditing ? 'Edit Asset' : 'Add Asset'}
-          </Text>
+      {isLoadingAsset && isEditing ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Loading asset...</Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.content}>
+            <Text variant="headlineSmall" style={styles.title}>
+              {isEditing ? 'Edit Asset' : 'Add Asset'}
+            </Text>
 
           <Controller
             control={control}
@@ -328,6 +354,7 @@ export default function AddAssetScreen() {
           </Button>
         </View>
       </ScrollView>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -335,6 +362,18 @@ export default function AddAssetScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#64748b',
+    fontSize: 14,
+    fontWeight: '500',
   },
   scrollView: {
     flex: 1,
