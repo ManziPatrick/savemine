@@ -42,6 +42,7 @@ async function connectDB() {
       return mongoose;
     }).catch((error) => {
       console.error('MongoDB connection error:', error.message);
+      console.error('Full error:', error);
       cached.promise = null;
       throw error;
     });
@@ -59,6 +60,14 @@ async function connectDB() {
 
 // Serverless function handler
 module.exports = async (req, res) => {
+  // Log for debugging
+  console.log('Serverless function invoked');
+  console.log('Environment check:', {
+    hasMongoUri: !!process.env.MONGODB_URI,
+    nodeEnv: process.env.NODE_ENV,
+    mongoUriLength: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0
+  });
+
   try {
     // Check if MONGODB_URI is set
     if (!process.env.MONGODB_URI) {
@@ -66,7 +75,8 @@ module.exports = async (req, res) => {
       return res.status(500).json({
         success: false,
         message: 'Database configuration error. Please check environment variables.',
-        error: 'MONGODB_URI is missing'
+        error: 'MONGODB_URI is missing',
+        hint: 'Add MONGODB_URI in Vercel dashboard environment variables'
       });
     }
 
@@ -75,21 +85,25 @@ module.exports = async (req, res) => {
       await connectDB();
     } catch (dbError) {
       console.error('Database connection error:', dbError);
+      console.error('Error stack:', dbError.stack);
       return res.status(500).json({
         success: false,
         message: 'Database connection failed',
-        error: process.env.NODE_ENV === 'development' ? dbError.message : 'Database connection error'
+        error: process.env.NODE_ENV === 'development' ? dbError.message : 'Database connection error',
+        hint: 'Check MongoDB Atlas connection string and network access'
       });
     }
     
-    // Handle the request
+    // Handle the request with Express app
     return app(req, res);
   } catch (error) {
     console.error('Serverless function error:', error);
+    console.error('Error stack:', error.stack);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Server error'
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Server error',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
