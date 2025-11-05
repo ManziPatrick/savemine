@@ -100,4 +100,4 @@ api.interceptors.response.use(
 );
 
 export default api;
-export { API_URL, PRODUCTION_API_URL, DEVELOPMENT_API_URL, updateApiUrl };
+export { API_URL, PRODUCTION_API_URL, DEVELOPMENT_API_URL };
