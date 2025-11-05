@@ -86,27 +86,48 @@ export default function AddLoanScreen() {
       return;
     }
 
-    // Check if device contact was selected (starts with "device_")
+    // Check if device contact was selected (starts with "device_" or is JSON string)
     let finalContactId = data.contactId;
-    if (data.contactId.startsWith('device_')) {
+    let selectedPhoneNumber = null;
+    
+    // Check if contactId is a JSON string (contains selected phone)
+    try {
+      const parsed = JSON.parse(data.contactId);
+      if (parsed.contactId && parsed.selectedPhone) {
+        finalContactId = parsed.contactId;
+        selectedPhoneNumber = parsed.selectedPhone;
+      }
+    } catch (e) {
+      // Not JSON, use as is
+    }
+    
+    if (finalContactId.startsWith('device_')) {
       try {
         // Get device contacts to find the selected one
         const { getDeviceContacts } = require('../../utils/contacts');
         const deviceContacts = await getDeviceContacts();
-        const deviceId = data.contactId.replace('device_', '');
+        const deviceId = finalContactId.replace('device_', '');
         const deviceContact = deviceContacts.find(dc => 
           (dc.id || dc.phone) === deviceId || dc.phone === deviceId
         );
 
-        if (!deviceContact || !deviceContact.phone) {
+        if (!deviceContact) {
           Alert.alert('Error', 'Could not find device contact details');
           return;
         }
 
+        // Use the selected phone number if available, otherwise use primary phone
+        const phoneToUse = selectedPhoneNumber || deviceContact.phone;
+        
+        if (!phoneToUse) {
+          Alert.alert('Error', 'Contact has no phone number');
+          return;
+        }
+
         // Format phone number - ensure it starts with +250 for Rwanda
-        let formattedPhone = deviceContact.phone.trim();
+        let formattedPhone = phoneToUse.trim();
         // Remove all non-digit characters except +
-        const cleaned = formattedPhone.replace(/[^\d+]/g, '');
+        let cleaned = formattedPhone.replace(/[^\d+]/g, '');
         
         // If it doesn't start with +, add +250 (Rwanda country code)
         if (!cleaned.startsWith('+')) {
@@ -114,16 +135,27 @@ export default function AddLoanScreen() {
           if (cleaned.startsWith('0')) {
             formattedPhone = '+250' + cleaned.substring(1);
           } else if (cleaned.length === 9) {
-            // 9 digits - assume Rwanda number
+            // 9 digits - assume Rwanda number (e.g., 781234567)
             formattedPhone = '+250' + cleaned;
           } else if (cleaned.length === 10) {
-            // 10 digits - assume Rwanda number without 0
-            formattedPhone = '+250' + cleaned;
+            // 10 digits starting with 0 (e.g., 0781234567)
+            formattedPhone = '+250' + cleaned.substring(1);
           } else {
+            // Default: add +250
             formattedPhone = '+250' + cleaned;
           }
         } else {
           formattedPhone = cleaned;
+        }
+
+        // Validate phone format matches backend requirements
+        // Backend expects: +250[789]\d{8} for Rwanda or +[1-9]\d{9,14} for international
+        const rwandaRegex = /^\+250[789]\d{8}$/;
+        const internationalRegex = /^\+[1-9]\d{9,14}$/;
+        
+        if (!rwandaRegex.test(formattedPhone) && !internationalRegex.test(formattedPhone)) {
+          Alert.alert('Error', `Invalid phone format: ${formattedPhone}. Please ensure it's a valid Rwanda number (+250...)`);
+          return;
         }
 
         // Check if contact already exists in backend by phone number
@@ -155,6 +187,8 @@ export default function AddLoanScreen() {
             ...(contactEmail && { email: contactEmail.trim() }),
           };
 
+          console.log('Creating contact with data:', newContactData);
+
           const createResponse = await contactsAPI.createContact(newContactData);
           if (createResponse?.data?.data?._id) {
             finalContactId = createResponse.data.data._id;
@@ -169,9 +203,10 @@ export default function AddLoanScreen() {
       } catch (error) {
         console.error('Error handling device contact:', error);
         const errorMsg = error?.response?.data?.message || error?.message || 'Failed to process device contact';
+        const errorDetails = error?.response?.data?.error || '';
         Alert.alert(
           'Error',
-          `${errorMsg}. Please try selecting an app contact instead.`,
+          `${errorMsg}${errorDetails ? ': ' + errorDetails : ''}. Please try selecting an app contact instead.`,
           [{ text: 'OK' }]
         );
         return;

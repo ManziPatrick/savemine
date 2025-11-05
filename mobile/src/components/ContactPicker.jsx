@@ -135,10 +135,19 @@ export default function ContactPicker({
       setContactForPhonePicker(contact);
       setShowPhonePicker(true);
     } else {
-      setSelectedPhoneNumber(phoneNumbers[0] || null);
+      const selectedPhone = phoneNumbers[0] || contact.phone || null;
+      setSelectedPhoneNumber(selectedPhone);
       
-      // Allow device contacts - they will be handled in the form
-      onChange(contact._id);
+      // Store contact with selected phone for device contacts
+      if (contact.isDeviceContact && selectedPhone) {
+        const contactWithPhone = {
+          contactId: contact._id,
+          selectedPhone: selectedPhone,
+        };
+        onChange(JSON.stringify(contactWithPhone));
+      } else {
+        onChange(contact._id);
+      }
       setShowContactPicker(false);
       setContactSearch('');
     }
@@ -147,8 +156,14 @@ export default function ContactPicker({
   const handlePhoneSelect = useCallback((phone, onChange) => {
     setSelectedPhoneNumber(phone);
     if (contactForPhonePicker) {
-      // Allow device contacts - they will be handled in the form
-      onChange(contactForPhonePicker._id);
+      // Store the selected phone number with the contact ID
+      // We'll encode it in a way that the form can extract both contact and phone
+      const contactWithPhone = {
+        contactId: contactForPhonePicker._id,
+        selectedPhone: phone,
+      };
+      // Store in a way that form can access - use JSON string encoding
+      onChange(JSON.stringify(contactWithPhone));
     }
     setShowPhonePicker(false);
     setShowContactPicker(false);
@@ -159,7 +174,21 @@ export default function ContactPicker({
   // Sync selectedContactData when watchedValue changes
   useEffect(() => {
     if (watchedValue && contactsList.length > 0) {
-      const contact = contactsList.find(c => c._id === watchedValue);
+      // Check if value is JSON string (contains selected phone)
+      let contactId = watchedValue;
+      try {
+        const parsed = JSON.parse(watchedValue);
+        if (parsed.contactId) {
+          contactId = parsed.contactId;
+          if (parsed.selectedPhone) {
+            setSelectedPhoneNumber(parsed.selectedPhone);
+          }
+        }
+      } catch (e) {
+        // Not JSON, use as is
+      }
+      
+      const contact = contactsList.find(c => c._id === contactId);
       if (contact) {
         setSelectedContactData(contact);
         if (contact.phone && !selectedPhoneNumber) {
