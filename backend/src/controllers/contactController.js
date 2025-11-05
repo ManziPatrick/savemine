@@ -69,23 +69,15 @@ const getContact = asyncHandler(async (req, res) => {
 const createContact = asyncHandler(async (req, res) => {
   const { name, phone, type, email, address, notes, tags, allowDuplicate } = req.body;
 
-  // Check if contact with same phone already exists for this user
-  const existingContact = await Contact.findOne({
-    userId: req.user._id,
-    phone: phone
-  });
+  // If allowDuplicate is true, skip duplicate check and always create
+  // Otherwise, check for duplicates
+  if (!allowDuplicate) {
+    const existingContact = await Contact.findOne({
+      userId: req.user._id,
+      phone: phone
+    });
 
-  // If duplicate exists and allowDuplicate is not true, return error
-  // Otherwise, if allowDuplicate is true, return the existing contact
-  if (existingContact) {
-    if (allowDuplicate) {
-      // Return existing contact instead of creating duplicate
-      return res.status(200).json({
-        success: true,
-        message: 'Contact already exists, using existing contact',
-        data: { contact: existingContact }
-      });
-    } else {
+    if (existingContact) {
       return res.status(400).json({
         success: false,
         message: 'Contact with this phone number already exists'
@@ -104,6 +96,8 @@ const createContact = asyncHandler(async (req, res) => {
     tags: tags || []
   };
 
+  // Always create - if unique index exists in DB, MongoDB will throw error
+  // User needs to drop the unique index manually or use the script
   const contact = await Contact.create(contactData);
 
   res.status(201).json({

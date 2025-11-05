@@ -78,8 +78,8 @@ const contactSchema = new mongoose.Schema({
   }
 });
 
-// Compound index for user and phone uniqueness
-contactSchema.index({ userId: 1, phone: 1 }, { unique: true });
+// Compound index for user and phone (not unique - allows duplicates)
+contactSchema.index({ userId: 1, phone: 1 });
 
 // Index for performance
 contactSchema.index({ userId: 1, type: 1 });
