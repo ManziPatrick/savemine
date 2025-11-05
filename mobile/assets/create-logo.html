@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartMoney Logo Generator</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 20px;
+            cursor: pointer;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            background: #059669;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        .instructions {
+            max-width: 600px;
+            margin: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SmartMoney Logo Generator</h1>
+    <div class="instructions">
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Right-click on each canvas below</li>
+            <li>Select "Save image as..."</li>
+            <li>Save with the correct filename</li>
+        </ol>
+    </div>
+
+    <h2>1. Icon (icon.png) - 1024x1024</h2>
+    <canvas id="icon" width="1024" height="1024"></canvas>
+    <button onclick="downloadCanvas('icon', 'icon.png')">Download Icon</button>
+
+    <h2>2. Adaptive Icon (adaptive-icon.png) - 1024x1024</h2>
+    <canvas id="adaptive" width="1024" height="1024"></canvas>
+    <button onclick="downloadCanvas('adaptive', 'adaptive-icon.png')">Download Adaptive Icon</button>
+
+    <h2>3. Splash Screen (splash.png) - 1242x2436</h2>
+    <canvas id="splash" width="1242" height="2436"></canvas>
+    <button onclick="downloadCanvas('splash', 'splash.png')">Download Splash</button>
+
+    <script>
+        const green = '#059669';
+        const white = '#ffffff';
+
+        function drawLogo(canvasId, width, height, isSplash = false) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = width;
+            canvas.height = height;
+
+            // Fill background
+            ctx.fillStyle = green;
+            ctx.fillRect(0, 0, width, height);
+
+            // Set text properties
+            ctx.fillStyle = white;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            if (isSplash) {
+                // Splash screen: Large SM centered
+                ctx.font = `bold ${width * 0.2}px Arial`;
+                ctx.fillText('SM', width / 2, height / 2);
+            } else {
+                // Icon: S on top, M on bottom
+                ctx.font = `bold ${width * 0.35}px Arial`;
+                ctx.fillText('S', width / 2, height * 0.35);
+                
+                ctx.font = `bold ${width * 0.30}px Arial`;
+                ctx.fillText('M', width / 2, height * 0.70);
+            }
+        }
+
+        function downloadCanvas(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Draw all logos
+        drawLogo('icon', 1024, 1024);
+        drawLogo('adaptive', 1024, 1024);
+        drawLogo('splash', 1242, 2436, true);
+    </script>
+</body>
+</html>
+

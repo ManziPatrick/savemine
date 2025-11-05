@@ -1,0 +1,26 @@
+﻿# Logo Creation Guide
+
+## Create these PNG files:
+
+### 1. icon.png (1024x1024)
+- Green background (#059669)
+- Large white 'S' (top)
+- Large white 'M' (bottom)
+- Simple, clean design
+
+### 2. adaptive-icon.png (1024x1024)
+- Same as icon.png
+- Foreground: S&M letters
+- Background: #059669
+
+### 3. splash.png (1242x2436)
+- Green background (#059669)
+- Centered: Large 'SM' logo
+- Clean, professional
+
+## Quick Creation Tips:
+- Use Canva, Figma, or any image editor
+- Keep it simple - just letters on green background
+- Export as PNG
+- Save in mobile/assets/
+

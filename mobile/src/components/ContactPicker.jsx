@@ -252,15 +252,14 @@ export default function ContactPicker({
                       setShowDeviceContacts(false);
                     }}
                   >
-                    <View style={styles.modalOverlay}>
-                      <Pressable 
-                        style={styles.modalOverlayBackdrop}
-                        onPress={() => {
-                          setShowContactPicker(false);
-                          setContactSearch('');
-                          setShowDeviceContacts(false);
-                        }}
-                      />
+                    <Pressable 
+                      style={styles.modalOverlay}
+                      onPress={() => {
+                        setShowContactPicker(false);
+                        setContactSearch('');
+                        setShowDeviceContacts(false);
+                      }}
+                    >
                       <Pressable 
                         style={styles.modalContainer}
                         onPress={(e) => e.stopPropagation()}
@@ -403,11 +402,11 @@ export default function ContactPicker({
                               windowSize={10}
                               removeClippedSubviews={true}
                             />
-                        </SafeAreaView>
+                          </SafeAreaView>
+                        </Pressable>
                       </Pressable>
-                    </View>
-                  </Modal>
-                )}
+                    </Modal>
+                  )}
 
                 {/* Phone Number Picker Modal (WhatsApp Style) */}
                 <Modal
@@ -574,13 +573,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-  },
-  modalOverlayBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   modalContainer: {
     backgroundColor: '#ffffff',
