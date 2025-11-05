@@ -14,7 +14,12 @@
       },
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_OPTIMIZE": "true"
+      },
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
       }
     },
     "production": {
@@ -23,7 +28,12 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_OPTIMIZE": "true"
+      },
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
       }
     }
   },
