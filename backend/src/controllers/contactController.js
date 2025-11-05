@@ -67,7 +67,7 @@ const getContact = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const createContact = asyncHandler(async (req, res) => {
-  const { name, phone, type, email, address, notes, tags } = req.body;
+  const { name, phone, type, email, address, notes, tags, allowDuplicate } = req.body;
 
   // Check if contact with same phone already exists for this user
   const existingContact = await Contact.findOne({
@@ -75,11 +75,22 @@ const createContact = asyncHandler(async (req, res) => {
     phone: phone
   });
 
+  // If duplicate exists and allowDuplicate is not true, return error
+  // Otherwise, if allowDuplicate is true, return the existing contact
   if (existingContact) {
-    return res.status(400).json({
-      success: false,
-      message: 'Contact with this phone number already exists'
-    });
+    if (allowDuplicate) {
+      // Return existing contact instead of creating duplicate
+      return res.status(200).json({
+        success: true,
+        message: 'Contact already exists, using existing contact',
+        data: { contact: existingContact }
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Contact with this phone number already exists'
+      });
+    }
   }
 
   const contactData = {

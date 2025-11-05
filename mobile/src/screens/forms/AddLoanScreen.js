@@ -173,7 +173,7 @@ export default function AddLoanScreen() {
           // Use existing contact
           finalContactId = existingContact._id;
         } else {
-          // Create new contact in backend
+          // Create new contact in backend - allow duplicates
           // Remove empty email if invalid
           let contactEmail = deviceContact.email;
           if (contactEmail && (!contactEmail.includes('@') || contactEmail.trim() === '')) {
@@ -184,20 +184,47 @@ export default function AddLoanScreen() {
             name: (deviceContact.name || 'Unknown Contact').trim(),
             phone: formattedPhone,
             type: 'debtor', // Default type for loans
+            allowDuplicate: true, // Allow using existing contact if duplicate
             ...(contactEmail && { email: contactEmail.trim() }),
           };
 
           console.log('Creating contact with data:', newContactData);
 
-          const createResponse = await contactsAPI.createContact(newContactData);
-          if (createResponse?.data?.data?._id) {
-            finalContactId = createResponse.data.data._id;
-            // Invalidate contacts cache
-            queryClient.invalidateQueries({ queryKey: ['contacts'] });
-          } else {
-            const errorMsg = createResponse?.data?.message || createResponse?.response?.data?.message || 'Failed to create contact';
-            Alert.alert('Error', errorMsg);
-            return;
+          try {
+            const createResponse = await contactsAPI.createContact(newContactData);
+            if (createResponse?.data?.data?._id) {
+              finalContactId = createResponse.data.data._id;
+              // Invalidate contacts cache
+              queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            } else {
+              const errorMsg = createResponse?.data?.message || createResponse?.response?.data?.message || 'Failed to create contact';
+              Alert.alert('Error', errorMsg);
+              return;
+            }
+          } catch (createError) {
+            // If duplicate error, try to find the contact again
+            if (createError?.response?.status === 400 && 
+                (createError?.response?.data?.message?.includes('already exists') || 
+                 createError?.response?.data?.message?.includes('duplicate'))) {
+              // Retry fetching contacts to get the existing one
+              const retryContactsData = await contactsAPI.getContacts({ limit: 1000 }).catch(() => ({ data: { data: [] } }));
+              const retryContacts = retryContactsData?.data?.data || [];
+              const retryExisting = retryContacts.find(c => {
+                if (!c.phone) return false;
+                const contactPhone = c.phone.replace(/\D/g, '');
+                return contactPhone === normalizedPhone;
+              });
+              
+              if (retryExisting) {
+                finalContactId = retryExisting._id;
+                queryClient.invalidateQueries({ queryKey: ['contacts'] });
+              } else {
+                Alert.alert('Error', 'Contact already exists but could not be found. Please try selecting an app contact.');
+                return;
+              }
+            } else {
+              throw createError;
+            }
           }
         }
       } catch (error) {
