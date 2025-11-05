@@ -48,6 +48,9 @@ export const AuthProvider = ({ children }) => {
         setToken(newToken);
         setUser(userData);
         api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        // Save to AsyncStorage for persistence
+        await AsyncStorage.setItem('token', newToken);
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
         return { success: true };
       }
       return { success: false, error: response.data.message };
@@ -67,6 +70,9 @@ export const AuthProvider = ({ children }) => {
         setToken(newToken);
         setUser(userData);
         api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        // Save to AsyncStorage for persistence
+        await AsyncStorage.setItem('token', newToken);
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
         return { success: true };
       }
       return { success: false, error: response.data.message };
@@ -84,8 +90,17 @@ export const AuthProvider = ({ children }) => {
       setToken(null);
       setUser(null);
       delete api.defaults.headers.common['Authorization'];
+      // Clear AsyncStorage
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
     } catch (error) {
       console.error('Logout error:', error);
+      // Clear local storage even if API call fails
+      setToken(null);
+      setUser(null);
+      delete api.defaults.headers.common['Authorization'];
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
     }
   };
 

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import { Text, Card, Button, Chip, ActivityIndicator, Divider, IconButton } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { contactsAPI } from '../../services/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { formatDate } from '../../utils/formatters';
+import { formatPhoneNumber } from '../../utils/contacts';
 
 export default function ContactDetailScreen() {
   const route = useRoute();
@@ -27,15 +28,39 @@ export default function ContactDetailScreen() {
 
   const contact = contactData?.data?.data?.contact || contactData?.data?.contact || contactData?.data;
 
+  const displayPhone = useMemo(() => {
+    return contact?.phone ? formatPhoneNumber(contact.phone) : null;
+  }, [contact?.phone]);
+
   const handleCall = () => {
     if (contact?.phone) {
-      Linking.openURL(`tel:${contact.phone}`);
+      // Clean phone number - remove all non-digit characters
+      const cleanedPhone = contact.phone.replace(/\D/g, '');
+      if (cleanedPhone) {
+        Linking.openURL(`tel:${cleanedPhone}`).catch((err) => {
+          Alert.alert('Error', 'Unable to make phone call');
+        });
+      } else {
+        Alert.alert('Error', 'Invalid phone number');
+      }
+    } else {
+      Alert.alert('Error', 'No phone number available');
     }
   };
 
   const handleSMS = () => {
     if (contact?.phone) {
-      Linking.openURL(`sms:${contact.phone}`);
+      // Clean phone number - remove all non-digit characters
+      const cleanedPhone = contact.phone.replace(/\D/g, '');
+      if (cleanedPhone) {
+        Linking.openURL(`sms:${cleanedPhone}`).catch((err) => {
+          Alert.alert('Error', 'Unable to send SMS');
+        });
+      } else {
+        Alert.alert('Error', 'Invalid phone number');
+      }
+    } else {
+      Alert.alert('Error', 'No phone number available');
     }
   };
 
@@ -145,9 +170,27 @@ export default function ContactDetailScreen() {
               {contact.phone && (
                 <View style={styles.infoRow}>
                   <Text variant="bodyMedium" style={styles.label}>Phone:</Text>
-                  <Text variant="bodyLarge" style={styles.value}>
-                    {contact.phone}
-                  </Text>
+                  <View style={styles.phoneValueContainer}>
+                    <Text variant="bodyLarge" style={styles.value}>
+                      {displayPhone || contact.phone}
+                    </Text>
+                    <View style={styles.quickActions}>
+                      <IconButton
+                        icon="phone"
+                        size={20}
+                        iconColor="#2563eb"
+                        onPress={handleCall}
+                        style={styles.quickActionButton}
+                      />
+                      <IconButton
+                        icon="message-text"
+                        size={20}
+                        iconColor="#2563eb"
+                        onPress={handleSMS}
+                        style={styles.quickActionButton}
+                      />
+                    </View>
+                  </View>
                 </View>
               )}
               {contact.email && (
@@ -325,6 +368,20 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     textAlign: 'right',
+  },
+  phoneValueContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    marginLeft: 8,
+  },
+  quickActionButton: {
+    margin: 0,
+    marginLeft: 4,
   },
   notes: {
     color: '#374151',

@@ -47,7 +47,14 @@ export default function AddContactScreen() {
     mutationFn: contactsAPI.createContact,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      Alert.alert('Success', 'Contact created successfully');
       navigation.goBack();
+    },
+    onError: (error) => {
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to create contact. Please try again.'
+      );
     },
   });
 
@@ -55,7 +62,14 @@ export default function AddContactScreen() {
     mutationFn: ({ id, data }) => contactsAPI.updateContact(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      Alert.alert('Success', 'Contact updated successfully');
       navigation.goBack();
+    },
+    onError: (error) => {
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to update contact. Please try again.'
+      );
     },
   });
 
@@ -67,7 +81,7 @@ export default function AddContactScreen() {
         createMutation.mutate(data);
       }
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to save contact');
+      Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to save contact');
     }
   };
 

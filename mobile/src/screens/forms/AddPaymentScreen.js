@@ -38,7 +38,10 @@ export default function AddPaymentScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to add payment');
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to add payment. Please try again.'
+      );
     },
   });
 

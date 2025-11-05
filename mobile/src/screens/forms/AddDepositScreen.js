@@ -28,7 +28,10 @@ export default function AddDepositScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to add deposit');
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to add deposit. Please try again.'
+      );
     },
   });
 

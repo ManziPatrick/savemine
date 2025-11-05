@@ -13,7 +13,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.smartmoney.frw"
+      "bundleIdentifier": "com.smartmoney.frw",
+      "infoPlist": {
+        "NSContactsUsageDescription": "This app needs access to your contacts to select contacts for loans and transactions."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,13 +26,20 @@
       "permissions": [
         "NOTIFICATIONS",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_CONTACTS"
       ]
     },
     "web": {
     },
     "plugins": [
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow SmartMoney to access your contacts to select contacts for loans and transactions."
+        }
+      ]
     ]
   }
 }

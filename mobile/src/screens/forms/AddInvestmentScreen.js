@@ -42,7 +42,10 @@ export default function AddInvestmentScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to add investment');
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to add investment. Please try again.'
+      );
     },
   });
 
@@ -73,7 +76,7 @@ export default function AddInvestmentScreen() {
 
       createMutation.mutate(investmentData);
     } catch (error) {
-      Alert.alert('Error', 'Failed to save investment');
+      Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to save investment');
     }
   };
 

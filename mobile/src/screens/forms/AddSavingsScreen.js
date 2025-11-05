@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { TextInput, Button, Text, HelperText, Chip, ActivityIndicator } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { savingsAPI } from '../../services/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -20,22 +20,50 @@ export default function AddSavingsScreen() {
     defaultValues: {
       name: '',
       location: 'Bank',
-      amount: '0',
+      amount: '',
       currency: 'FRW',
       targetAmount: '',
       targetDate: new Date(),
       description: '',
       notes: '',
       accountNumber: '',
-      interestRate: '0',
+      interestRate: '',
     },
   });
+
+  // Fetch saving data when editing
+  const { data: savingData, isLoading: isLoadingSaving } = useQuery({
+    queryKey: ['saving', savingId],
+    queryFn: () => savingsAPI.getSaving(savingId),
+    enabled: isEditing && !!savingId,
+  });
+
+  // Populate form fields when editing
+  useEffect(() => {
+    if (isEditing && savingData?.data?.data?.saving) {
+      const saving = savingData.data.data.saving;
+      setValue('name', saving.name || '');
+      setValue('location', saving.location || 'Bank');
+      setValue('amount', saving.amount?.toString() || '');
+      setValue('currency', saving.currency || 'FRW');
+      setValue('targetAmount', saving.targetAmount?.toString() || '');
+      setValue('targetDate', saving.targetDate ? new Date(saving.targetDate) : new Date());
+      setValue('description', saving.description || '');
+      setValue('notes', saving.notes || '');
+      setValue('accountNumber', saving.accountNumber || '');
+      setValue('interestRate', saving.interestRate?.toString() || '');
+    }
+  }, [isEditing, savingData, setValue]);
 
   const createMutation = useMutation({
     mutationFn: savingsAPI.createSavings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savings'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsStats'] });
       navigation.goBack();
+    },
+    onError: (error) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to create savings');
     },
   });
 
@@ -43,18 +71,28 @@ export default function AddSavingsScreen() {
     mutationFn: ({ id, data }) => savingsAPI.updateSavings(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savings'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsStats'] });
+      queryClient.invalidateQueries({ queryKey: ['saving', savingId] });
       navigation.goBack();
+    },
+    onError: (error) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update savings');
     },
   });
 
   const onSubmit = async (data) => {
     try {
       const savingsData = {
-        ...data,
+        name: data.name,
+        location: data.location,
         amount: parseFloat(data.amount) || 0,
-        targetAmount: data.targetAmount ? parseFloat(data.targetAmount) : undefined,
-        interestRate: parseFloat(data.interestRate) || 0,
+        currency: data.currency || 'FRW',
+        targetAmount: data.targetAmount && data.targetAmount.trim() !== '' ? parseFloat(data.targetAmount) : undefined,
+        interestRate: data.interestRate && data.interestRate.trim() !== '' ? parseFloat(data.interestRate) : 0,
         targetDate: data.targetDate.toISOString(),
+        description: data.description || '',
+        notes: data.notes || '',
+        accountNumber: data.accountNumber || '',
       };
       if (isEditing) {
         updateMutation.mutate({ id: savingId, data: savingsData });
@@ -67,6 +105,15 @@ export default function AddSavingsScreen() {
   };
 
   const locations = ['Bank', 'SACCO', 'MTN MoMo', 'Cash'];
+
+  if (isLoadingSaving) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>Loading savings...</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -320,6 +367,16 @@ const styles = StyleSheet.create({
   submitButton: {
     marginTop: 20,
     paddingVertical: 8,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#64748b',
   },
 });
 

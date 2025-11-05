@@ -183,6 +183,12 @@ export const savingsAPI = {
       headers: { Authorization: `Bearer ${token}` }
     });
   },
+  getSaving: async (id) => {
+    const token = await getAuthToken();
+    return api.get(`/savings/${id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  },
   createSavings: async (savingsData) => {
     const token = await getAuthToken();
     return api.post('/savings', savingsData, {

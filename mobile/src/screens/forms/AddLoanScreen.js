@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity } from 'react-native';
-import { TextInput, Button, Text, HelperText, SegmentedButtons, Menu, Portal, Modal } from 'react-native-paper';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable, FlatList, Modal, SafeAreaView } from 'react-native';
+import { TextInput, Button, Text, HelperText, SegmentedButtons, ActivityIndicator, Checkbox } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { loansAPI, contactsAPI } from '../../services/api';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { formatPhoneNumber, getDeviceContacts } from '../../utils/contacts';
 
 export default function AddLoanScreen() {
   const navigation = useNavigation();
@@ -19,6 +21,11 @@ export default function AddLoanScreen() {
   const [showDatePicker, setShowDatePicker] = useState({ givenDate: false, dueDate: false });
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
+  const [selectedContactData, setSelectedContactData] = useState(null); // Store selected contact info
+  const [selectedPhoneNumber, setSelectedPhoneNumber] = useState(null); // Store selected phone number
+  const [showPhonePicker, setShowPhonePicker] = useState(false);
+  const [contactForPhonePicker, setContactForPhonePicker] = useState(null);
+  const [showDeviceContacts, setShowDeviceContacts] = useState(false);
 
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
@@ -43,17 +50,162 @@ export default function AddLoanScreen() {
     queryFn: () => contactsAPI.getContacts({ limit: 1000 }),
   });
 
-  const contactsList = contactsData?.data?.data || [];
-  const filteredContacts = contactsList.filter(contact => 
-    contact.name?.toLowerCase().includes(contactSearch.toLowerCase()) ||
-    contact.phone?.includes(contactSearch)
-  );
+  const [deviceContacts, setDeviceContacts] = useState([]);
+
+  // Fetch device contacts to enrich backend contacts with all phone numbers
+  useEffect(() => {
+  const loadDeviceContacts = async () => {
+    try {
+        const deviceContactsList = await getDeviceContacts();
+        setDeviceContacts(deviceContactsList);
+    } catch (error) {
+        console.error('Error loading device contacts:', error);
+      }
+    };
+    loadDeviceContacts();
+  }, []);
+
+  const contactsList = useMemo(() => {
+    const backendContacts = contactsData?.data?.data || [];
+    
+    // Create a map of backend contacts by phone number for quick lookup
+    const backendMap = new Map();
+    backendContacts.forEach(contact => {
+      if (contact.phone) {
+        const normalizedPhone = contact.phone.replace(/\D/g, '');
+        backendMap.set(normalizedPhone, contact);
+      }
+    });
+    
+    // Merge device contacts with backend contacts
+    // First, add all backend contacts with enriched phone numbers
+    const enrichedBackendContacts = backendContacts.map(contact => {
+      const deviceContact = deviceContacts.find(dc => 
+        dc.phone && contact.phone && 
+        dc.phone.replace(/\D/g, '') === contact.phone.replace(/\D/g, '')
+      );
+      
+      if (deviceContact && deviceContact.allPhones && deviceContact.allPhones.length > 0) {
+        return {
+          ...contact,
+          allPhones: deviceContact.allPhones,
+          isDeviceContact: false,
+        };
+      }
+      
+      return {
+        ...contact,
+        allPhones: contact.phone ? [contact.phone] : [],
+        isDeviceContact: false,
+      };
+    });
+    
+    // Then add device contacts that don't exist in backend
+    const deviceOnlyContacts = deviceContacts
+      .filter(dc => {
+        if (!dc.phone) return false;
+        const normalizedPhone = dc.phone.replace(/\D/g, '');
+        return !backendMap.has(normalizedPhone);
+      })
+      .map(dc => ({
+        _id: `device_${dc.id || dc.phone}`,
+        name: dc.name,
+        phone: dc.phone,
+        allPhones: dc.allPhones || (dc.phone ? [dc.phone] : []),
+        isDeviceContact: true,
+      }));
+    
+    return [...enrichedBackendContacts, ...deviceOnlyContacts];
+  }, [contactsData, deviceContacts]);
+
+  const filteredContacts = useMemo(() => {
+    if (!contactSearch) return contactsList;
+    const searchLower = contactSearch.toLowerCase();
+    return contactsList.filter(contact => 
+      contact.name?.toLowerCase().includes(searchLower) ||
+      contact.phone?.includes(contactSearch)
+    );
+  }, [contactsList, contactSearch]);
+
+  const filteredDeviceContacts = useMemo(() => {
+    const deviceList = deviceContacts.filter(dc => dc.phone).map(dc => ({
+      _id: `device_${dc.id || dc.phone}`,
+      name: dc.name,
+      phone: dc.phone,
+      allPhones: dc.allPhones || (dc.phone ? [dc.phone] : []),
+      isDeviceContact: true,
+    }));
+    
+    if (!contactSearch) return deviceList;
+    const searchLower = contactSearch.toLowerCase();
+    return deviceList.filter(contact => 
+      contact.name?.toLowerCase().includes(searchLower) ||
+      contact.phone?.includes(contactSearch) ||
+      contact.allPhones.some(p => p.includes(contactSearch))
+    );
+  }, [deviceContacts, contactSearch]);
+
+  // Sync selectedContactData when contactId changes or contacts load
+  const contactId = watch('contactId');
+  useEffect(() => {
+    if (contactId && contactsList.length > 0) {
+      const contact = contactsList.find(c => c._id === contactId);
+      if (contact) {
+        setSelectedContactData(contact);
+        // Set default phone number if available
+        if (contact.phone && !selectedPhoneNumber) {
+          setSelectedPhoneNumber(contact.phone);
+        }
+      }
+    } else if (!contactId) {
+      setSelectedContactData(null);
+      setSelectedPhoneNumber(null);
+    }
+  }, [contactId, contactsList, selectedPhoneNumber]);
+
+  const handleContactSelect = useCallback((contact, onChange) => {
+    setSelectedContactData(contact);
+    
+    // Check if contact has multiple phone numbers
+    const phoneNumbers = contact.allPhones || (contact.phone ? [contact.phone] : []);
+    
+    if (phoneNumbers.length > 1) {
+      // Show WhatsApp-style modal for phone number selection
+      setContactForPhonePicker(contact);
+      setShowPhonePicker(true);
+    } else {
+      // Single phone number, select directly
+      setSelectedPhoneNumber(phoneNumbers[0] || null);
+      onChange(contact._id);
+      setShowContactPicker(false);
+      setContactSearch('');
+    }
+  }, []);
+
+  const handlePhoneSelect = useCallback((phone, onChange) => {
+    setSelectedPhoneNumber(phone);
+    if (contactForPhonePicker) {
+      onChange(contactForPhonePicker._id);
+    }
+    setShowPhonePicker(false);
+    setShowContactPicker(false);
+    setContactSearch('');
+    setContactForPhonePicker(null);
+  }, [contactForPhonePicker]);
 
   const createMutation = useMutation({
     mutationFn: loansAPI.createLoan,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
+      queryClient.invalidateQueries({ queryKey: ['loanStats'] });
+      Alert.alert('Success', 'Loan created successfully');
       navigation.goBack();
+    },
+    onError: (error) => {
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to create loan. Please try again.'
+      );
     },
   });
 
@@ -61,7 +213,15 @@ export default function AddLoanScreen() {
     mutationFn: ({ id, data }) => loansAPI.updateLoan(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
+      queryClient.invalidateQueries({ queryKey: ['loanStats'] });
+      Alert.alert('Success', 'Loan updated successfully');
       navigation.goBack();
+    },
+    onError: (error) => {
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to update loan. Please try again.'
+      );
     },
   });
 
@@ -125,81 +285,219 @@ export default function AddLoanScreen() {
             name="contactId"
             rules={{ required: 'Contact is required' }}
             render={({ field: { onChange, value } }) => {
-              const selectedContact = contactsList.find(c => c._id === value);
-              
               return (
-                <View>
-                  <Text variant="bodyMedium" style={styles.label}>Contact *</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowContactPicker(true)}
-                    style={styles.contactButton}
-                  >
-                    <TextInput
-                      label="Select Contact *"
-                      value={selectedContact ? `${selectedContact.name} (${selectedContact.phone})` : ''}
+                <View style={styles.contactSection}>
+                  <Text variant="titleMedium" style={styles.sectionLabel}>Contact Information *</Text>
+                  
+                  {selectedContactData ? (
+                  <Pressable
+                      onPress={() => {
+                        if (selectedContactData.allPhones && selectedContactData.allPhones.length > 1) {
+                          setContactForPhonePicker(selectedContactData);
+                          setShowPhonePicker(true);
+                        } else {
+                          setShowContactPicker(true);
+                        }
+                      }}
+                      style={styles.selectedContactCard}
+                    >
+                      <View style={styles.selectedContactContent}>
+                        <View style={styles.selectedContactAvatar}>
+                          <Text style={styles.selectedContactAvatarText}>
+                            {selectedContactData.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?'}
+                          </Text>
+                        </View>
+                        <View style={styles.selectedContactInfo}>
+                          <Text variant="titleMedium" style={styles.selectedContactName}>
+                            {selectedContactData.name}
+                            {selectedContactData.isDeviceContact && (
+                              <Text style={styles.deviceLabel}> 📱</Text>
+                            )}
+                          </Text>
+                          <Text variant="bodySmall" style={styles.selectedContactPhone}>
+                            {selectedPhoneNumber ? formatPhoneNumber(selectedPhoneNumber) : (selectedContactData.phone ? formatPhoneNumber(selectedContactData.phone) : 'No phone')}
+                          </Text>
+                          {selectedContactData.allPhones && selectedContactData.allPhones.length > 1 && (
+                            <Text variant="bodySmall" style={styles.multiplePhonesHint}>
+                              Tap to change phone number
+                            </Text>
+                          )}
+                        </View>
+                        <View style={styles.editIconContainer}>
+                          <Text style={styles.editIcon}>✏️</Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  ) : (
+                    <Button
                       mode="outlined"
-                      editable={false}
-                      right={<TextInput.Icon icon="chevron-down" />}
-                      style={styles.input}
-                      error={!!errors.contactId}
-                    />
-                  </TouchableOpacity>
-                  {errors.contactId && (
-                    <HelperText type="error">{errors.contactId.message}</HelperText>
+                      onPress={() => setShowContactPicker(true)}
+                      style={styles.contactButton}
+                      icon="account-plus"
+                    >
+                      Select Contact
+                    </Button>
                   )}
 
-                  <Modal
-                    visible={showContactPicker}
-                    onDismiss={() => setShowContactPicker(false)}
-                    contentContainerStyle={styles.modalContent}
-                  >
-                    <View style={styles.modalHeader}>
-                      <Text variant="titleLarge" style={styles.modalTitle}>Select Contact</Text>
-                      <Button onPress={() => setShowContactPicker(false)}>Close</Button>
-                    </View>
-                    <TextInput
-                      placeholder="Search contacts..."
-                      value={contactSearch}
-                      onChangeText={setContactSearch}
-                      mode="outlined"
-                      style={styles.searchInput}
-                      left={<TextInput.Icon icon="magnify" />}
-                    />
-                    <ScrollView style={styles.contactList}>
-                      {contactsLoading ? (
-                        <Text style={styles.loadingText}>Loading contacts...</Text>
-                      ) : filteredContacts.length === 0 ? (
-                        <Text style={styles.emptyText}>No contacts found</Text>
-                      ) : (
-                        filteredContacts.map((contact) => (
-                          <TouchableOpacity
-                            key={contact._id}
-                            onPress={() => {
-                              onChange(contact._id);
-                              setShowContactPicker(false);
-                              setContactSearch('');
-                            }}
-                            style={[
-                              styles.contactItem,
-                              value === contact._id && styles.selectedContactItem
-                            ]}
-                          >
-                            <View>
-                              <Text variant="titleMedium" style={styles.contactName}>
-                                {contact.name}
-                              </Text>
-                              <Text variant="bodySmall" style={styles.contactPhone}>
-                                {contact.phone}
-                              </Text>
-                            </View>
-                            {value === contact._id && (
-                              <Text style={styles.checkmark}>✓</Text>
-                            )}
-                          </TouchableOpacity>
-                        ))
+                  {errors.contactId && (
+                    <HelperText type="error" style={styles.errorHelper}>
+                      {errors.contactId.message}
+                    </HelperText>
+                  )}
+
+                  {showContactPicker && (
+                    <Modal
+                      visible={showContactPicker}
+                      animationType="slide"
+                      transparent={false}
+                      statusBarTranslucent={true}
+                      onRequestClose={() => {
+                        setShowContactPicker(false);
+                        setContactSearch('');
+                        setShowDeviceContacts(false);
+                      }}
+                    >
+                      <SafeAreaView style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                          <Text variant="headlineSmall" style={styles.modalTitle}>Select Contact</Text>
+                          <View style={styles.modalHeaderActions}>
+                            <Button 
+                              mode="text" 
+                              onPress={() => {
+                                setShowDeviceContacts(!showDeviceContacts);
+                                setContactSearch(''); // Clear search when switching
+                              }}
+                              icon={showDeviceContacts ? "account" : "phone"}
+                              textColor={showDeviceContacts ? "#64748b" : "#25D366"}
+                            >
+                              {showDeviceContacts ? 'App' : 'Device'}
+                            </Button>
+                            <Button 
+                              mode="text" 
+                              onPress={() => {
+                                setShowContactPicker(false);
+                                setContactSearch('');
+                                setShowDeviceContacts(false);
+                              }}
+                              icon="close"
+                            >
+                              Close
+                            </Button>
+                          </View>
+                        </View>
+                    
+                    <View style={styles.searchContainer}>
+                      <TextInput
+                        placeholder="Search by name or phone..."
+                        value={contactSearch}
+                        onChangeText={setContactSearch}
+                        mode="outlined"
+                        style={styles.searchInput}
+                        left={<TextInput.Icon icon="magnify" />}
+                        right={
+                          contactSearch ? (
+                            <TextInput.Icon 
+                              icon="close-circle" 
+                              onPress={() => setContactSearch('')}
+                            />
+                          ) : null
+                        }
+                      />
+                          {contactsLoading && (
+                        <View style={styles.searchLoader}>
+                          <ActivityIndicator size="small" />
+                        </View>
                       )}
-                    </ScrollView>
+                    </View>
+
+                        <FlatList
+                          data={showDeviceContacts ? filteredDeviceContacts : filteredContacts}
+                          style={styles.modalContactList}
+                          contentContainerStyle={styles.contactListContent}
+                          keyboardShouldPersistTaps="handled"
+                          showsVerticalScrollIndicator={true}
+                          keyExtractor={(item) => item._id}
+                          renderItem={({ item: contact }) => {
+                            const isSelected = value === contact._id;
+                            const initials = contact.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?';
+                            const allPhones = contact.allPhones || (contact.phone ? [contact.phone] : []);
+                            
+                            return (
+                              <Pressable
+                                onPress={() => handleContactSelect(contact, onChange)}
+                                style={({ pressed }) => [
+                                  styles.contactItem,
+                                  pressed && styles.contactItemPressed,
+                                  isSelected && styles.selectedContactItem
+                                ]}
+                              >
+                                <View style={styles.checkboxContainer}>
+                                  <Checkbox
+                                    status={isSelected ? 'checked' : 'unchecked'}
+                                    onPress={() => handleContactSelect(contact, onChange)}
+                                    color="#25D366"
+                                  />
+                                </View>
+                                <View style={[
+                                  styles.avatarContainer,
+                                  isSelected && styles.avatarContainerSelected
+                                ]}>
+                                  <Text style={styles.avatarText}>{initials}</Text>
+                                </View>
+                                <View style={styles.contactItemInfo}>
+                                  <Text variant="titleMedium" style={styles.contactName}>
+                                    {contact.name}
+                                    {contact.isDeviceContact && (
+                                      <Text style={styles.deviceLabel}> 📱</Text>
+                                    )}
+                                  </Text>
+                                  {allPhones.length > 0 && (
+                                    <View style={styles.phoneNumbersContainer}>
+                                      {allPhones.slice(0, 2).map((phone, idx) => (
+                                        <Text key={idx} variant="bodySmall" style={styles.contactPhone}>
+                                          {formatPhoneNumber(phone) || phone}
+                                        </Text>
+                                      ))}
+                                      {allPhones.length > 2 && (
+                                        <Text variant="bodySmall" style={styles.multiplePhonesIndicator}>
+                                          +{allPhones.length - 2} more
+                                        </Text>
+                                      )}
+                                    </View>
+                                  )}
+                                  {(!allPhones || allPhones.length === 0) && (
+                                    <Text variant="bodySmall" style={styles.contactPhone}>
+                                      No phone
+                                    </Text>
+                                  )}
+                                </View>
+                              </Pressable>
+                            );
+                          }}
+                          ListEmptyComponent={
+                            contactsLoading && !showDeviceContacts ? (
+                              <View style={styles.loadingContainer}>
+                                <ActivityIndicator size="large" />
+                                <Text style={styles.loadingText}>Loading contacts...</Text>
+                              </View>
+                            ) : (
+                              <View style={styles.emptyContainer}>
+                                <Icon name="account-search" size={64} color="#cbd5e1" />
+                                <Text style={styles.emptyText}>No contacts found</Text>
+                                <Text style={styles.emptySubtext}>
+                                  {contactSearch ? 'Try a different search term' : 'No contacts available'}
+                                </Text>
+                              </View>
+                            )
+                          }
+                          initialNumToRender={20}
+                          maxToRenderPerBatch={10}
+                          windowSize={10}
+                          removeClippedSubviews={true}
+                        />
+                    </SafeAreaView>
                   </Modal>
+                  )}
                 </View>
               );
             }}
@@ -398,6 +696,102 @@ export default function AddLoanScreen() {
           </Button>
         </View>
       </ScrollView>
+
+      {/* Phone Number Picker Modal (WhatsApp Style) */}
+      <Modal
+        visible={showPhonePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowPhonePicker(false);
+          setContactForPhonePicker(null);
+        }}
+      >
+        <Pressable 
+          style={styles.phonePickerOverlay}
+          onPress={() => {
+            setShowPhonePicker(false);
+            setContactForPhonePicker(null);
+          }}
+        >
+          <Pressable style={styles.phonePickerContainer} onPress={(e) => e.stopPropagation()}>
+            {contactForPhonePicker && (
+              <>
+                <View style={styles.phonePickerHeader}>
+                  <Pressable
+                    style={styles.phonePickerCloseButton}
+                    onPress={() => {
+                      setShowPhonePicker(false);
+                      setContactForPhonePicker(null);
+                    }}
+                  >
+                    <Icon name="close" size={24} color="#64748b" />
+                  </Pressable>
+                  <View style={styles.phonePickerAvatar}>
+                    <Text style={styles.phonePickerAvatarText}>
+                      {contactForPhonePicker.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?'}
+                    </Text>
+                  </View>
+                  <Text variant="titleLarge" style={styles.phonePickerName}>
+                    {contactForPhonePicker.name}
+                  </Text>
+                  <Text variant="bodyMedium" style={styles.phonePickerSubtitle}>
+                    Select a phone number
+                  </Text>
+                </View>
+                
+                <FlatList
+                  data={contactForPhonePicker.allPhones || (contactForPhonePicker.phone ? [contactForPhonePicker.phone] : [])}
+                  keyExtractor={(item, index) => `phone-${index}-${item}`}
+                  renderItem={({ item: phone }) => {
+                    const contactId = watch('contactId');
+                    return (
+                      <Pressable
+                        onPress={() => {
+                          handlePhoneSelect(phone, (id) => {
+                            if (contactForPhonePicker._id) {
+                              setValue('contactId', contactForPhonePicker._id);
+                            }
+                          });
+                        }}
+                        style={styles.phonePickerItem}
+                      >
+                        <View style={styles.phonePickerItemContent}>
+                          <Icon name="phone" size={24} color="#25D366" style={styles.phonePickerIcon} />
+                          <View style={styles.phonePickerItemInfo}>
+                            <Text variant="titleMedium" style={styles.phonePickerNumber}>
+                              {formatPhoneNumber(phone) || phone}
+                            </Text>
+                            {phone === contactForPhonePicker.phone && (
+                              <Text variant="bodySmall" style={styles.phonePickerPrimary}>
+                                Primary
+                              </Text>
+                            )}
+                          </View>
+                          {selectedPhoneNumber === phone && (
+                            <Icon name="check-circle" size={24} color="#25D366" />
+                          )}
+                        </View>
+                      </Pressable>
+                    );
+                  }}
+                />
+                
+                <Button
+                  mode="text"
+                  onPress={() => {
+                    setShowPhonePicker(false);
+                    setContactForPhonePicker(null);
+                  }}
+                  style={styles.phonePickerCancel}
+                >
+                  Cancel
+                </Button>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -451,63 +845,312 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingVertical: 8,
   },
-  contactButton: {
-    marginBottom: 16,
+  contactSection: {
+    marginBottom: 24,
   },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    margin: 20,
-    borderRadius: 10,
-    maxHeight: '80%',
+  sectionLabel: {
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#1e293b',
+  },
+  contactButton: {
+    marginBottom: 8,
+  },
+  selectedContactCard: {
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#25D366',
+    marginBottom: 8,
+  },
+  selectedContactContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectedContactAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#25D366',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  selectedContactAvatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  selectedContactInfo: {
+    flex: 1,
+  },
+  selectedContactName: {
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 4,
+    fontSize: 15,
+  },
+  selectedContactPhone: {
+    color: '#64748b',
+    fontSize: 13,
+  },
+  editIconContainer: {
+    padding: 8,
+  },
+  editIcon: {
+    fontSize: 18,
+  },
+  errorHelper: {
+    marginTop: 8,
+    fontSize: 12,
+  },
+  contactPickerContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginTop: 8,
+    marginBottom: 16,
+    maxHeight: 400,
+    overflow: 'hidden',
+  },
+  contactPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#f7fafc',
+  },
+  contactPickerTitle: {
+    fontWeight: '600',
+    fontSize: 15,
+    color: '#1a202c',
+  },
+  searchContainer: {
+    padding: 12,
+    position: 'relative',
+    backgroundColor: '#ffffff',
+  },
+  searchInput: {
+    backgroundColor: '#f7fafc',
+  },
+  searchLoader: {
+    position: 'absolute',
+    right: 24,
+    top: 24,
+  },
+  contactList: {
+    maxHeight: 300,
+  },
+  contactListContent: {
+    paddingHorizontal: 8,
+    paddingBottom: 12,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  contactItemPressed: {
+    backgroundColor: '#f5f5f5',
+  },
+  selectedContactItem: {
+    backgroundColor: '#e8f5e9',
+  },
+  checkboxContainer: {
+    marginRight: 12,
+  },
+  avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarContainerSelected: {
+    backgroundColor: '#25D366',
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  contactItemInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontWeight: '500',
+    marginBottom: 2,
+    color: '#212121',
+    fontSize: 15,
+  },
+  contactPhone: {
+    color: '#757575',
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  phoneNumbersContainer: {
+    marginTop: 2,
+  },
+  multiplePhonesIndicator: {
+    color: '#64748b',
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+  multiplePhonesHint: {
+    color: '#8b5cf6',
+    fontSize: 11,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#64748b',
+    fontSize: 14,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  emptySubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#94a3b8',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    width: '100%',
+    height: '100%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
+  modalHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   modalTitle: {
-    fontWeight: 'bold',
+    fontWeight: '600',
+    fontSize: 20,
+    color: '#1a202c',
   },
-  searchInput: {
-    marginBottom: 16,
+  modalContactList: {
+    flex: 1,
   },
-  contactList: {
-    maxHeight: 400,
+  deviceLabel: {
+    fontSize: 12,
+    marginLeft: 4,
   },
-  contactItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  phonePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  phonePickerContainer: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 20,
+  },
+  phonePickerHeader: {
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#e2e8f0',
+    position: 'relative',
   },
-  selectedContactItem: {
-    backgroundColor: '#eff6ff',
+  phonePickerCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 8,
+    zIndex: 1,
   },
-  contactName: {
-    fontWeight: '500',
+  phonePickerAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#25D366',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  phonePickerAvatarText: {
+    fontSize: 32,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  phonePickerName: {
+    fontWeight: '600',
+    color: '#1e293b',
     marginBottom: 4,
   },
-  contactPhone: {
-    color: '#6b7280',
+  phonePickerSubtitle: {
+    color: '#64748b',
+    fontSize: 14,
   },
-  checkmark: {
-    color: '#2563eb',
-    fontSize: 20,
-    fontWeight: 'bold',
+  phonePickerItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  loadingText: {
-    textAlign: 'center',
-    padding: 20,
-    color: '#6b7280',
+  phonePickerItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  emptyText: {
-    textAlign: 'center',
-    padding: 20,
-    color: '#9ca3af',
+  phonePickerIcon: {
+    marginRight: 16,
+  },
+  phonePickerItemInfo: {
+    flex: 1,
+  },
+  phonePickerNumber: {
+    fontWeight: '500',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  phonePickerPrimary: {
+    color: '#64748b',
+    fontSize: 12,
+  },
+  phonePickerCancel: {
+    marginTop: 16,
+    marginHorizontal: 16,
   },
 });
 

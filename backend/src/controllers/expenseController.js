@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const Expense = require('../models/Expense');
+const Savings = require('../models/Savings');
+const PettyCash = require('../models/PettyCash');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -66,8 +68,17 @@ const createExpense = asyncHandler(async (req, res) => {
     receipt,
     photos,
     isBusinessExpense,
-    isTaxDeductible
+    isTaxDeductible,
+    source
   } = req.body;
+
+  // Source is REQUIRED - expense must be deducted from somewhere
+  if (!source || !source.type) {
+    return res.status(400).json({
+      success: false,
+      message: 'Source is required. Please specify where the amount is reduced from (cash, savings, or petty_cash)'
+    });
+  }
 
   const expenseData = {
     userId: req.user._id,
@@ -88,10 +99,93 @@ const createExpense = asyncHandler(async (req, res) => {
     receipt: receipt || '',
     photos: photos || [],
     isBusinessExpense: isBusinessExpense || false,
-    isTaxDeductible: isTaxDeductible || false
+    isTaxDeductible: isTaxDeductible || false,
+    source: source || null
   };
 
   const expense = await Expense.create(expenseData);
+
+  // If source is specified, reduce the amount from the selected source
+  // Cash doesn't need reduction as it's not tracked
+  if (source && source.type && source.type !== 'cash' && source.sourceId && amount > 0) {
+    try {
+      if (source.type === 'savings') {
+        // Reduce amount from savings
+        const saving = await Savings.findOne({
+          _id: source.sourceId,
+          userId: req.user._id
+        });
+
+        if (!saving) {
+          await Expense.findByIdAndDelete(expense._id);
+          return res.status(404).json({
+            success: false,
+            message: 'Savings account not found'
+          });
+        }
+
+        if (amount > saving.amount) {
+          await Expense.findByIdAndDelete(expense._id);
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient funds in savings account. Available: ${saving.currency} ${saving.amount}`
+          });
+        }
+
+        await saving.withdrawAmount(amount);
+      } else if (source.type === 'petty_cash') {
+        // Reduce amount from petty cash
+        const pettyCash = await PettyCash.findOne({
+          userId: req.user._id
+        });
+
+        if (!pettyCash) {
+          await Expense.findByIdAndDelete(expense._id);
+          return res.status(404).json({
+            success: false,
+            message: 'Petty cash account not found'
+          });
+        }
+
+        if (amount > pettyCash.currentBalance) {
+          await Expense.findByIdAndDelete(expense._id);
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient funds in petty cash. Available: ${pettyCash.currency} ${pettyCash.currentBalance}`
+          });
+        }
+
+        // Record withdrawal in petty cash
+        pettyCash.currentBalance -= amount;
+        pettyCash.lastUpdated = new Date();
+        await pettyCash.save();
+
+        // Create a withdrawal transaction
+        await PettyCash.updateOne(
+          { userId: req.user._id },
+          {
+            $push: {
+              transactions: {
+                type: 'expense',
+                amount: amount,
+                description: `Expense: ${title}`,
+                referenceId: expense._id,
+                referenceType: 'expense',
+                date: new Date(),
+                createdBy: req.user._id
+              }
+            }
+          }
+        );
+      }
+    } catch (error) {
+      await Expense.findByIdAndDelete(expense._id);
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Failed to reduce amount from source'
+      });
+    }
+  }
 
   res.status(201).json({
     success: true,

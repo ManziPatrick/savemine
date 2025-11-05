@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { TextInput, Button, Text, HelperText, Chip } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { assetsAPI } from '../../services/api';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function AddAssetScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const queryClient = useQueryClient();
+  const { assetId } = route.params || {};
+  const isEditing = !!assetId;
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const { control, handleSubmit, formState: { errors } } = useForm({
+  const { control, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
       description: '',
@@ -23,10 +26,33 @@ export default function AddAssetScreen() {
       location: '',
       serialNumber: '',
       purchaseDate: new Date(),
-      depreciationRate: '0',
+      depreciationRate: '',
       notes: '',
     },
   });
+
+  const { data: assetData } = useQuery({
+    queryKey: ['asset', assetId],
+    queryFn: () => assetsAPI.getAsset(assetId),
+    enabled: isEditing && !!assetId,
+  });
+
+  useEffect(() => {
+    if (isEditing && assetData?.data?.data) {
+      const asset = assetData.data.data;
+      setValue('name', asset.name || '');
+      setValue('description', asset.description || '');
+      setValue('value', asset.value?.toString() || '');
+      setValue('currency', asset.currency || 'FRW');
+      setValue('category', asset.category || 'Electronics');
+      setValue('status', asset.status || 'owned');
+      setValue('location', asset.location || '');
+      setValue('serialNumber', asset.serialNumber || '');
+      setValue('purchaseDate', asset.purchaseDate ? new Date(asset.purchaseDate) : new Date());
+      setValue('depreciationRate', asset.depreciationRate?.toString() || '');
+      setValue('notes', asset.notes || '');
+    }
+  }, [isEditing, assetData, setValue]);
 
   const createMutation = useMutation({
     mutationFn: assetsAPI.createAsset,
@@ -37,7 +63,27 @@ export default function AddAssetScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to add asset');
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to add asset. Please try again.'
+      );
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => assetsAPI.updateAsset(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['assetStats'] });
+      queryClient.invalidateQueries({ queryKey: ['asset', assetId] });
+      Alert.alert('Success', 'Asset updated successfully');
+      navigation.goBack();
+    },
+    onError: (error) => {
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to update asset. Please try again.'
+      );
     },
   });
 
@@ -62,7 +108,11 @@ export default function AddAssetScreen() {
         notes: data.notes || '',
       };
 
-      createMutation.mutate(assetData);
+      if (isEditing) {
+        updateMutation.mutate({ id: assetId, data: assetData });
+      } else {
+        createMutation.mutate(assetData);
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to save asset');
     }
@@ -78,7 +128,9 @@ export default function AddAssetScreen() {
     >
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
-          <Text variant="headlineSmall" style={styles.title}>Add Asset</Text>
+          <Text variant="headlineSmall" style={styles.title}>
+            {isEditing ? 'Edit Asset' : 'Add Asset'}
+          </Text>
 
           <Controller
             control={control}
@@ -270,10 +322,9 @@ export default function AddAssetScreen() {
             mode="contained"
             onPress={handleSubmit(onSubmit)}
             style={styles.submitButton}
-            loading={createMutation.isPending}
-            buttonColor="#2563eb"
+            loading={createMutation.isPending || updateMutation.isPending}
           >
-            Add Asset
+            {isEditing ? 'Update Asset' : 'Add Asset'}
           </Button>
         </View>
       </ScrollView>

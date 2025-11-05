@@ -39,7 +39,10 @@ export default function AddWithdrawalScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to record withdrawal');
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to record withdrawal. Please try again.'
+      );
     },
   });
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +28,7 @@ import MoreMainScreen from '../screens/main/MoreMainScreen';
 // Detail Screens
 import LoanDetailScreen from '../screens/details/LoanDetailScreen';
 import ContactDetailScreen from '../screens/details/ContactDetailScreen';
+import AssetDetailScreen from '../screens/details/AssetDetailScreen';
 
 // Form Screens
 import AddLoanScreen from '../screens/forms/AddLoanScreen';
@@ -78,9 +80,11 @@ function MoreStack() {
 function MainTabs() {
   return (
     <Tab.Navigator
+      initialRouteName="Dashboard"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
+          const iconSize = focused ? 28 : 24; // Bigger icons
 
           if (route.name === 'Dashboard') {
             iconName = focused ? 'view-dashboard' : 'view-dashboard-outline';
@@ -98,10 +102,27 @@ function MainTabs() {
             iconName = focused ? 'menu' : 'menu';
           }
 
-          return <Icon name={iconName} size={size} color={color} />;
+          return <Icon name={iconName} size={iconSize} color={color} />;
         },
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: '#1a365d',
+        tabBarInactiveTintColor: '#718096',
+        tabBarStyle: {
+          height: 65,
+          paddingBottom: 8,
+          paddingTop: 8,
+          backgroundColor: '#ffffff',
+          borderTopWidth: 1,
+          borderTopColor: '#e2e8f0',
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
         headerShown: true,
       })}
     >
@@ -124,11 +145,18 @@ export default function AppNavigator() {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return null; // Or a loading screen
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1a365d" />
+      </View>
+    );
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{ headerShown: false }}
+      initialRouteName={isAuthenticated ? "MainTabs" : "Login"}
+    >
       {!isAuthenticated ? (
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
@@ -146,6 +174,11 @@ export default function AppNavigator() {
             name="ContactDetail" 
             component={ContactDetailScreen}
             options={{ headerShown: true, title: 'Contact Details' }}
+          />
+          <Stack.Screen 
+            name="AssetDetail" 
+            component={AssetDetailScreen}
+            options={{ headerShown: true, title: 'Asset Details' }}
           />
           <Stack.Screen 
             name="AddLoan" 
@@ -213,6 +246,11 @@ export default function AppNavigator() {
             options={{ headerShown: true, title: 'Add Asset' }}
           />
           <Stack.Screen 
+            name="EditAsset" 
+            component={AddAssetScreen}
+            options={{ headerShown: true, title: 'Edit Asset' }}
+          />
+          <Stack.Screen 
             name="AddInvestment" 
             component={AddInvestmentScreen}
             options={{ headerShown: true, title: 'Add Investment' }}
@@ -237,3 +275,12 @@ export default function AppNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+});

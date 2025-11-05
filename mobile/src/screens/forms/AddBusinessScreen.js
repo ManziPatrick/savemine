@@ -34,7 +34,10 @@ export default function AddBusinessScreen() {
       navigation.goBack();
     },
     onError: (error) => {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to add business');
+      Alert.alert(
+        'Error', 
+        error.response?.data?.message || error.message || 'Failed to add business. Please try again.'
+      );
     },
   });
 
@@ -58,7 +61,7 @@ export default function AddBusinessScreen() {
 
       createMutation.mutate(businessData);
     } catch (error) {
-      Alert.alert('Error', 'Failed to save business');
+      Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to save business');
     }
   };
 

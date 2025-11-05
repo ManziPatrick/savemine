@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { Text, Card, FAB, Searchbar, Chip, IconButton, Menu } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { savingsAPI } from '../../services/api';
@@ -23,6 +23,10 @@ export default function SavingsScreen() {
     mutationFn: savingsAPI.deleteSavings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savings'] });
+      queryClient.invalidateQueries({ queryKey: ['savingsStats'] });
+    },
+    onError: (error) => {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to delete savings');
     },
   });
 
@@ -81,7 +85,7 @@ export default function SavingsScreen() {
               />
               <Menu.Item
                 onPress={() => {
-                  navigation.navigate('EditSavings', { savingId: item._id });
+                  navigation.navigate('AddSavings', { savingId: item._id });
                   setMenuVisible({ ...menuVisible, [menuId]: false });
                 }}
                 title="Edit"
@@ -100,7 +104,7 @@ export default function SavingsScreen() {
           </View>
           <View style={styles.amountRow}>
             <Text variant="headlineMedium" style={styles.amount}>
-              {formatCurrency(item.currentBalance || 0, item.currency)}
+              {formatCurrency(item.amount || 0, item.currency)}
             </Text>
             {item.targetAmount && (
               <Text variant="bodySmall" style={styles.target}>
@@ -141,7 +145,10 @@ export default function SavingsScreen() {
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.list}
         refreshing={isLoading}
-        onRefresh={() => queryClient.invalidateQueries('savings')}
+        onRefresh={() => {
+          queryClient.invalidateQueries({ queryKey: ['savings'] });
+          queryClient.invalidateQueries({ queryKey: ['savingsStats'] });
+        }}
       />
 
       <FAB
