@@ -89,20 +89,61 @@ export default function AddLoanScreen() {
     // Check if device contact was selected (starts with "device_")
     let finalContactId = data.contactId;
     if (data.contactId.startsWith('device_')) {
-      // Find the device contact data
-      const deviceContactId = data.contactId.replace('device_', '');
-      // Try to find matching backend contact by phone number
-      const contactsData = await contactsAPI.getContacts({ limit: 1000 }).catch(() => null);
-      const allContacts = contactsData?.data?.data || [];
-      
-      // Get the selected contact from ContactPicker - we need to check if it exists
-      // For now, show error asking user to use app contacts
-      Alert.alert(
-        'Device Contact Selected',
-        'Please select a contact from your app contacts, or add this contact to your app first.',
-        [{ text: 'OK' }]
-      );
-      return;
+      try {
+        // Get device contacts to find the selected one
+        const { getDeviceContacts } = require('../../utils/contacts');
+        const deviceContacts = await getDeviceContacts();
+        const deviceId = data.contactId.replace('device_', '');
+        const deviceContact = deviceContacts.find(dc => 
+          (dc.id || dc.phone) === deviceId || dc.phone === deviceId
+        );
+
+        if (!deviceContact || !deviceContact.phone) {
+          Alert.alert('Error', 'Could not find device contact details');
+          return;
+        }
+
+        // Check if contact already exists in backend by phone number
+        const contactsData = await contactsAPI.getContacts({ limit: 1000 }).catch(() => ({ data: { data: [] } }));
+        const allContacts = contactsData?.data?.data || [];
+        const normalizedPhone = deviceContact.phone.replace(/\D/g, '');
+        
+        const existingContact = allContacts.find(c => {
+          if (!c.phone) return false;
+          const contactPhone = c.phone.replace(/\D/g, '');
+          return contactPhone === normalizedPhone;
+        });
+
+        if (existingContact) {
+          // Use existing contact
+          finalContactId = existingContact._id;
+        } else {
+          // Create new contact in backend
+          const newContactData = {
+            name: deviceContact.name || 'Unknown Contact',
+            phone: deviceContact.phone,
+            email: deviceContact.email || '',
+          };
+
+          const createResponse = await contactsAPI.createContact(newContactData);
+          if (createResponse?.data?.data?._id) {
+            finalContactId = createResponse.data.data._id;
+            // Invalidate contacts cache
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+          } else {
+            Alert.alert('Error', 'Failed to create contact. Please try again.');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error handling device contact:', error);
+        Alert.alert(
+          'Error',
+          'Failed to process device contact. Please try selecting an app contact instead.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
     }
 
     if (!selectedSourceType) {

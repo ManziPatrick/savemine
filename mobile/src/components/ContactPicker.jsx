@@ -137,41 +137,24 @@ export default function ContactPicker({
     } else {
       setSelectedPhoneNumber(phoneNumbers[0] || null);
       
-      // For device contacts, warn user if required
-      if (contact.isDeviceContact && required) {
-        Alert.alert(
-          'Device Contact Selected',
-          'Device contacts cannot be used for loans. Please select a contact from your app contacts.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      
+      // Allow device contacts - they will be handled in the form
       onChange(contact._id);
       setShowContactPicker(false);
       setContactSearch('');
     }
-  }, [required]);
+  }, []);
 
   const handlePhoneSelect = useCallback((phone, onChange) => {
     setSelectedPhoneNumber(phone);
     if (contactForPhonePicker) {
-      // For device contacts, warn user if required
-      if (contactForPhonePicker.isDeviceContact && required) {
-        Alert.alert(
-          'Device Contact Selected',
-          'Device contacts cannot be used for loans. Please select a contact from your app contacts.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
+      // Allow device contacts - they will be handled in the form
       onChange(contactForPhonePicker._id);
     }
     setShowPhonePicker(false);
     setShowContactPicker(false);
     setContactSearch('');
     setContactForPhonePicker(null);
-  }, [contactForPhonePicker, required]);
+  }, [contactForPhonePicker]);
 
   // Sync selectedContactData when watchedValue changes
   useEffect(() => {
