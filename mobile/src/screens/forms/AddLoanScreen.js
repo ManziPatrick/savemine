@@ -103,10 +103,33 @@ export default function AddLoanScreen() {
           return;
         }
 
+        // Format phone number - ensure it starts with +250 for Rwanda
+        let formattedPhone = deviceContact.phone.trim();
+        // Remove all non-digit characters except +
+        const cleaned = formattedPhone.replace(/[^\d+]/g, '');
+        
+        // If it doesn't start with +, add +250 (Rwanda country code)
+        if (!cleaned.startsWith('+')) {
+          // If it starts with 0, replace with +250
+          if (cleaned.startsWith('0')) {
+            formattedPhone = '+250' + cleaned.substring(1);
+          } else if (cleaned.length === 9) {
+            // 9 digits - assume Rwanda number
+            formattedPhone = '+250' + cleaned;
+          } else if (cleaned.length === 10) {
+            // 10 digits - assume Rwanda number without 0
+            formattedPhone = '+250' + cleaned;
+          } else {
+            formattedPhone = '+250' + cleaned;
+          }
+        } else {
+          formattedPhone = cleaned;
+        }
+
         // Check if contact already exists in backend by phone number
         const contactsData = await contactsAPI.getContacts({ limit: 1000 }).catch(() => ({ data: { data: [] } }));
         const allContacts = contactsData?.data?.data || [];
-        const normalizedPhone = deviceContact.phone.replace(/\D/g, '');
+        const normalizedPhone = formattedPhone.replace(/\D/g, '');
         
         const existingContact = allContacts.find(c => {
           if (!c.phone) return false;
@@ -119,10 +142,17 @@ export default function AddLoanScreen() {
           finalContactId = existingContact._id;
         } else {
           // Create new contact in backend
+          // Remove empty email if invalid
+          let contactEmail = deviceContact.email;
+          if (contactEmail && (!contactEmail.includes('@') || contactEmail.trim() === '')) {
+            contactEmail = undefined;
+          }
+
           const newContactData = {
-            name: deviceContact.name || 'Unknown Contact',
-            phone: deviceContact.phone,
-            email: deviceContact.email || '',
+            name: (deviceContact.name || 'Unknown Contact').trim(),
+            phone: formattedPhone,
+            type: 'debtor', // Default type for loans
+            ...(contactEmail && { email: contactEmail.trim() }),
           };
 
           const createResponse = await contactsAPI.createContact(newContactData);
@@ -131,15 +161,17 @@ export default function AddLoanScreen() {
             // Invalidate contacts cache
             queryClient.invalidateQueries({ queryKey: ['contacts'] });
           } else {
-            Alert.alert('Error', 'Failed to create contact. Please try again.');
+            const errorMsg = createResponse?.data?.message || createResponse?.response?.data?.message || 'Failed to create contact';
+            Alert.alert('Error', errorMsg);
             return;
           }
         }
       } catch (error) {
         console.error('Error handling device contact:', error);
+        const errorMsg = error?.response?.data?.message || error?.message || 'Failed to process device contact';
         Alert.alert(
           'Error',
-          'Failed to process device contact. Please try selecting an app contact instead.',
+          `${errorMsg}. Please try selecting an app contact instead.`,
           [{ text: 'OK' }]
         );
         return;
