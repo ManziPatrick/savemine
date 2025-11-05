@@ -265,6 +265,7 @@ export default function ContactPicker({
                         onPress={(e) => e.stopPropagation()}
                       >
                         <SafeAreaView style={styles.modalSafeArea}>
+                          <View style={{ flex: 1 }}>
                             <View style={styles.modalHeader}>
                               <Text variant="headlineSmall" style={styles.modalTitle}>Select Contact</Text>
                               <View style={styles.modalHeaderActions}>
@@ -402,10 +403,11 @@ export default function ContactPicker({
                               windowSize={10}
                               removeClippedSubviews={true}
                             />
-                          </SafeAreaView>
-                        </Pressable>
+                          </View>
+                        </SafeAreaView>
                       </Pressable>
-                    </Modal>
+                    </Pressable>
+                  </Modal>
                   )}
 
                 {/* Phone Number Picker Modal (WhatsApp Style) */}
