@@ -252,156 +252,160 @@ export default function ContactPicker({
                       setShowDeviceContacts(false);
                     }}
                   >
-                    <Pressable 
-                      style={styles.modalOverlay}
-                      onPress={() => {
-                        setShowContactPicker(false);
-                        setContactSearch('');
-                        setShowDeviceContacts(false);
-                      }}
-                    >
-                      <Pressable style={styles.modalContainer} onPress={(e) => e.stopPropagation()}>
+                    <View style={styles.modalOverlay}>
+                      <Pressable 
+                        style={styles.modalOverlayBackdrop}
+                        onPress={() => {
+                          setShowContactPicker(false);
+                          setContactSearch('');
+                          setShowDeviceContacts(false);
+                        }}
+                      />
+                      <Pressable 
+                        style={styles.modalContainer}
+                        onPress={(e) => e.stopPropagation()}
+                      >
                         <SafeAreaView style={styles.modalSafeArea}>
-                          <View style={styles.modalHeader}>
-                            <Text variant="headlineSmall" style={styles.modalTitle}>Select Contact</Text>
-                            <View style={styles.modalHeaderActions}>
-                              <Button 
-                                mode="text" 
-                                onPress={() => {
-                                  setShowDeviceContacts(!showDeviceContacts);
-                                  setContactSearch('');
-                                }}
-                                icon={showDeviceContacts ? "account" : "phone"}
-                                textColor={showDeviceContacts ? "#64748b" : "#25D366"}
-                              >
-                                {showDeviceContacts ? 'App' : 'Device'}
-                              </Button>
-                              <Button 
-                                mode="text" 
-                                onPress={() => {
-                                  setShowContactPicker(false);
-                                  setContactSearch('');
-                                  setShowDeviceContacts(false);
-                                }}
-                                icon="close"
-                              >
-                                Close
-                              </Button>
-                            </View>
-                          </View>
-                      
-                          <View style={styles.searchContainer}>
-                            <TextInput
-                              placeholder="Search by name or phone..."
-                              value={contactSearch}
-                              onChangeText={setContactSearch}
-                              mode="outlined"
-                              style={styles.searchInput}
-                              left={<TextInput.Icon icon="magnify" />}
-                              right={
-                                contactSearch ? (
-                                  <TextInput.Icon 
-                                    icon="close-circle" 
-                                    onPress={() => setContactSearch('')}
-                                  />
-                                ) : null
-                              }
-                            />
-                            {contactsLoading && (
-                              <View style={styles.searchLoader}>
-                                <ActivityIndicator size="small" />
-                              </View>
-                            )}
-                          </View>
-
-                          <FlatList
-                            data={showDeviceContacts ? filteredDeviceContacts : filteredContacts}
-                            style={styles.modalContactList}
-                            contentContainerStyle={styles.contactListContent}
-                            keyboardShouldPersistTaps="handled"
-                            showsVerticalScrollIndicator={true}
-                            keyExtractor={(item) => item._id}
-                            renderItem={({ item: contact }) => {
-                              const isSelected = value === contact._id;
-                              const initials = contact.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?';
-                              const allPhones = contact.allPhones || (contact.phone ? [contact.phone] : []);
-                              
-                              return (
-                                <Pressable
-                                  onPress={() => handleContactSelect(contact, onChange)}
-                                  style={({ pressed }) => [
-                                    styles.contactItem,
-                                    pressed && styles.contactItemPressed,
-                                    isSelected && styles.selectedContactItem
-                                  ]}
+                            <View style={styles.modalHeader}>
+                              <Text variant="headlineSmall" style={styles.modalTitle}>Select Contact</Text>
+                              <View style={styles.modalHeaderActions}>
+                                <Button 
+                                  mode="text" 
+                                  onPress={() => {
+                                    setShowDeviceContacts(!showDeviceContacts);
+                                    setContactSearch('');
+                                  }}
+                                  icon={showDeviceContacts ? "account" : "phone"}
+                                  textColor={showDeviceContacts ? "#64748b" : "#25D366"}
                                 >
-                                  <View style={styles.checkboxContainer}>
-                                    <Checkbox
-                                      status={isSelected ? 'checked' : 'unchecked'}
-                                      onPress={() => handleContactSelect(contact, onChange)}
-                                      color="#25D366"
+                                  {showDeviceContacts ? 'App' : 'Device'}
+                                </Button>
+                                <Button 
+                                  mode="text" 
+                                  onPress={() => {
+                                    setShowContactPicker(false);
+                                    setContactSearch('');
+                                    setShowDeviceContacts(false);
+                                  }}
+                                  icon="close"
+                                >
+                                  Close
+                                </Button>
+                              </View>
+                            </View>
+                          
+                            <View style={styles.searchContainer}>
+                              <TextInput
+                                placeholder="Search by name or phone..."
+                                value={contactSearch}
+                                onChangeText={setContactSearch}
+                                mode="outlined"
+                                style={styles.searchInput}
+                                left={<TextInput.Icon icon="magnify" />}
+                                right={
+                                  contactSearch ? (
+                                    <TextInput.Icon 
+                                      icon="close-circle" 
+                                      onPress={() => setContactSearch('')}
                                     />
-                                  </View>
-                                  <View style={[
-                                    styles.avatarContainer,
-                                    isSelected && styles.avatarContainerSelected
-                                  ]}>
-                                    <Text style={styles.avatarText}>{initials}</Text>
-                                  </View>
-                                  <View style={styles.contactItemInfo}>
-                                    <Text variant="titleMedium" style={styles.contactName}>
-                                      {contact.name}
-                                      {contact.isDeviceContact && (
-                                        <Text style={styles.deviceLabel}> 📱</Text>
-                                      )}
-                                    </Text>
-                                    {allPhones.length > 0 && (
-                                      <View style={styles.phoneNumbersContainer}>
-                                        {allPhones.slice(0, 2).map((phone, idx) => (
-                                          <Text key={idx} variant="bodySmall" style={styles.contactPhone}>
-                                            {formatPhoneNumber(phone) || phone}
-                                          </Text>
-                                        ))}
-                                        {allPhones.length > 2 && (
-                                          <Text variant="bodySmall" style={styles.multiplePhonesIndicator}>
-                                            +{allPhones.length - 2} more
-                                          </Text>
+                                  ) : null
+                                }
+                              />
+                              {contactsLoading && (
+                                <View style={styles.searchLoader}>
+                                  <ActivityIndicator size="small" />
+                                </View>
+                              )}
+                            </View>
+
+                            <FlatList
+                              data={showDeviceContacts ? filteredDeviceContacts : filteredContacts}
+                              style={styles.modalContactList}
+                              contentContainerStyle={styles.contactListContent}
+                              keyboardShouldPersistTaps="handled"
+                              showsVerticalScrollIndicator={true}
+                              keyExtractor={(item) => item._id}
+                              renderItem={({ item: contact }) => {
+                                const isSelected = value === contact._id;
+                                const initials = contact.name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '?';
+                                const allPhones = contact.allPhones || (contact.phone ? [contact.phone] : []);
+                                
+                                return (
+                                  <Pressable
+                                    onPress={() => handleContactSelect(contact, onChange)}
+                                    style={({ pressed }) => [
+                                      styles.contactItem,
+                                      pressed && styles.contactItemPressed,
+                                      isSelected && styles.selectedContactItem
+                                    ]}
+                                  >
+                                    <View style={styles.checkboxContainer}>
+                                      <Checkbox
+                                        status={isSelected ? 'checked' : 'unchecked'}
+                                        onPress={() => handleContactSelect(contact, onChange)}
+                                        color="#25D366"
+                                      />
+                                    </View>
+                                    <View style={[
+                                      styles.avatarContainer,
+                                      isSelected && styles.avatarContainerSelected
+                                    ]}>
+                                      <Text style={styles.avatarText}>{initials}</Text>
+                                    </View>
+                                    <View style={styles.contactItemInfo}>
+                                      <Text variant="titleMedium" style={styles.contactName}>
+                                        {contact.name}
+                                        {contact.isDeviceContact && (
+                                          <Text style={styles.deviceLabel}> 📱</Text>
                                         )}
-                                      </View>
-                                    )}
-                                    {(!allPhones || allPhones.length === 0) && (
-                                      <Text variant="bodySmall" style={styles.contactPhone}>
-                                        No phone
                                       </Text>
-                                    )}
+                                      {allPhones.length > 0 && (
+                                        <View style={styles.phoneNumbersContainer}>
+                                          {allPhones.slice(0, 2).map((phone, idx) => (
+                                            <Text key={idx} variant="bodySmall" style={styles.contactPhone}>
+                                              {formatPhoneNumber(phone) || phone}
+                                            </Text>
+                                          ))}
+                                          {allPhones.length > 2 && (
+                                            <Text variant="bodySmall" style={styles.multiplePhonesIndicator}>
+                                              +{allPhones.length - 2} more
+                                            </Text>
+                                          )}
+                                        </View>
+                                      )}
+                                      {(!allPhones || allPhones.length === 0) && (
+                                        <Text variant="bodySmall" style={styles.contactPhone}>
+                                          No phone
+                                        </Text>
+                                      )}
+                                    </View>
+                                  </Pressable>
+                                );
+                              }}
+                              ListEmptyComponent={
+                                contactsLoading && !showDeviceContacts ? (
+                                  <View style={styles.loadingContainer}>
+                                    <ActivityIndicator size="large" />
+                                    <Text style={styles.loadingText}>Loading contacts...</Text>
                                   </View>
-                                </Pressable>
-                              );
-                            }}
-                            ListEmptyComponent={
-                              contactsLoading && !showDeviceContacts ? (
-                                <View style={styles.loadingContainer}>
-                                  <ActivityIndicator size="large" />
-                                  <Text style={styles.loadingText}>Loading contacts...</Text>
-                                </View>
-                              ) : (
-                                <View style={styles.emptyContainer}>
-                                  <Icon name="account-search" size={64} color="#cbd5e1" />
-                                  <Text style={styles.emptyText}>No contacts found</Text>
-                                  <Text style={styles.emptySubtext}>
-                                    {contactSearch ? 'Try a different search term' : 'No contacts available'}
-                                  </Text>
-                                </View>
-                              )
-                            }
-                            initialNumToRender={20}
-                            maxToRenderPerBatch={10}
-                            windowSize={10}
-                            removeClippedSubviews={true}
-                          />
+                                ) : (
+                                  <View style={styles.emptyContainer}>
+                                    <Icon name="account-search" size={64} color="#cbd5e1" />
+                                    <Text style={styles.emptyText}>No contacts found</Text>
+                                    <Text style={styles.emptySubtext}>
+                                      {contactSearch ? 'Try a different search term' : 'No contacts available'}
+                                    </Text>
+                                  </View>
+                                )
+                              }
+                              initialNumToRender={20}
+                              maxToRenderPerBatch={10}
+                              windowSize={10}
+                              removeClippedSubviews={true}
+                            />
                         </SafeAreaView>
                       </Pressable>
-                    </Pressable>
+                    </View>
                   </Modal>
                 )}
 
@@ -570,21 +574,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    zIndex: 9999,
-    elevation: 10,
+  },
+  modalOverlayBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   modalContainer: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
     overflow: 'hidden',
     maxHeight: '90%',
+    minHeight: '60%',
     width: '100%',
-    elevation: 10,
+    elevation: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    zIndex: 10000,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
   },
   modalSafeArea: {
     flex: 1,
