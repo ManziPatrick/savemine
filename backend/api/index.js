@@ -38,8 +38,12 @@ async function connectDB() {
     };
 
     cached.promise = mongoose.connect(process.env.MONGODB_URI, opts).then((mongoose) => {
-      console.log('MongoDB Connected');
+      console.log('MongoDB Connected successfully');
       return mongoose;
+    }).catch((error) => {
+      console.error('MongoDB connection error:', error.message);
+      cached.promise = null;
+      throw error;
     });
   }
 
@@ -55,9 +59,37 @@ async function connectDB() {
 
 // Serverless function handler
 module.exports = async (req, res) => {
-  // Connect to database
-  await connectDB();
-  
-  // Handle the request
-  return app(req, res);
+  try {
+    // Check if MONGODB_URI is set
+    if (!process.env.MONGODB_URI) {
+      console.error('MONGODB_URI is not set in environment variables');
+      return res.status(500).json({
+        success: false,
+        message: 'Database configuration error. Please check environment variables.',
+        error: 'MONGODB_URI is missing'
+      });
+    }
+
+    // Connect to database
+    try {
+      await connectDB();
+    } catch (dbError) {
+      console.error('Database connection error:', dbError);
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection failed',
+        error: process.env.NODE_ENV === 'development' ? dbError.message : 'Database connection error'
+      });
+    }
+    
+    // Handle the request
+    return app(req, res);
+  } catch (error) {
+    console.error('Serverless function error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Server error'
+    });
+  }
 };
