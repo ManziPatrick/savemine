@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // IMPORTANT: Update this with your actual deployed backend URL
 // Find your backend URL after deploying to Vercel
 // Example: https://smartmoney-backend-abc123.vercel.app
-const PRODUCTION_API_URL = 'https://mysaving-1bvrra81l-regisbillys-projects.vercel.app';
+const PRODUCTION_API_URL = 'https://mysaving-8y0h0e27b-regisbillys-projects.vercel.app';
 
 // Development URL - Use your computer's IP for local testing
 const DEVELOPMENT_API_URL = 'http://192.168.234.11:5000';
