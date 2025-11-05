@@ -1,1 +1,9 @@
 .vercel
+.env
+.env.local
+.env.*.local
+node_modules
+uploads/*
+!uploads/.gitkeep
+logs/*
+!logs/.gitkeep
