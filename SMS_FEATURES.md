@@ -158,3 +158,5 @@ MISTA_SENDER_ID=your_sender_id_here
 - User sees success message even if SMS fails (non-blocking)
 - Test SMS shows clear error messages if sending fails
 
+
+

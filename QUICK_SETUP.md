@@ -70,3 +70,5 @@ The system will check all of them and use whichever one is set.
 - Ensure you have credits/balance in your Mista account
 - Verify phone number format: +250788123456
 
+
+

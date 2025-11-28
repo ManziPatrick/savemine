@@ -89,6 +89,8 @@ export default function AddLoanScreen() {
     // Check if device contact was selected (starts with "device_" or is JSON string)
     let finalContactId = data.contactId;
     let selectedPhoneNumber = null;
+    let deviceContactName = null;
+    let deviceContactPhone = null;
     
     // Check if contactId is a JSON string (contains selected phone)
     try {
@@ -158,73 +160,142 @@ export default function AddLoanScreen() {
           return;
         }
 
-        // Check if contact already exists in backend by phone number
-        const contactsData = await contactsAPI.getContacts({ limit: 1000 }).catch(() => ({ data: { data: [] } }));
-        const allContacts = contactsData?.data?.data || [];
-        const normalizedPhone = formattedPhone.replace(/\D/g, '');
+        // Store device contact information (update variables already declared above)
+        deviceContactName = (deviceContact.name || 'Unknown Contact').trim();
+        deviceContactPhone = formattedPhone;
         
-        const existingContact = allContacts.find(c => {
-          if (!c.phone) return false;
-          const contactPhone = c.phone.replace(/\D/g, '');
-          return contactPhone === normalizedPhone;
-        });
+        // Remove empty email if invalid
+        let contactEmail = deviceContact.email;
+        if (contactEmail && (!contactEmail.includes('@') || contactEmail.trim() === '')) {
+          contactEmail = undefined;
+        }
 
-        if (existingContact) {
-          // Use existing contact
-          finalContactId = existingContact._id;
-        } else {
-          // Create new contact in backend - allow duplicates
-          // Remove empty email if invalid
-          let contactEmail = deviceContact.email;
-          if (contactEmail && (!contactEmail.includes('@') || contactEmail.trim() === '')) {
-            contactEmail = undefined;
+        const newContactData = {
+          name: deviceContactName,
+          phone: deviceContactPhone,
+          type: 'debtor', // Default type for loans
+          allowDuplicate: true, // Backend will skip duplicate check
+          ...(contactEmail && { email: contactEmail.trim() }),
+        };
+
+        console.log('Creating contact with data:', newContactData);
+
+        // Try to create contact, but ALWAYS find/use existing contact if creation fails
+        try {
+          const createResponse = await contactsAPI.createContact(newContactData);
+          if (createResponse?.data?.data?._id) {
+            finalContactId = createResponse.data.data._id;
+            console.log('✅ Contact created successfully:', finalContactId);
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+          } else {
+            throw new Error('No contact ID returned');
           }
-
-          const newContactData = {
-            name: (deviceContact.name || 'Unknown Contact').trim(),
-            phone: formattedPhone,
-            type: 'debtor', // Default type for loans
-            allowDuplicate: true, // Allow using existing contact if duplicate
-            ...(contactEmail && { email: contactEmail.trim() }),
-          };
-
-          console.log('Creating contact with data:', newContactData);
-
+        } catch (createError) {
+          console.warn('⚠️ Contact creation failed (duplicate?), finding existing contact...', createError?.response?.data?.message || createError?.message);
+          
+          // ALWAYS try to find existing contact by phone - MULTIPLE attempts with different formats
+          const normalizedPhone = formattedPhone.replace(/\D/g, '');
+          let foundContact = false;
+          
+          // Try multiple search strategies
+          const searchPhones = [
+            formattedPhone, // Original formatted
+            normalizedPhone, // Just digits
+            formattedPhone.replace('+', ''), // Without +
+            formattedPhone.substring(1), // Without leading +
+          ];
+          
           try {
-            const createResponse = await contactsAPI.createContact(newContactData);
-            if (createResponse?.data?.data?._id) {
-              finalContactId = createResponse.data.data._id;
-              // Invalidate contacts cache
-              queryClient.invalidateQueries({ queryKey: ['contacts'] });
-            } else {
-              const errorMsg = createResponse?.data?.message || createResponse?.response?.data?.message || 'Failed to create contact';
-              Alert.alert('Error', errorMsg);
-              return;
-            }
-          } catch (createError) {
-            // If duplicate error, try to find the contact again
-            if (createError?.response?.status === 400 && 
-                (createError?.response?.data?.message?.includes('already exists') || 
-                 createError?.response?.data?.message?.includes('duplicate'))) {
-              // Retry fetching contacts to get the existing one
-              const retryContactsData = await contactsAPI.getContacts({ limit: 1000 }).catch(() => ({ data: { data: [] } }));
-              const retryContacts = retryContactsData?.data?.data || [];
+            // Strategy 1: Fetch ALL contacts (no limit or high limit)
+            console.log('🔍 Searching contacts (all)...');
+            const retryContactsData = await contactsAPI.getContacts({ limit: 10000 }).catch(() => ({ data: { data: [] } }));
+            const retryContacts = retryContactsData?.data?.data || [];
+            
+            // Try each phone format
+            for (const searchPhone of searchPhones) {
+              if (foundContact) break;
+              
+              const searchNormalized = searchPhone.replace(/\D/g, '');
+              
               const retryExisting = retryContacts.find(c => {
                 if (!c.phone) return false;
                 const contactPhone = c.phone.replace(/\D/g, '');
-                return contactPhone === normalizedPhone;
+                // Try exact match and also check if numbers match
+                return contactPhone === searchNormalized || 
+                       contactPhone === normalizedPhone ||
+                       contactPhone.endsWith(searchNormalized.slice(-9)) || // Last 9 digits
+                       searchNormalized.endsWith(contactPhone.slice(-9));
               });
               
               if (retryExisting) {
                 finalContactId = retryExisting._id;
+                foundContact = true;
+                console.log('✅ Found existing contact:', finalContactId, retryExisting.name, retryExisting.phone);
                 queryClient.invalidateQueries({ queryKey: ['contacts'] });
-              } else {
-                Alert.alert('Error', 'Contact already exists but could not be found. Please try selecting an app contact.');
-                return;
+                break;
               }
-            } else {
-              throw createError;
             }
+          } catch (fetchError) {
+            console.warn('⚠️ Could not fetch contacts:', fetchError);
+          }
+          
+          // Strategy 2: If still not found, try creating with minimal data
+          if (!foundContact) {
+            try {
+              console.log('⚠️ Trying to create with minimal data...');
+              const minimalContactData = {
+                name: deviceContactName,
+                phone: deviceContactPhone,
+                type: 'debtor',
+                allowDuplicate: true,
+              };
+              const minimalResponse = await contactsAPI.createContact(minimalContactData);
+              if (minimalResponse?.data?.data?._id) {
+                finalContactId = minimalResponse.data.data._id;
+                foundContact = true;
+                console.log('✅ Contact created with minimal data:', finalContactId);
+                queryClient.invalidateQueries({ queryKey: ['contacts'] });
+              }
+            } catch (minimalError) {
+              console.warn('⚠️ Minimal contact creation also failed:', minimalError?.response?.data?.message);
+              // If it's a duplicate error, the contact exists - try one more search
+              if (minimalError?.response?.status === 400 || minimalError?.response?.status === 500) {
+                console.log('🔍 Duplicate error detected, retrying search...');
+                try {
+                  const finalSearchData = await contactsAPI.getContacts({ limit: 10000 }).catch(() => ({ data: { data: [] } }));
+                  const finalSearchContacts = finalSearchData?.data?.data || [];
+                  const finalMatch = finalSearchContacts.find(c => {
+                    if (!c.phone) return false;
+                    const cPhone = c.phone.replace(/\D/g, '');
+                    return cPhone === normalizedPhone || 
+                           cPhone.endsWith(normalizedPhone.slice(-9)) ||
+                           normalizedPhone.endsWith(cPhone.slice(-9));
+                  });
+                  if (finalMatch) {
+                    finalContactId = finalMatch._id;
+                    foundContact = true;
+                    console.log('✅ Found contact in final search:', finalContactId);
+                  }
+                } catch (e) {
+                  console.warn('⚠️ Final search failed:', e);
+                }
+              }
+            }
+          }
+          
+          // If still no contact found, show warning but CONTINUE with loan creation
+          // The loan will fail at backend if contactId is required, but we tried our best
+          if (!foundContact) {
+            console.error('❌ Could not create or find contact after all attempts');
+            console.error('Search phone:', formattedPhone);
+            console.error('Normalized:', normalizedPhone);
+            Alert.alert(
+              'Warning',
+              `Could not find contact with phone: ${formattedPhone}\nContact: ${deviceContactName}\n\nWill try to proceed with loan creation...`,
+              [{ text: 'OK' }]
+            );
+            // Don't return - let it try to create loan anyway
+            // Backend will handle the validation
           }
         }
       } catch (error) {
@@ -255,6 +326,80 @@ export default function AddLoanScreen() {
       return;
     }
 
+    // If we still don't have a contactId for device contact, try one more time with extensive search
+    if (!finalContactId && deviceContactPhone) {
+      console.log('⚠️ No contactId found, trying extensive final search...');
+      try {
+        const finalContactsData = await contactsAPI.getContacts({ limit: 10000 }).catch(() => ({ data: { data: [] } }));
+        const finalContacts = finalContactsData?.data?.data || [];
+        const normalizedPhone = deviceContactPhone.replace(/\D/g, '');
+        
+        // Try multiple matching strategies
+        const finalExisting = finalContacts.find(c => {
+          if (!c.phone) return false;
+          const contactPhone = c.phone.replace(/\D/g, '');
+          // Exact match
+          if (contactPhone === normalizedPhone) return true;
+          // Last 9 digits match (Rwanda numbers)
+          if (contactPhone.length >= 9 && normalizedPhone.length >= 9) {
+            if (contactPhone.slice(-9) === normalizedPhone.slice(-9)) return true;
+          }
+          // One contains the other
+          if (contactPhone.includes(normalizedPhone.slice(-9)) || normalizedPhone.includes(contactPhone.slice(-9))) {
+            return true;
+          }
+          return false;
+        });
+        
+        if (finalExisting) {
+          finalContactId = finalExisting._id;
+          console.log('✅ Found contact in extensive final search:', finalContactId, finalExisting.name, finalExisting.phone);
+        } else {
+          console.warn('⚠️ Contact not found in final search. Phone:', deviceContactPhone, 'Normalized:', normalizedPhone);
+        }
+      } catch (e) {
+        console.warn('⚠️ Final extensive search failed:', e);
+      }
+    }
+    
+    // If still no contactId, we MUST have one for loan creation
+    // Let's try one last time to create a contact with a modified phone if needed
+    if (!finalContactId && deviceContactPhone) {
+      console.log('⚠️ Last resort: Trying to create contact with slightly modified phone...');
+      try {
+        // Try creating with a timestamp suffix to make it unique
+        const timestamp = Date.now().toString().slice(-6);
+        const modifiedPhone = deviceContactPhone + timestamp.slice(-2); // Add last 2 digits
+        
+        // Actually, let's just try the original phone again but with better error handling
+        const lastResortData = {
+          name: deviceContactName || 'Device Contact',
+          phone: deviceContactPhone,
+          type: 'debtor',
+          allowDuplicate: true,
+        };
+        
+        const lastResortResponse = await contactsAPI.createContact(lastResortData).catch(() => null);
+        if (lastResortResponse?.data?.data?._id) {
+          finalContactId = lastResortResponse.data.data._id;
+          console.log('✅ Created contact in last resort:', finalContactId);
+        }
+      } catch (e) {
+        console.warn('⚠️ Last resort contact creation failed:', e);
+      }
+    }
+    
+    // If still no contactId, show error but try to proceed
+    if (!finalContactId) {
+      console.error('❌ No contactId available after all attempts');
+      Alert.alert(
+        'Error',
+        `Could not find or create contact.\nContact: ${deviceContactName || 'Unknown'}\nPhone: ${deviceContactPhone || 'N/A'}\n\nLoan cannot be created without a contact. Please try selecting an app contact.`,
+        [{ text: 'OK' }]
+      );
+      return; // Must return here - loan requires contactId
+    }
+
     const loanData = {
       ...data,
       contactId: finalContactId,
@@ -268,6 +413,10 @@ export default function AddLoanScreen() {
       },
       givenDate: data.givenDate.toISOString(),
       dueDate: data.dueDate.toISOString(),
+      // Store device contact info in notes if available
+      ...(deviceContactName && deviceContactPhone && {
+        notes: data.notes ? `${data.notes}\n\nContact: ${deviceContactName} (${deviceContactPhone})` : `Contact: ${deviceContactName} (${deviceContactPhone})`,
+      }),
     };
 
     if (isEditing) {

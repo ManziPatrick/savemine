@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MS Logo Generator</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        canvas {
+            border: 2px solid #ccc;
+            margin: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            background: #059669;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #047857;
+        }
+        .instructions {
+            max-width: 700px;
+            margin: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #059669;
+        }
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 MS Logo Generator</h1>
+    <div class="instructions">
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Right-click on each canvas below</li>
+            <li>Select "Save image as..."</li>
+            <li>Save with the correct filename</li>
+            <li>Or click the download buttons</li>
+        </ol>
+        <p><strong>Note:</strong> Save all files to the <code>mobile/assets/</code> directory</p>
+    </div>
+
+    <div class="preview-container">
+        <div>
+            <h2>1. Icon (icon.png) - 1024x1024</h2>
+            <canvas id="icon" width="1024" height="1024"></canvas>
+            <button onclick="downloadCanvas('icon', 'icon.png')">Download Icon</button>
+        </div>
+
+        <div>
+            <h2>2. Adaptive Icon (adaptive-icon.png) - 1024x1024</h2>
+            <canvas id="adaptive" width="1024" height="1024"></canvas>
+            <button onclick="downloadCanvas('adaptive', 'adaptive-icon.png')">Download Adaptive Icon</button>
+        </div>
+
+        <div>
+            <h2>3. Splash Screen (splash.png) - 1242x2436</h2>
+            <canvas id="splash" width="1242" height="2436"></canvas>
+            <button onclick="downloadCanvas('splash', 'splash.png')">Download Splash</button>
+        </div>
+    </div>
+
+    <script>
+        const GREEN = '#059669';
+        const WHITE = '#FFFFFF';
+
+        function drawMSLogo(canvasId, width, height, isSplash = false) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = width;
+            canvas.height = height;
+
+            // Fill background
+            ctx.fillStyle = GREEN;
+            ctx.fillRect(0, 0, width, height);
+
+            // Set text properties
+            ctx.fillStyle = WHITE;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            if (isSplash) {
+                // Splash: Large MS centered
+                ctx.font = `bold ${Math.floor(width * 0.25)}px Arial`;
+                ctx.fillText('MS', width / 2, height / 2);
+            } else {
+                // Icon: M and S side by side
+                const fontSize = Math.floor(width * 0.35);
+                ctx.font = `bold ${fontSize}px Arial`;
+                
+                // Draw M on left half
+                ctx.fillText('M', width / 4, height / 2);
+                
+                // Draw S on right half
+                ctx.fillText('S', (width * 3) / 4, height / 2);
+            }
+        }
+
+        function downloadCanvas(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Draw all logos
+        drawMSLogo('icon', 1024, 1024);
+        drawMSLogo('adaptive', 1024, 1024);
+        drawMSLogo('splash', 1242, 2436, true);
+        
+        console.log('✅ MS Logo generator ready!');
+        console.log('Click download buttons or right-click canvas to save images');
+    </script>
+</body>
+</html>
+
+
+

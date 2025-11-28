@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "48588025-f181-4a01-9af3-164f670ded40"
+      }
+    },
+    "android": {
+      "package": "com.munyeshuri.smartmoneybackend"
+    }
+  }
+}
