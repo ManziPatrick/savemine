@@ -33,22 +33,20 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  mongoose.connection.close(() => {
+// Graceful shutdown (Mongoose 7+: close() returns a promise, no callback)
+const shutdown = async (signal) => {
+  console.log(`${signal} received. Shutting down gracefully...`);
+  try {
+    await mongoose.connection.close();
     console.log('MongoDB connection closed.');
-    process.exit(0);
-  });
-});
+  } catch (err) {
+    console.error('Error closing MongoDB connection:', err);
+  }
+  process.exit(0);
+};
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received. Shutting down gracefully...');
-  mongoose.connection.close(() => {
-    console.log('MongoDB connection closed.');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 const PORT = process.env.PORT || 5000;
 

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import FloatingAssistant from './FloatingAssistant';
 import { useState } from 'react';
 
 function Layout() {
@@ -23,6 +24,9 @@ function Layout() {
           </div>
         </main>
       </div>
+
+      {/* Floating AI assistant - available on every page */}
+      <FloatingAssistant />
     </div>
   );
 }

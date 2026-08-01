@@ -7,7 +7,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
  * @access  Private
  */
 const testSMS = asyncHandler(async (req, res) => {
-  const { phone, message } = req.body;
+  const { phone, message, provider } = req.body;
 
   if (!phone) {
     return res.status(400).json({
@@ -38,7 +38,21 @@ const testSMS = asyncHandler(async (req, res) => {
     // Send SMS (with error handling)
     let result;
     try {
-      result = await messageService.sendSMS(formattedPhone, message);
+      if (provider === 'pindo') {
+        // Force Pindo as the messaging method (second provider)
+        const pindoService = require('../services/pindoService');
+        if (!pindoService.configured) {
+          return res.status(500).json({
+            success: false,
+            message: 'Pindo is not configured. Set PINDO_API_TOKEN in the backend .env file.'
+          });
+        }
+        result = await pindoService.sendSMS(formattedPhone, message);
+        result.provider = 'pindo';
+      } else {
+        // Default: Mista, with automatic Pindo fallback inside the service
+        result = await messageService.sendSMS(formattedPhone, message);
+      }
       
       // Log message with userId if not already logged by service
       if (!result.logged) {
@@ -82,7 +96,8 @@ const testSMS = asyncHandler(async (req, res) => {
         message: 'SMS sent successfully',
         data: {
           phone: formattedPhone,
-          messageId: result.data?.id || result.data?.message_id || result.data?.sid,
+          provider: result.provider || 'mista',
+          messageId: result.messageId || result.data?.id || result.data?.message_id || result.data?.sid || result.data?.sms_id,
           status: 'sent',
           response: result.data
         }

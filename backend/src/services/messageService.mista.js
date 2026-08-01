@@ -24,6 +24,9 @@ class MistaMessageService {
     const maxAttempts = 3;
     let lastError = null;
 
+    // Internal bookkeeping fields must NOT leak into the provider request body
+    const { userId, reminderId, sender, ...apiOptions } = options;
+
     while (attempts < maxAttempts) {
       try {
         attempts++;
@@ -32,9 +35,9 @@ class MistaMessageService {
           this.apiUrl,
           {
             to: phone,
-            from: this.senderId,
+            from: sender || this.senderId,
             message: message,
-            ...options
+            ...apiOptions
           },
           {
             headers: {
@@ -55,11 +58,15 @@ class MistaMessageService {
           status: 'sent',
           providerResponse: response.data,
           responseTime,
-          attempts
+          attempts,
+          userId: options.userId,
+          reminderId: options.reminderId
         });
 
         return {
           success: true,
+          provider: 'mista',
+          messageId: response.data?.id || response.data?.message_id || null,
           data: response.data,
           attempts,
           responseTime
@@ -78,7 +85,9 @@ class MistaMessageService {
           providerResponse: error.response?.data || error.message,
           responseTime,
           attempts,
-          errorMessage: error.message
+          errorMessage: error.message,
+          userId: options.userId,
+          reminderId: options.reminderId
         });
 
         // If this is not the last attempt, wait with exponential backoff
@@ -89,7 +98,39 @@ class MistaMessageService {
       }
     }
 
-    // All attempts failed
+    // All Mista attempts failed - fall back to Pindo (second messaging method)
+    const pindoService = require('./pindoService');
+    if (pindoService.configured) {
+      console.warn(`Mista SMS failed after ${maxAttempts} attempts (${lastError.message}). Falling back to Pindo...`);
+      try {
+        // Pass the raw sender (undefined lets Pindo use its own default sender,
+        // e.g. PINDO_SENDER_ID=PindoTest). An explicit sender still passes through.
+        const pindoResult = await pindoService.sendSMS(phone, message, sender);
+        const responseTime = Date.now() - startTime;
+        await this.logMessage({
+          phone,
+          message,
+          channel: 'sms',
+          status: 'sent',
+          providerResponse: { provider: 'pindo', ...pindoResult.data },
+          responseTime,
+          attempts: attempts + 1,
+          userId: options.userId,
+          reminderId: options.reminderId
+        });
+        return {
+          success: true,
+          provider: 'pindo',
+          messageId: pindoResult.messageId,
+          data: pindoResult.data,
+          attempts: attempts + 1,
+          responseTime
+        };
+      } catch (pindoError) {
+        throw new Error(`Failed to send SMS (Mista: ${lastError.message}; Pindo: ${pindoError.message})`);
+      }
+    }
+
     throw new Error(`Failed to send SMS after ${maxAttempts} attempts: ${lastError.message}`);
   }
 
@@ -106,6 +147,9 @@ class MistaMessageService {
     const maxAttempts = 3;
     let lastError = null;
 
+    // Internal bookkeeping fields must NOT leak into the provider request body
+    const { userId, reminderId, sender, ...apiOptions } = options;
+
     while (attempts < maxAttempts) {
       try {
         attempts++;
@@ -114,9 +158,9 @@ class MistaMessageService {
           'https://api.mista.io/whatsapp',
           {
             to: phone,
-            from: this.senderId,
+            from: sender || this.senderId,
             message: message,
-            ...options
+            ...apiOptions
           },
           {
             headers: {

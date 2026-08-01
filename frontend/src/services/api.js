@@ -252,4 +252,11 @@ export const messagesAPI = {
   getMessageStats: () => api.get('/messages/stats'),
 };
 
+// AI Assistant API
+export const assistantAPI = {
+  chat: (message) => api.post('/assistant/chat', { message }, { timeout: 180000 }),
+  getMessages: () => api.get('/assistant/messages'),
+  clearMessages: () => api.delete('/assistant/messages'),
+};
+
 export default api;

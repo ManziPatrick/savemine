@@ -15,9 +15,11 @@ import {
   ArrowTrendingUpIcon,
   CubeIcon,
   WalletIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 
 const navigation = [
+  { name: 'AI Assistant', href: '/assistant', icon: ChatBubbleLeftRightIcon },
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Loans', href: '/loans', icon: CurrencyDollarIcon },
   { name: 'Contacts', href: '/contacts', icon: UserGroupIcon },

@@ -20,6 +20,7 @@ import Investments from './pages/Investments';
 import Projects from './pages/Projects';
 import PettyCash from './pages/PettyCash';
 import Profile from './pages/Profile';
+import Assistant from './pages/Assistant';
 import NotFound from './pages/NotFound';
 
 // Protected Route component
@@ -97,6 +98,7 @@ function App() {
           <Route path="investments" element={<Investments />} />
           <Route path="projects" element={<Projects />} />
           <Route path="petty-cash" element={<PettyCash />} />
+          <Route path="assistant" element={<Assistant />} />
           <Route path="profile" element={<Profile />} />
         </Route>
         

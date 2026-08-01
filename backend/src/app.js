@@ -23,6 +23,8 @@ const expenseRoutes = require('./routes/expenses');
 const investmentRoutes = require('./routes/investments');
 const projectRoutes = require('./routes/projects');
 const messageRoutes = require('./routes/messages');
+const documentRoutes = require('./routes/documents');
+const assistantRoutes = require('./routes/assistant');
 
 // Import middleware
 const { errorHandler, notFound } = require('./middleware/errorHandler');
@@ -210,6 +212,8 @@ app.use('/gifts', giftRoutes);
 app.use('/expenses', expenseRoutes);
 app.use('/investments', investmentRoutes);
 app.use('/projects', projectRoutes);
+app.use('/documents', documentRoutes);
+app.use('/assistant', assistantRoutes);
 app.use('/messages', messagingLimiter, require('./routes/messages'));
 
 // Apply messaging rate limiting to messaging routes
