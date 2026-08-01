@@ -11,13 +11,13 @@ Add these to your `.env` file:
 ```env
 # SMS Service (Mista API)
 SMS_API_URL=https://api.mista.io/sms
-SMS_API_TOKEN=667|K2XEOiGKnoZZxF4EFFRPJio8RmDrQYb7XfraseMi
+SMS_API_TOKEN=your_mista_api_token_here
 SMS_SENDER_NAME=SmartMoney
 ```
 
 ### API Credentials
 - **API Endpoint**: `https://api.mista.io/sms`
-- **API Token**: `667|K2XEOiGKnoZZxF4EFFRPJio8RmDrQYb7XfraseMi`
+- **API Token**: `your_mista_api_token_here`
 - **Sender Name**: `SmartMoney`
 
 ## 🚀 Features

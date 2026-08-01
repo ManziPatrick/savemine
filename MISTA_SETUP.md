@@ -69,7 +69,7 @@ npm run dev
 ```env
 # Mista SMS/WhatsApp API
 MISTA_API_URL=https://api.mista.io
-MISTA_API_KEY=667|K2XEOiGKnoZZxF4EFFRPJio8RmDrQYb7XfraseMi
+MISTA_API_KEY=your_actual_api_key_from_mista
 MISTA_SENDER_ID=SMARTMONEY
 ```
 

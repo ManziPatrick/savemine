@@ -3,11 +3,17 @@ const axios = require('axios');
 class SMSService {
   constructor() {
     // Use only the specified endpoint and token
-    this.apiUrl = 'https://api.mista.io/sms';
-    this.apiToken = '667|K2XEOiGKnoZZxF4EFFRPJio8RmDrQYb7XfraseMi';
+    const baseUrl = (process.env.SMS_API_URL || process.env.MISTA_API_URL || 'https://api.mista.io').replace(/\/+$/, '');
+    this.apiUrl = baseUrl.endsWith('/sms') ? baseUrl : `${baseUrl}/sms`;
+    this.apiToken = process.env.SMS_API_TOKEN || process.env.MISTA_API_KEY;
     this.defaultSender = process.env.SMS_SENDER_NAME || process.env.MISTA_SENDER_ID || 'FinController';
     
-    console.log('✅ SMS API configured with Mista endpoint');
+    if (!this.apiToken) {
+      console.warn('⚠️ SMS API Token not configured. SMS functionality will be disabled.');
+      console.warn('   Please set SMS_API_TOKEN or MISTA_API_KEY in your environment variables.');
+    } else {
+      console.log('✅ SMS API configured with Mista endpoint');
+    }
   }
 
   /**

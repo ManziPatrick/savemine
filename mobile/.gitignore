@@ -6,6 +6,7 @@ node_modules/
 *.p12
 *.key
 *.mobileprovision
+*.keystore
 *.orig.*
 web-build/
 npm-debug.*

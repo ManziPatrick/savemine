@@ -4,7 +4,7 @@
 A hardcoded API token was found in `backend/src/services/smsService.js` on line 6:
 
 ```javascript
-this.apiToken = process.env.SMS_API_TOKEN || '667|K2XEOiGKnoZZxF4EFFRPJio8RmDrQYb7XfraseMi';
+this.apiToken = process.env.SMS_API_TOKEN || 'your_mista_api_token_here';
 ```
 
 ## Security Risk

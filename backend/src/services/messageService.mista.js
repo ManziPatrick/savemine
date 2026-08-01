@@ -4,11 +4,17 @@ const MessageLog = require('../models/MessageLog');
 class MistaMessageService {
   constructor() {
     // Use only the specified endpoint and token
-    this.apiUrl = 'https://api.mista.io/sms';
-    this.apiKey = '667|K2XEOiGKnoZZxF4EFFRPJio8RmDrQYb7XfraseMi';
+    const baseUrl = (process.env.MISTA_API_URL || process.env.SMS_API_URL || 'https://api.mista.io').replace(/\/+$/, '');
+    this.apiUrl = baseUrl.endsWith('/sms') ? baseUrl : `${baseUrl}/sms`;
+    this.apiKey = process.env.MISTA_API_KEY || process.env.SMS_API_TOKEN;
     this.senderId = process.env.MISTA_SENDER_ID || process.env.SMS_SENDER_NAME || 'FinController';
     
-    console.log('✅ Mista API configured with SMS endpoint');
+    if (!this.apiKey) {
+      console.warn('⚠️ Mista API Key not configured. SMS functionality will be disabled.');
+      console.warn('   Please set MISTA_API_KEY or SMS_API_TOKEN in your environment variables.');
+    } else {
+      console.log('✅ Mista API configured with SMS endpoint');
+    }
   }
 
   /**
