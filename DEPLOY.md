@@ -178,6 +178,16 @@ Expected response:
 ### Frontend:
 - `VITE_API_URL`: Backend API URL (e.g., `https://your-backend.vercel.app/api`)
 
+## Production Domain: fincontroller.xyz
+
+The app is wired for **fincontroller.xyz (Vercel frontend) + savemine.onrender.com (Render backend)**:
+
+1. **Vercel**: project Settings → Domains → add `fincontroller.xyz` (and `www`), then add the DNS records Vercel gives you at your registrar (Spaceship).
+2. **Render backend env vars** (already in `env.example`): `PRODUCTION_URL=https://fincontroller.xyz`, `API_URL=https://savemine.onrender.com`, `FRONTEND_URL=https://fincontroller.xyz`, `NODE_ENV=production`.
+3. **Vercel frontend env** (optional — the code defaults to the Render backend in production): `VITE_API_URL=https://savemine.onrender.com`.
+
+See `VERCEL_DEPLOYMENT.md` → "Custom Domain: fincontroller.xyz" for full steps + verification.
+
 ## Getting Help
 
 - Check `VERCEL_DEPLOYMENT.md` for detailed documentation

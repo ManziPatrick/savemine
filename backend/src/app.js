@@ -58,6 +58,9 @@ const corsOptions = {
       process.env.FRONTEND_URL || 'http://localhost:3000',
       'http://localhost:3000',
       'http://localhost:3001',
+      // Production custom domain (fincontroller.xyz on Vercel)
+      'https://fincontroller.xyz',
+      'https://www.fincontroller.xyz',
       // Vercel preview deployments
       /^https:\/\/.*\.vercel\.app$/,
       // Vercel production

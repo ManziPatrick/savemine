@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Backend URL resolution order:
+// 1. VITE_API_URL build-time env (Vercel) — highest priority
+// 2. Production default: the Render backend (https://savemine.onrender.com)
+// 3. Local development fallback
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? 'https://savemine.onrender.com' : 'http://localhost:5000');
 
 // Create axios instance
 const api = axios.create({

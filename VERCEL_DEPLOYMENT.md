@@ -157,12 +157,59 @@ Vercel automatically deploys on:
 
 To disable auto-deployment, configure in Vercel dashboard settings.
 
-## Custom Domain
+## Custom Domain: fincontroller.xyz
 
-1. Add domain in Vercel dashboard
-2. Update DNS records as instructed
-3. Update `PRODUCTION_URL` environment variable
-4. Update CORS settings if needed
+This app is wired to run with **fincontroller.xyz (frontend on Vercel)** + **Render backend**.
 
+The code is already configured so both work together automatically:
 
+### How the pieces connect
+
+| Piece | Host | URL |
+|---|---|---|
+| Web app (frontend) | Vercel | `https://fincontroller.xyz` |
+| API (backend) | Render | `https://savemine.onrender.com` |
+| Mobile app | — | points at `https://savemine.onrender.com` |
+
+- `frontend/src/services/api.js` falls back to `https://savemine.onrender.com` in production builds even if `VITE_API_URL` is unset.
+- Backend CORS explicitly allows `https://fincontroller.xyz` and `https://www.fincontroller.xyz`.
+- Backend generates file/document links from `API_URL` or `PRODUCTION_URL`.
+
+### 1. Add the domain in Vercel
+
+1. Vercel dashboard → your frontend project → **Settings → Domains**
+2. Add `fincontroller.xyz` and `www.fincontroller.xyz`
+3. Vercel shows the required DNS records (typically an A record `76.76.21.21` and a CNAME for `www`)
+4. At your registrar (Spaceship) → DNS settings → add those records
+5. Wait for propagation (usually <1 hour, check the green ✓ in Vercel)
+
+### 2. Backend env vars (Render)
+
+In Render dashboard → your backend service → **Environment** (these are already in the repo's `env.example`):
+
+```
+PRODUCTION_URL=https://fincontroller.xyz
+API_URL=https://savemine.onrender.com
+FRONTEND_URL=https://fincontroller.xyz
+NODE_ENV=production
+```
+
+### 3. Frontend env vars (Vercel)
+
+Optional — the code now defaults to the Render backend in production:
+
+```
+VITE_API_URL=https://savemine.onrender.com
+```
+
+If you ever move the API to `api.fincontroller.xyz`, just update `VITE_API_URL`, `API_URL`, and the mobile `PRODUCTION_API_URL` in `mobile/src/config/api.js`.
+
+### 4. Verify
+
+```bash
+curl https://savemine.onrender.com/health        # backend alive
+curl -I https://fincontroller.xyz                 # frontend live
+```
+
+Open `https://fincontroller.xyz`, register, log in, and confirm the AI assistant + dashboard load.
 
