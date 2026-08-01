@@ -1184,6 +1184,38 @@ async function getFinancialReport(userId, period = 'month') {
 }
 
 /**
+ * Turn an AI-provider failure into a short, actionable message the user can
+ * act on (fix a token scope, add a key, or just retry after a rate limit).
+ */
+function describeAiFailure(err) {
+  const msg = (err && err.message) || '';
+  if (msg.includes('not configured')) {
+    return 'The AI assistant is not configured yet. Please add GROQ_API_KEY (or HUGGINGFACE_API_KEY) to the backend .env file.';
+  }
+  // The router combines both providers' errors, e.g.
+  // "Request failed with status code 429 (both providers failed: ...; ...)"
+  const bothFailed = msg.includes('both providers failed');
+  const has403 = /status code 403/.test(msg);
+  const has401 = /status code 401/.test(msg);
+  const has429 = /status code 429/.test(msg);
+  const hasTimeout = /timeout|ETIMEDOUT|ECONNABORTED/.test(msg);
+
+  if (has403) {
+    return `The AI service is blocked by a permission error (403)${bothFailed ? ' on the fallback provider' : ''}. If you use Hugging Face, open https://huggingface.co/settings/tokens and enable the "Inference Providers" scope on your token.${has429 ? ' The main provider was also rate-limited (429) - please retry in a minute.' : ''}`;
+  }
+  if (has401) {
+    return 'The AI service rejected an API key (401). Check that GROQ_API_KEY and HUGGINGFACE_API_KEY in the backend .env file are correct.';
+  }
+  if (has429) {
+    return 'The AI service is temporarily rate-limited (429). Please wait a minute and try again - I will retry automatically.';
+  }
+  if (hasTimeout) {
+    return 'The AI service took too long to respond (timeout). Please try again.';
+  }
+  return 'I ran into a problem talking to the AI service. Some actions may have already been applied.';
+}
+
+/**
  * Run the full assistant loop: send messages + tools to Groq, execute any tool
  * calls using the app's controllers, feed results back, repeat until the model
  * gives a final answer (or iteration cap is reached).
@@ -1214,9 +1246,7 @@ async function runAssistant(user, messages) {
       // the user knows what was already applied.
       console.error('Assistant AI call failed:', err.message);
       return {
-        reply: `⚠️ ${err.message.includes('not configured')
-          ? 'The AI assistant is not configured yet. Please add GROQ_API_KEY (or HUGGINGFACE_API_KEY) to the backend .env file.'
-          : 'I ran into a problem talking to the AI service. Some actions may have already been applied.'}`,
+        reply: `⚠️ ${describeAiFailure(err)}`,
         actions
       };
     }

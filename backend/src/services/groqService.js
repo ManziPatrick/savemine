@@ -62,6 +62,9 @@ async function chatCompletion({
     } catch (err) {
       const status = err.response && err.response.status;
       const groqError = err.response && err.response.data && err.response.data.error;
+      // Permanent auth/permission errors (bad key, forbidden): do not retry,
+      // fail over to the second AI provider immediately.
+      if (status === 401 || status === 403) throw err;
       // 'tool_use_failed' (400) is a transient model-generation hiccup: the
       // model emitted <function=...> instead of JSON or called a tool that is
       // not in the provided list. Retrying usually succeeds.

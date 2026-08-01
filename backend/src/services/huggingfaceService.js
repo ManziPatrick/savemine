@@ -60,6 +60,9 @@ async function chatCompletion({
       return response.data;
     } catch (err) {
       const status = err.response && err.response.status;
+      // Permanent auth/permission errors (bad key, missing Inference Providers
+      // scope): do not retry, fail over to the second AI provider immediately.
+      if (status === 401 || status === 403) throw err;
       const retryable = status === 429 || (status >= 500 && status < 600) || status === 408;
       const retryAfter = err.response && err.response.headers && parseInt(err.response.headers['retry-after'], 10);
       // If the provider asks us to wait more than a minute, don't retry -
