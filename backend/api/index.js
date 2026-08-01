@@ -32,8 +32,6 @@ async function connectDB() {
 
   if (!cached.promise) {
     const opts = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       bufferCommands: false,
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
@@ -125,6 +123,7 @@ module.exports = async (req, res) => {
         success: false,
         message: 'Application failed to load',
         error: process.env.NODE_ENV === 'development' ? loadError.message : 'Server configuration error',
+        details: loadError.message,
         hint: 'Check server logs for the module that failed to load'
       });
     }

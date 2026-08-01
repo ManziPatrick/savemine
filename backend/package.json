@@ -52,7 +52,10 @@
     "rwanda"
   ],
   "author": "SmartMoney Team",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.17.0"
+  }
 }
 
 
