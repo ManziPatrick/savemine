@@ -98,12 +98,9 @@ android {
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
     signingConfigs {
-        debug {
-            storeFile file('debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
-        }
+        // No keystore is committed to the repo. Debug builds use the standard
+        // auto-generated debug keystore (AGP creates ~/.android/debug.keystore
+        // automatically with the well-known androiddebugkey credentials).
     }
     buildTypes {
         debug {

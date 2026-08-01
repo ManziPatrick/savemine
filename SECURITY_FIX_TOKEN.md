@@ -21,8 +21,10 @@ Hardcoded tokens in source code are a critical security vulnerability because:
 - Now uses environment variables only
 
 ### 2. Updated Token Source
-- Primary: `SMS_API_TOKEN` environment variable
-- Fallback: `MISTA_API_KEY` environment variable (for consistency)
+The service accepts any of these environment variables (checked in order):
+- `SMS_API_TOKEN`
+- `MISTA_API_KEY`
+- `MISTA_API_TOKEN` (primary name documented in `env.example`)
 
 ### 3. Added Validation
 - Service now warns if token is not configured

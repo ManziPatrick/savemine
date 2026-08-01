@@ -6,7 +6,7 @@ class MistaMessageService {
     // Use only the specified endpoint and token
     const baseUrl = (process.env.MISTA_API_URL || process.env.SMS_API_URL || 'https://api.mista.io').replace(/\/+$/, '');
     this.apiUrl = baseUrl.endsWith('/sms') ? baseUrl : `${baseUrl}/sms`;
-    this.apiKey = process.env.MISTA_API_KEY || process.env.SMS_API_TOKEN;
+    this.apiKey = process.env.MISTA_API_KEY || process.env.SMS_API_TOKEN || process.env.MISTA_API_TOKEN;
     this.senderId = process.env.MISTA_SENDER_ID || process.env.SMS_SENDER_NAME || 'FinController';
     
     if (!this.apiKey) {
