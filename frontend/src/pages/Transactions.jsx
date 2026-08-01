@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, PencilIcon, TrashIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 import { transactionsAPI } from '../services/api';
+import ExportButtons from '../components/ExportButtons';
+import { buildTransactionSections } from '../utils/exportSections';
 import TransactionForm from '../components/forms/TransactionForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -72,25 +74,32 @@ function Transactions() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Transactions</h1>
           <p className="mt-1 text-sm text-gray-500">
             Track your income and expenses
           </p>
         </div>
-        <button 
-          onClick={() => setShowForm(true)}
-          className="btn btn-primary"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Add Transaction
-        </button>
+        <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+          <ExportButtons
+            filename="transactions"
+            title="Transactions Report"
+            sections={buildTransactionSections(transactions?.data?.data || [])}
+          />
+          <button 
+            onClick={() => setShowForm(true)}
+            className="btn btn-primary"
+          >
+            <PlusIcon className="h-5 w-5 mr-2" />
+            Add Transaction
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'completed', 'pending', 'cancelled'].map((status) => (
             <button
               key={status}
@@ -106,7 +115,7 @@ function Transactions() {
           ))}
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'income', 'expense'].map((type) => (
             <button
               key={type}

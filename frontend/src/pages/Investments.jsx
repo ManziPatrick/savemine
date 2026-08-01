@@ -134,12 +134,12 @@ function Investments() {
   if (error) return <div className="text-center text-red-600">Error loading investments: {error.message}</div>;
 
   const investmentsList = investments?.data?.data || investments?.data || [];
-  const stats = investmentStats?.data || {};
+  const stats = investmentStats?.data?.data || {};
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Investment Portfolio</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -148,7 +148,7 @@ function Investments() {
         </div>
         <button 
           onClick={() => setShowForm(true)}
-          className="btn btn-primary"
+          className="btn btn-primary self-start sm:self-auto"
         >
           <PlusIcon className="h-5 w-5 mr-2" />
           Add Investment
@@ -231,7 +231,7 @@ function Investments() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['', 'savings', 'stocks', 'bonds', 'real_estate', 'crypto', 'business', 'animals', 'agriculture'].map((type) => (
             <button
               key={type}
@@ -248,7 +248,7 @@ function Investments() {
           ))}
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['', 'low', 'medium', 'high', 'very_high'].map((risk) => (
             <button
               key={risk}
@@ -411,7 +411,7 @@ function Investments() {
 
               {/* Pagination */}
               {investments?.data?.pagination?.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mt-6">
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-500">
                       Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, investments?.data?.pagination?.totalItems || 0)} of {investments?.data?.pagination?.totalItems || 0} investments

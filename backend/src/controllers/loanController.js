@@ -148,7 +148,7 @@ const createLoan = asyncHandler(async (req, res) => {
           message: 'Savings account not found or not accessible'
         });
       }
-      availableBalance = sourceAccount.currentBalance;
+      availableBalance = sourceAccount.amount || 0;
       hasSufficientFunds = availableBalance >= source.amount;
       break;
       
@@ -164,8 +164,10 @@ const createLoan = asyncHandler(async (req, res) => {
           message: 'Business account not found or not accessible'
         });
       }
-      availableBalance = sourceAccount.currentBalance;
-      hasSufficientFunds = availableBalance >= source.amount;
+      // Business has no cash-balance field — balance is informational
+      // (revenue − expenses). No funds are deducted, so no gate is enforced.
+      availableBalance = (sourceAccount.totalRevenue || 0) - (sourceAccount.totalExpenses || 0);
+      hasSufficientFunds = true;
       break;
       
     case 'petty_cash':
@@ -277,17 +279,17 @@ const createLoan = asyncHandler(async (req, res) => {
   try {
     switch (source.type) {
       case 'savings':
-        await Savings.findByIdAndUpdate(source.sourceId, {
-          $inc: { currentBalance: -source.amount }
-        });
+        // Use withdrawAmount so the movement is recorded (savings trend) and
+        // the balance validator runs (amount can't go below 0).
+        await sourceAccount.withdrawAmount(source.amount, `Loan given to ${contact.name}${loanData.loanType ? ` (${loanData.loanType})` : ''}`);
         console.log(`💰 Deducted ${source.amount} from Savings: ${source.sourceName}`);
         break;
         
       case 'business':
-        await Business.findByIdAndUpdate(source.sourceId, {
-          $inc: { currentBalance: -source.amount }
-        });
-        console.log(`💰 Deducted ${source.amount} from Business: ${source.sourceName}`);
+        // Business has no cash-balance field — balance is informational
+        // (revenue − expenses). Don't mutate totalRevenue, as that would
+        // corrupt business revenue/profit stats.
+        console.log(`💰 Business source used: ${source.sourceName} - No balance deduction`);
         break;
         
       case 'petty_cash':
@@ -474,17 +476,17 @@ const addPayment = asyncHandler(async (req, res) => {
     if (loan.source && loan.source.type) {
       switch (loan.source.type) {
         case 'savings':
-          await Savings.findByIdAndUpdate(loan.source.sourceId, {
-            $inc: { currentBalance: amount }
-          });
-          console.log(`💰 Added back ${amount} to Savings: ${loan.source.sourceName}`);
+          const savingAccount = await Savings.findById(loan.source.sourceId);
+          if (savingAccount) {
+            // Use addAmount so the movement is recorded in the savings trend.
+            await savingAccount.addAmount(amount, `Loan payment received${loan.contactId?.name ? ` from ${loan.contactId.name}` : ''}`);
+            console.log(`💰 Added back ${amount} to Savings: ${loan.source.sourceName}`);
+          }
           break;
           
         case 'business':
-          await Business.findByIdAndUpdate(loan.source.sourceId, {
-            $inc: { currentBalance: amount }
-          });
-          console.log(`💰 Added back ${amount} to Business: ${loan.source.sourceName}`);
+          // Business has no cash-balance field — nothing to add back.
+          console.log(`💰 Business source: ${loan.source.sourceName} - No balance added back`);
           break;
           
         case 'petty_cash':
@@ -774,31 +776,31 @@ const getLoanSources = asyncHandler(async (req, res) => {
   };
 
   try {
-    // Get savings accounts
+    // Get savings accounts (balance lives in the `amount` field)
     const Savings = require('../models/Savings');
     const savings = await Savings.find({
       userId: userId,
       isActive: true
-    }).select('name currentBalance currency');
+    }).select('name amount currency');
     
     sources.savings = savings.map(saving => ({
       id: saving._id,
       name: saving.name,
-      balance: saving.currentBalance,
+      balance: saving.amount || 0,
       currency: saving.currency || 'FRW'
     }));
 
-    // Get business accounts
+    // Get business accounts (available balance = revenue minus expenses)
     const Business = require('../models/Business');
     const businesses = await Business.find({
       userId: userId,
       isActive: true
-    }).select('name currentBalance currency');
+    }).select('name totalRevenue totalExpenses currency');
     
     sources.business = businesses.map(business => ({
       id: business._id,
       name: business.name,
-      balance: business.currentBalance,
+      balance: (business.totalRevenue || 0) - (business.totalExpenses || 0),
       currency: business.currency || 'FRW'
     }));
 

@@ -86,7 +86,7 @@ function Reminders() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Reminders</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -95,7 +95,7 @@ function Reminders() {
         </div>
         <button 
           onClick={() => setShowForm(true)}
-          className="btn btn-primary"
+          className="btn btn-primary self-start sm:self-auto"
         >
           <PlusIcon className="h-5 w-5 mr-2" />
           Set Reminder
@@ -104,7 +104,7 @@ function Reminders() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'scheduled', 'sent', 'failed', 'cancelled'].map((status) => (
             <button
               key={status}
@@ -120,7 +120,7 @@ function Reminders() {
           ))}
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'loan', 'transaction', 'custom'].map((type) => (
             <button
               key={type}

@@ -17,6 +17,7 @@ import Gifts from './pages/Gifts';
 import Expenses from './pages/Expenses';
 import Business from './pages/Business';
 import Investments from './pages/Investments';
+import Projects from './pages/Projects';
 import PettyCash from './pages/PettyCash';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
@@ -94,6 +95,7 @@ function App() {
           <Route path="expenses" element={<Expenses />} />
           <Route path="business" element={<Business />} />
           <Route path="investments" element={<Investments />} />
+          <Route path="projects" element={<Projects />} />
           <Route path="petty-cash" element={<PettyCash />} />
           <Route path="profile" element={<Profile />} />
         </Route>

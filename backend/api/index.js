@@ -11,8 +11,11 @@ try {
   console.log('Using environment variables from Vercel');
 }
 
-// Import app after env vars are loaded
-const app = require('../src/app');
+// Safety fallbacks so the function never crashes on missing secrets
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️ JWT_SECRET is not set. Using a random ephemeral secret (all sessions reset on each cold start). Set JWT_SECRET in Vercel env vars.');
+  process.env.JWT_SECRET = require('crypto').randomBytes(32).toString('hex');
+}
 
 // Cache MongoDB connection
 let cached = global.mongoose;
@@ -58,6 +61,23 @@ async function connectDB() {
   return cached.conn;
 }
 
+// Lazy-load the Express app inside a try/catch so that a module-load
+// failure (e.g. swagger glob, missing file) returns a readable JSON
+// error instead of crashing the whole serverless function
+// (FUNCTION_INVOCATION_FAILED).
+let appPromise = null;
+function loadApp() {
+  if (!appPromise) {
+    appPromise = Promise.resolve().then(() => {
+      console.log('Loading SmartMoney app...');
+      const app = require('../src/app');
+      console.log('SmartMoney app loaded');
+      return app;
+    });
+  }
+  return appPromise;
+}
+
 // Serverless function handler
 module.exports = async (req, res) => {
   // Log for debugging
@@ -93,7 +113,22 @@ module.exports = async (req, res) => {
         hint: 'Check MongoDB Atlas connection string and network access'
       });
     }
-    
+
+    // Load the Express app (cached, lazy)
+    let app;
+    try {
+      app = await loadApp();
+    } catch (loadError) {
+      console.error('Failed to load app:', loadError);
+      console.error('Load error stack:', loadError.stack);
+      return res.status(500).json({
+        success: false,
+        message: 'Application failed to load',
+        error: process.env.NODE_ENV === 'development' ? loadError.message : 'Server configuration error',
+        hint: 'Check server logs for the module that failed to load'
+      });
+    }
+
     // Handle the request with Express app
     return app(req, res);
   } catch (error) {

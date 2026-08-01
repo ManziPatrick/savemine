@@ -12,7 +12,8 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "seed:user": "node scripts/seed-user.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -41,17 +42,6 @@
     "eslint": "^8.55.0",
     "prettier": "^3.1.0",
     "@types/jest": "^29.5.8"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/server.js"
-    ],
-    "testMatch": [
-      "**/__tests__/**/*.js",
-      "**/?(*.)+(spec|test).js"
-    ]
   },
   "keywords": [
     "financial",

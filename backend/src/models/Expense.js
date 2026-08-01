@@ -93,6 +93,27 @@ const expenseSchema = new mongoose.Schema({
     ref: 'Budget',
     required: false
   },
+  // Where the money was deducted from (cash, savings, or petty_cash)
+  source: {
+    type: {
+      type: String,
+      enum: ['cash', 'savings', 'petty_cash'],
+      default: 'cash'
+    },
+    sourceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Savings',
+      default: null
+    },
+    sourceName: {
+      type: String,
+      default: ''
+    },
+    amount: {
+      type: Number,
+      default: 0
+    }
+  },
   isActive: {
     type: Boolean,
     default: true

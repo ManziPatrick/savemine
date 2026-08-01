@@ -5,6 +5,8 @@ const {
   createBusiness,
   updateBusiness,
   deleteBusiness,
+  addMonthlyIncome,
+  addMonthlyExpense,
   getBusinessStats
 } = require('../controllers/businessController');
 const { authenticateToken } = require('../middleware/auth');
@@ -18,6 +20,9 @@ router.route('/')
   .post(createBusiness);
 
 router.route('/stats').get(getBusinessStats);
+
+router.route('/:id/income').post(addMonthlyIncome);
+router.route('/:id/expense').post(addMonthlyExpense);
 
 router.route('/:id')
   .get(getBusiness)

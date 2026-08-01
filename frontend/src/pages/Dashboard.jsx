@@ -8,7 +8,8 @@ import {
   expensesAPI,
   businessesAPI,
   investmentsAPI,
-  assetAssignmentsAPI
+  assetAssignmentsAPI,
+  projectsAPI
 } from '../services/api';
 import {
   CurrencyDollarIcon,
@@ -20,8 +21,14 @@ import {
   ChartBarIcon,
   BuildingOfficeIcon,
   CubeIcon,
+  FolderIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ProjectProfitChart from '../components/charts/ProjectProfitChart';
+import MonthlyTrendChart from '../components/charts/MonthlyTrendChart';
+import CategoryBreakdownChart from '../components/charts/CategoryBreakdownChart';
+import SavingsTrendChart from '../components/charts/SavingsTrendChart';
 import { Link } from 'react-router-dom';
 
 function Dashboard() {
@@ -76,10 +83,25 @@ function Dashboard() {
     assetAssignmentsAPI.getAssetAssignmentStats
   );
 
+  const { data: projectStats, isLoading: projectsLoading } = useQuery(
+    'projectStats',
+    projectsAPI.getProjectStats
+  );
+
+  const { data: allProjects, isLoading: allProjectsLoading } = useQuery(
+    'allProjects',
+    () => projectsAPI.getProjects({ limit: 100 })
+  );
+
+  const { data: recentTx, isLoading: recentTxLoading } = useQuery(
+    'recentTransactions',
+    () => transactionsAPI.getTransactions({ limit: 5, sortBy: 'date', sortOrder: 'desc' })
+  );
+
   const isLoading = loansLoading || dueSoonLoading || statsLoading || savingsLoading || 
     remindersLoading || giftsLoading || expensesLoading || businessLoading || 
-    investmentsLoading || assetsLoading;
- console.log(loanStats?.data?.data.overview)
+    investmentsLoading || assetsLoading || projectsLoading || recentTxLoading || allProjectsLoading;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -167,25 +189,29 @@ function Dashboard() {
       bgColor: 'bg-green-100',
       href: '/savings',
     },
+    {
+      name: 'My Projects',
+      value: projectStats?.data?.data?.overview?.totalProjects || 0,
+      amount: projectStats?.data?.data?.overview?.totalProfit || 0,
+      icon: FolderIcon,
+      color: 'text-cyan-600',
+      bgColor: 'bg-cyan-100',
+      href: '/projects',
+    },
   ];
 
-  const recentTransactions = [
-    // This would come from a separate API call for recent transactions
-    {
-      id: 1,
-      type: 'income',
-      amount: 50000,
-      description: 'Salary payment',
-      date: '2024-01-15',
-    },
-    {
-      id: 2,
-      type: 'expense',
-      amount: 15000,
-      description: 'Groceries',
-      date: '2024-01-14',
-    },
-  ];
+  // Only show modules the user actually has data in — hide empty type cards
+  const usedStats = stats.filter(
+    (stat) => Number(stat.value || 0) > 0 || Number(stat.amount || 0) > 0
+  );
+
+  const projectOverview = projectStats?.data?.data?.overview || {};
+  const projectsList = allProjects?.data?.data || allProjects?.data || [];
+  const recentTransactions = recentTx?.data?.data || recentTx?.data || [];
+  const monthlyStats = transactionStats?.data?.data?.monthlyStats || [];
+
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF', minimumFractionDigits: 0 }).format(amount || 0);
 
   return (
     <div className="space-y-6">
@@ -195,6 +221,143 @@ function Dashboard() {
         <p className="mt-1 text-sm text-gray-500">
           Welcome back! Here's what's happening with your finances.
         </p>
+      </div>
+
+      {/* My Projects Overview */}
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">My Projects</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Money spent, income and profit across all your projects
+              </p>
+            </div>
+            <Link
+              to="/projects"
+              className="text-sm font-medium text-primary-600 hover:text-primary-500"
+            >
+              Manage projects →
+            </Link>
+          </div>
+        </div>
+        <div className="card-body">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <BanknotesIcon className="h-5 w-5 text-cyan-600 mr-2" />
+                <span className="text-sm font-medium text-cyan-800">Total Money Spent</span>
+              </div>
+              <div className="mt-2 text-2xl font-bold text-cyan-900">{formatCurrency(projectOverview.totalExpenses)}</div>
+              <div className="text-sm text-cyan-700">across {projectOverview.totalProjects || 0} project{projectOverview.totalProjects === 1 ? '' : 's'}</div>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <ArrowTrendingUpIcon className="h-5 w-5 text-green-600 mr-2" />
+                <span className="text-sm font-medium text-green-800">Total Income</span>
+              </div>
+              <div className="mt-2 text-2xl font-bold text-green-900">{formatCurrency(projectOverview.totalIncome)}</div>
+              <div className="text-sm text-green-700">outcomes & revenue recorded</div>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <ChartBarIcon className="h-5 w-5 text-emerald-600 mr-2" />
+                <span className="text-sm font-medium text-emerald-800">Total Profit</span>
+              </div>
+              <div className={`mt-2 text-2xl font-bold ${(projectOverview.totalProfit || 0) >= 0 ? 'text-emerald-900' : 'text-red-700'}`}>
+                {formatCurrency(projectOverview.totalProfit)}
+              </div>
+              <div className="text-sm text-emerald-700">{projectOverview.completedProjects || 0} completed</div>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Recent projects</h4>
+            {projectsList.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {projectsList.slice(0, 5).map((project) => (
+                  <Link
+                    key={project._id}
+                    to="/projects"
+                    className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-900 truncate">📁 {project.name}</span>
+                      <span className={`text-sm font-bold ${(project.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(project.profit)}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {project.projectType && project.projectType !== 'general' ? `${project.projectType} · ` : ''}
+                      {formatCurrency(project.totalExpenses)} spent · {formatCurrency(project.totalIncome)} income
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-500">You haven't created any projects yet.</p>
+                <Link
+                  to="/projects"
+                  className="text-sm font-medium text-primary-600 hover:text-primary-500"
+                >
+                  Create a project →
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Charts: Project Profit + Monthly Trend */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-medium text-gray-900">Project Profit</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Profit or loss per project
+            </p>
+          </div>
+          <div className="card-body">
+            <ProjectProfitChart projects={projectsList} />
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-medium text-gray-900">Monthly Trend</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Income vs expenses over the last 12 months
+            </p>
+          </div>
+          <div className="card-body">
+            <MonthlyTrendChart monthlyStats={monthlyStats} />
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-medium text-gray-900">Category Breakdown</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Where your money went this month
+            </p>
+          </div>
+          <div className="card-body">
+            <CategoryBreakdownChart byCategory={expenseStats?.data?.data?.byCategory || []} />
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="text-lg font-medium text-gray-900">Savings Trend</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Deposits vs withdrawals and your savings balance
+            </p>
+          </div>
+          <div className="card-body">
+            <SavingsTrendChart monthlyTrend={savingsStats?.data?.data?.monthlyTrend || []} />
+          </div>
+        </div>
       </div>
 
       {/* Overdue Loans Alert */}
@@ -222,9 +385,21 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Stats grid */}
+      {/* Stats grid — only shows types you've actually used */}
+      {usedStats.length === 0 ? (
+        <div className="card">
+          <div className="card-body text-center py-8">
+            <p className="text-sm text-gray-500">
+              Your dashboard overview will appear here once you add your first loans, savings, expenses or projects.
+            </p>
+            <p className="mt-2 text-sm text-gray-400">
+              Use the Quick Actions below to get started.
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className="stats-grid">
-        {stats.map((stat) => (
+        {usedStats.map((stat) => (
           <Link
             key={stat.name}
             to={stat.href}
@@ -250,6 +425,7 @@ function Dashboard() {
           </Link>
         ))}
       </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Outstanding Loans */}
@@ -320,7 +496,7 @@ function Dashboard() {
             {recentTransactions.length > 0 ? (
               <div className="space-y-4">
                 {recentTransactions.map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between">
+                  <div key={transaction._id} className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className={`p-2 rounded-md ${
                         transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'
@@ -333,10 +509,10 @@ function Dashboard() {
                       </div>
                       <div className="ml-3">
                         <p className="text-sm font-medium text-gray-900">
-                          {transaction.description}
+                          {transaction.description || transaction.category}
                         </p>
                         <p className="text-sm text-gray-500">
-                          {new Date(transaction.date).toLocaleDateString()}
+                          {transaction.category} · {new Date(transaction.date).toLocaleDateString()}
                         </p>
                       </div>
                     </div>

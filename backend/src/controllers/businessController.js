@@ -166,6 +166,84 @@ const deleteBusiness = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Add monthly income to a business
+ * @route   POST /businesses/:id/income
+ * @access  Private
+ */
+const addMonthlyIncome = asyncHandler(async (req, res) => {
+  const { amount } = req.body;
+
+  if (!amount || amount <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Amount must be positive'
+    });
+  }
+
+  const business = await Business.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+    isActive: true
+  });
+
+  if (!business) {
+    return res.status(404).json({
+      success: false,
+      message: 'Business not found'
+    });
+  }
+
+  business.monthlyRevenue = (business.monthlyRevenue || 0) + Number(amount);
+  business.totalRevenue = (business.totalRevenue || 0) + Number(amount);
+  await business.save();
+
+  res.json({
+    success: true,
+    message: 'Income recorded successfully',
+    data: { business }
+  });
+});
+
+/**
+ * @desc    Add monthly expense to a business
+ * @route   POST /businesses/:id/expense
+ * @access  Private
+ */
+const addMonthlyExpense = asyncHandler(async (req, res) => {
+  const { amount } = req.body;
+
+  if (!amount || amount <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Amount must be positive'
+    });
+  }
+
+  const business = await Business.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+    isActive: true
+  });
+
+  if (!business) {
+    return res.status(404).json({
+      success: false,
+      message: 'Business not found'
+    });
+  }
+
+  business.monthlyExpenses = (business.monthlyExpenses || 0) + Number(amount);
+  business.totalExpenses = (business.totalExpenses || 0) + Number(amount);
+  await business.save();
+
+  res.json({
+    success: true,
+    message: 'Expense recorded successfully',
+    data: { business }
+  });
+});
+
+/**
  * @desc    Get business statistics
  * @route   GET /businesses/stats
  * @access  Private
@@ -185,7 +263,10 @@ const getBusinessStats = asyncHandler(async (req, res) => {
         totalRevenue: { $sum: '$totalRevenue' },
         totalExpenses: { $sum: '$totalExpenses' },
         totalProfit: { $sum: { $subtract: ['$totalRevenue', '$totalExpenses'] } },
-        totalInvestment: { $sum: '$initialInvestment' }
+        totalInvestment: { $sum: '$initialInvestment' },
+        monthlyRevenue: { $sum: '$monthlyRevenue' },
+        monthlyExpenses: { $sum: '$monthlyExpenses' },
+        monthlyProfit: { $sum: { $subtract: ['$monthlyRevenue', '$monthlyExpenses'] } }
       }
     }
   ]);
@@ -232,7 +313,10 @@ const getBusinessStats = asyncHandler(async (req, res) => {
         totalRevenue: 0,
         totalExpenses: 0,
         totalProfit: 0,
-        totalInvestment: 0
+        totalInvestment: 0,
+        monthlyRevenue: 0,
+        monthlyExpenses: 0,
+        monthlyProfit: 0
       },
       byType: typeStats,
       byStatus: statusStats
@@ -246,5 +330,7 @@ module.exports = {
   createBusiness,
   updateBusiness,
   deleteBusiness,
+  addMonthlyIncome,
+  addMonthlyExpense,
   getBusinessStats
 };

@@ -1,4 +1,5 @@
 const Savings = require('../models/Savings');
+const Expense = require('../models/Expense');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -71,11 +72,13 @@ const createSavings = asyncHandler(async (req, res) => {
     interestRate
   } = req.body;
 
+  const initialAmount = amount || 0;
+
   const savingsData = {
     userId: req.user._id,
     name,
     location,
-    amount: amount || 0,
+    amount: initialAmount,
     currency: currency || 'FRW',
     targetAmount,
     targetDate,
@@ -84,6 +87,17 @@ const createSavings = asyncHandler(async (req, res) => {
     accountNumber,
     interestRate
   };
+
+  // Seed an opening-balance movement so the savings trend has a starting point
+  if (initialAmount > 0) {
+    savingsData.movements = [{
+      type: 'deposit',
+      amount: initialAmount,
+      date: new Date(),
+      notes: 'Opening balance',
+      balanceAfter: initialAmount
+    }];
+  }
 
   const saving = await Savings.create(savingsData);
 
@@ -205,12 +219,7 @@ const addAmount = asyncHandler(async (req, res) => {
     });
   }
 
-  await saving.addAmount(amount);
-
-  if (notes) {
-    saving.notes = notes;
-    await saving.save();
-  }
+  await saving.addAmount(amount, notes || '');
 
   res.json({
     success: true,
@@ -247,11 +256,31 @@ const withdrawAmount = asyncHandler(async (req, res) => {
   }
 
   try {
-    await saving.withdrawAmount(amount);
+    await saving.withdrawAmount(amount, notes || '');
 
-    if (notes) {
-      saving.notes = notes;
-      await saving.save();
+    // Record the withdrawal as an expense too, so total spending history stays complete.
+    // Non-fatal: if the expense record fails, the withdrawal itself already succeeded.
+    try {
+      await Expense.create({
+        userId: req.user._id,
+        category: 'other',
+        title: `Withdrawal from savings: ${saving.name}`,
+        description: notes || `Withdrew ${saving.currency} ${amount} from ${saving.name}`,
+        amount,
+        currency: saving.currency,
+        expenseDate: new Date(),
+        paymentMethod: 'other',
+        isBusinessExpense: false,
+        isTaxDeductible: false,
+        source: {
+          type: 'savings',
+          sourceId: saving._id,
+          sourceName: saving.name,
+          amount
+        }
+      });
+    } catch (expenseError) {
+      console.error('Failed to record savings withdrawal expense:', expenseError.message);
     }
 
     res.json({
@@ -306,13 +335,37 @@ const getSavingsStats = asyncHandler(async (req, res) => {
     return acc;
   }, {});
 
+  // Monthly trend from movement history (deposits vs withdrawals, last 12 months)
+  const monthlyTrend = await Savings.aggregate([
+    { $match: { userId: req.user._id, isActive: true } },
+    { $unwind: '$movements' },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$movements.date' },
+          month: { $month: '$movements.date' }
+        },
+        deposits: {
+          $sum: { $cond: [{ $eq: ['$movements.type', 'deposit'] }, '$movements.amount', 0] }
+        },
+        withdrawals: {
+          $sum: { $cond: [{ $eq: ['$movements.type', 'withdrawal'] }, '$movements.amount', 0] }
+        },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { '_id.year': -1, '_id.month': -1 } },
+    { $limit: 12 }
+  ]);
+
   const overall = totalSavings[0] || { totalAmount: 0, totalTarget: 0, count: 0 };
 
   res.json({
     success: true,
     data: {
       overall,
-      locationBreakdown
+      locationBreakdown,
+      monthlyTrend
     }
   });
 });

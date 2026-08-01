@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, ArrowDownTrayIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { contactsAPI } from '../services/api';
+import ExportButtons from '../components/ExportButtons';
+import { buildContactSections } from '../utils/exportSections';
 import ContactForm from '../components/forms/ContactForm';
 import ImportContactsForm from '../components/forms/ImportContactsForm';
 import BulkSMSForm from '../components/forms/BulkSMSForm';
@@ -79,37 +81,6 @@ function Contacts() {
     setShowBulkSMS(false);
   };
 
-  const handleExport = () => {
-    const contactsList = contacts?.data?.data || contacts?.data || [];
-    if (!Array.isArray(contactsList) || !contactsList.length) {
-      toast.error('No contacts to export');
-      return;
-    }
-
-    const csvContent = [
-      ['Name', 'Phone', 'Type', 'Email', 'Address', 'Organization', 'Notes'],
-      ...contactsList.map(contact => [
-        contact.name,
-        contact.phone,
-        contact.type,
-        contact.email || '',
-        contact.address || '',
-        contact.organization || '',
-        contact.notes || ''
-      ])
-    ].map(row => row.map(field => `"${field}"`).join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `contacts_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast.success('Contacts exported successfully');
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -128,22 +99,19 @@ function Contacts() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Contacts</h1>
           <p className="mt-1 text-sm text-gray-500">
             Manage your business contacts and debtors
           </p>
         </div>
-        <div className="flex space-x-3">
-          <button 
-            onClick={handleExport}
-            className="btn btn-secondary"
-            disabled={!Array.isArray(contacts?.data?.data || contacts?.data) || !(contacts?.data?.data || contacts?.data || []).length}
-          >
-            <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
-            Export
-          </button>
+        <div className="flex flex-wrap gap-2">
+          <ExportButtons
+            filename="contacts"
+            title="Contacts Report"
+            sections={buildContactSections(contacts?.data?.data || contacts?.data || [])}
+          />
           <button 
             onClick={() => setShowImportForm(true)}
             className="btn btn-secondary"
@@ -171,7 +139,7 @@ function Contacts() {
 
       {/* Filters and Search */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'debtor', 'creditor', 'partner'].map((type) => (
             <button
               key={type}
@@ -309,7 +277,7 @@ function Contacts() {
 
               {/* Pagination */}
               {contacts?.data?.pagination?.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mt-6">
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-500">
                       Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, contacts?.data?.pagination?.totalItems || 0)} of {contacts?.data?.pagination?.totalItems || 0} contacts
@@ -332,7 +300,7 @@ function Contacts() {
                     </select>
                   </div>
 
-                  <div className="flex items-center space-x-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     <button
                       onClick={() => setCurrentPage(1)}
                       disabled={currentPage === 1}

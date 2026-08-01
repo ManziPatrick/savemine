@@ -147,14 +147,14 @@ function PettyCash() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Petty Cash</h1>
           <p className="mt-1 text-sm text-gray-500">
             Manage your petty cash account and track transactions
           </p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setShowWithdrawalForm(true)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"

@@ -1,5 +1,30 @@
 const mongoose = require('mongoose');
 
+// Movement history — records every deposit/withdrawal with a date, so trends can be built
+const movementSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['deposit', 'withdrawal'],
+    required: true
+  },
+  amount: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  date: {
+    type: Date,
+    default: Date.now
+  },
+  notes: {
+    type: String,
+    trim: true
+  },
+  balanceAfter: {
+    type: Number
+  }
+}, { _id: false });
+
 const savingsSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -63,7 +88,8 @@ const savingsSchema = new mongoose.Schema({
   lastUpdated: {
     type: Date,
     default: Date.now
-  }
+  },
+  movements: [movementSchema]
 }, {
   timestamps: true,
   toJSON: { 
@@ -104,20 +130,34 @@ savingsSchema.virtual('daysToTarget').get(function() {
   return diffDays > 0 ? diffDays : 0;
 });
 
-// Method to add amount
-savingsSchema.methods.addAmount = function(amount) {
+// Method to add amount (records a deposit movement)
+savingsSchema.methods.addAmount = function(amount, notes = '') {
   this.amount += amount;
   this.lastUpdated = new Date();
+  this.movements.push({
+    type: 'deposit',
+    amount,
+    date: new Date(),
+    notes,
+    balanceAfter: this.amount
+  });
   return this.save();
 };
 
-// Method to withdraw amount
-savingsSchema.methods.withdrawAmount = function(amount) {
+// Method to withdraw amount (records a withdrawal movement)
+savingsSchema.methods.withdrawAmount = function(amount, notes = '') {
   if (amount > this.amount) {
     throw new Error('Insufficient funds');
   }
   this.amount -= amount;
   this.lastUpdated = new Date();
+  this.movements.push({
+    type: 'withdrawal',
+    amount,
+    date: new Date(),
+    notes,
+    balanceAfter: this.amount
+  });
   return this.save();
 };
 

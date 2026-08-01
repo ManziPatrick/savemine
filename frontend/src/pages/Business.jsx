@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { PlusIcon, BuildingOfficeIcon, ChartBarIcon, ArrowTrendingUpIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, BuildingOfficeIcon, ChartBarIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { businessesAPI } from '../services/api';
 import BusinessForm from '../components/forms/BusinessForm';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -14,6 +14,12 @@ function Business() {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  const [incomeTarget, setIncomeTarget] = useState(null);
+  const [expenseTarget, setExpenseTarget] = useState(null);
+  const [incomeForm, setIncomeForm] = useState({ amount: '' });
+  const [expenseForm, setExpenseForm] = useState({ amount: '' });
+  const [savingIncome, setSavingIncome] = useState(false);
+  const [savingExpense, setSavingExpense] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: businesses, isLoading, error } = useQuery(
@@ -59,6 +65,54 @@ function Business() {
     setCurrentPage(1);
     queryClient.invalidateQueries('businesses');
     queryClient.invalidateQueries('businessStats');
+  };
+
+  const addIncomeMutation = useMutation(({ id, data }) => businessesAPI.addMonthlyIncome(id, data), {
+    onSuccess: () => {
+      queryClient.invalidateQueries('businesses');
+      queryClient.invalidateQueries('businessStats');
+      toast.success('Income recorded successfully');
+      setIncomeTarget(null);
+      setIncomeForm({ amount: '' });
+    },
+    onError: (error) => toast.error(error.response?.data?.message || 'Failed to record income')
+  });
+
+  const addExpenseMutation = useMutation(({ id, data }) => businessesAPI.addMonthlyExpense(id, data), {
+    onSuccess: () => {
+      queryClient.invalidateQueries('businesses');
+      queryClient.invalidateQueries('businessStats');
+      toast.success('Expense recorded successfully');
+      setExpenseTarget(null);
+      setExpenseForm({ amount: '' });
+    },
+    onError: (error) => toast.error(error.response?.data?.message || 'Failed to record expense')
+  });
+
+  const handleAddIncome = (e) => {
+    e.preventDefault();
+    if (!incomeForm.amount || Number(incomeForm.amount) <= 0) {
+      toast.error('Enter a positive amount');
+      return;
+    }
+    setSavingIncome(true);
+    addIncomeMutation.mutate(
+      { id: incomeTarget._id, data: { ...incomeForm, amount: parseFloat(incomeForm.amount) } },
+      { onSettled: () => setSavingIncome(false) }
+    );
+  };
+
+  const handleAddExpense = (e) => {
+    e.preventDefault();
+    if (!expenseForm.amount || Number(expenseForm.amount) <= 0) {
+      toast.error('Enter a positive amount');
+      return;
+    }
+    setSavingExpense(true);
+    addExpenseMutation.mutate(
+      { id: expenseTarget._id, data: { ...expenseForm, amount: parseFloat(expenseForm.amount) } },
+      { onSettled: () => setSavingExpense(false) }
+    );
   };
 
   const getBusinessTypeIcon = (type) => {
@@ -129,12 +183,12 @@ function Business() {
   if (error) return <div className="text-center text-red-600">Error loading businesses: {error.message}</div>;
 
   const businessesList = businesses?.data?.data || businesses?.data || [];
-  const stats = businessStats?.data || {};
+  const stats = businessStats?.data?.data || {};
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Business Management</h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -143,7 +197,7 @@ function Business() {
         </div>
         <button 
           onClick={() => setShowForm(true)}
-          className="btn btn-primary"
+          className="btn btn-primary self-start sm:self-auto"
         >
           <PlusIcon className="h-5 w-5 mr-2" />
           Add Business
@@ -152,7 +206,7 @@ function Business() {
 
       {/* Business Statistics */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div className="card">
             <div className="card-body text-center">
               <div className="text-2xl font-bold text-primary-600">
@@ -183,6 +237,14 @@ function Business() {
                 {formatCurrency(stats.overview?.totalProfit || 0)}
               </div>
               <div className="text-sm text-gray-500">Total Profit</div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-body text-center">
+              <div className={`text-2xl font-bold ${(stats.overview?.monthlyProfit || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {formatCurrency(stats.overview?.monthlyProfit || 0)}
+              </div>
+              <div className="text-sm text-gray-500">Monthly Profit</div>
             </div>
           </div>
         </div>
@@ -226,7 +288,7 @@ function Business() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['', 'animal_farming', 'agriculture', 'trading', 'services', 'manufacturing', 'retail'].map((type) => (
             <button
               key={type}
@@ -243,7 +305,7 @@ function Business() {
           ))}
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['', 'planning', 'active', 'paused', 'completed'].map((status) => (
             <button
               key={status}
@@ -342,7 +404,23 @@ function Business() {
                             {formatDate(business.startDate)}
                           </td>
                           <td className="table-cell">
-                            <div className="flex space-x-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                onClick={() => { setIncomeTarget(business); }}
+                                className="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-green-50 text-green-700 hover:bg-green-100"
+                                title="Record income for this business"
+                              >
+                                <ArrowTrendingUpIcon className="h-3.5 w-3.5 mr-1" />
+                                Income
+                              </button>
+                              <button
+                                onClick={() => { setExpenseTarget(business); }}
+                                className="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-orange-50 text-orange-700 hover:bg-orange-100"
+                                title="Record expense for this business"
+                              >
+                                <ArrowTrendingDownIcon className="h-3.5 w-3.5 mr-1" />
+                                Expense
+                              </button>
                               <button
                                 onClick={() => handleEdit(business)}
                                 className="text-primary-600 hover:text-primary-900"
@@ -368,7 +446,7 @@ function Business() {
 
               {/* Pagination */}
               {businesses?.data?.pagination?.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mt-6">
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-500">
                       Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, businesses?.data?.pagination?.totalItems || 0)} of {businesses?.data?.pagination?.totalItems || 0} businesses
@@ -428,6 +506,78 @@ function Business() {
           }}
           onSuccess={handleFormSuccess}
         />
+      )}
+
+      {/* Add Income Modal */}
+      {incomeTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Record Income for {incomeTarget.name}</h2>
+                <button onClick={() => setIncomeTarget(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+              </div>
+              <form onSubmit={handleAddIncome} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount (FRW) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={incomeForm.amount}
+                    onChange={(e) => setIncomeForm(prev => ({ ...prev, amount: e.target.value }))}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="e.g., 250000"
+                    autoFocus
+                    required
+                  />
+                  <p className="mt-1 text-xs text-gray-400">Adds to this business's monthly and total income.</p>
+                </div>
+                <div className="flex justify-end space-x-3 pt-2">
+                  <button type="button" onClick={() => setIncomeTarget(null)} className="btn btn-secondary">Cancel</button>
+                  <button type="submit" className="btn btn-primary" disabled={savingIncome}>
+                    {savingIncome ? 'Saving...' : 'Save Income'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Expense Modal */}
+      {expenseTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Record Expense for {expenseTarget.name}</h2>
+                <button onClick={() => setExpenseTarget(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+              </div>
+              <form onSubmit={handleAddExpense} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount (FRW) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={expenseForm.amount}
+                    onChange={(e) => setExpenseForm(prev => ({ ...prev, amount: e.target.value }))}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="e.g., 50000"
+                    autoFocus
+                    required
+                  />
+                  <p className="mt-1 text-xs text-gray-400">Adds to this business's monthly and total expenses.</p>
+                </div>
+                <div className="flex justify-end space-x-3 pt-2">
+                  <button type="button" onClick={() => setExpenseTarget(null)} className="btn btn-secondary">Cancel</button>
+                  <button type="submit" className="btn btn-primary" disabled={savingExpense}>
+                    {savingExpense ? 'Saving...' : 'Save Expense'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

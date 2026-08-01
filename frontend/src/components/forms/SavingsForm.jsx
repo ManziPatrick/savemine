@@ -5,13 +5,14 @@ import { savingsAPI } from '../../services/api';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
-function SavingsForm({ saving, onClose, onSuccess }) {
+function SavingsForm({ saving, onClose, onSuccess, currentTotal = 0 }) {
   const [loading, setLoading] = useState(false);
   const isEditing = !!saving;
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
     reset,
     setValue
@@ -80,6 +81,25 @@ function SavingsForm({ saving, onClose, onSuccess }) {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+          {!isEditing && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-emerald-800 font-medium">Current total savings</span>
+                <span className="font-bold text-emerald-700">
+                  {Number(currentTotal || 0).toLocaleString()} FRW
+                </span>
+              </div>
+              {watch('amount') > 0 && (
+                <div className="flex items-center justify-between mt-1 pt-1 border-t border-emerald-200">
+                  <span className="text-emerald-700">New total after adding</span>
+                  <span className="font-bold text-emerald-700">
+                    {(Number(currentTotal || 0) + Number(watch('amount'))).toLocaleString()} FRW
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="form-group">
             <label className="label">Name *</label>
             <input

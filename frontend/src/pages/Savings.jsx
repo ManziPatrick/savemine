@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, PencilIcon, TrashIcon, CircleStackIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
 import { savingsAPI } from '../services/api';
+import ExportButtons from '../components/ExportButtons';
+import { buildSavingsSections } from '../utils/exportSections';
 import SavingsForm from '../components/forms/SavingsForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -20,9 +22,12 @@ function Savings() {
     () => savingsAPI.getSavings({ location: filter === 'all' ? undefined : filter })
   );
 
+  const { data: savingsStats } = useQuery('savingsStats', savingsAPI.getSavingsStats);
+
   const deleteMutation = useMutation(savingsAPI.deleteSavings, {
     onSuccess: () => {
       queryClient.invalidateQueries('savings');
+      queryClient.invalidateQueries('savingsStats');
       toast.success('Savings deleted successfully');
     },
     onError: (error) => {
@@ -35,6 +40,7 @@ function Savings() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('savings');
+        queryClient.invalidateQueries('savingsStats');
         toast.success('Amount added successfully');
         setShowAddModal(false);
         setSelectedSavingForAction(null);
@@ -50,6 +56,7 @@ function Savings() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('savings');
+        queryClient.invalidateQueries('savingsStats');
         toast.success('Amount withdrawn successfully');
         setShowWithdrawModal(false);
         setSelectedSavingForAction(null);
@@ -83,6 +90,7 @@ function Savings() {
 
   const handleFormSuccess = () => {
     queryClient.invalidateQueries('savings');
+    queryClient.invalidateQueries('savingsStats');
   };
 
   const handleCloseForm = () => {
@@ -145,26 +153,97 @@ function Savings() {
     );
   }
 
+  const statsOverall = savingsStats?.data?.data?.overall || {};
+  const locationBreakdown = savingsStats?.data?.data?.locationBreakdown || {};
+  const totalSaved = statsOverall.totalAmount || 0;
+  const totalTarget = statsOverall.totalTarget || 0;
+  const totalProgress = totalTarget > 0 ? Math.round((totalSaved / totalTarget) * 100) : 0;
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Savings</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Track your savings across different locations
+            Track your savings across different accounts and locations
           </p>
         </div>
-        <button 
-          onClick={() => setShowForm(true)}
-          className="btn btn-primary"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Add Savings
-        </button>
+        <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+          <ExportButtons
+            filename="savings"
+            title="Savings Report"
+            sections={buildSavingsSections(savings?.data?.data || [])}
+          />
+          <button 
+            onClick={() => setShowForm(true)}
+            className="btn btn-primary"
+          >
+            <PlusIcon className="h-5 w-5 mr-2" />
+            Add Savings
+          </button>
+        </div>
       </div>
 
+      {/* Total Savings Overview */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="card">
+          <div className="card-body text-center">
+            <div className="text-2xl font-bold text-primary-600">
+              {totalSaved.toLocaleString()} FRW
+            </div>
+            <div className="text-sm text-gray-500">Total Saved</div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-body text-center">
+            <div className="text-2xl font-bold text-blue-600">
+              {totalTarget.toLocaleString()} FRW
+            </div>
+            <div className="text-sm text-gray-500">Total Target</div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-body text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {statsOverall.count || 0}
+            </div>
+            <div className="text-sm text-gray-500">Accounts</div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-body text-center">
+            <div className="text-2xl font-bold text-emerald-600">
+              {totalProgress}%
+            </div>
+            <div className="text-sm text-gray-500">Overall Progress</div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div
+                className="bg-emerald-500 h-2 rounded-full"
+                style={{ width: `${Math.min(totalProgress, 100)}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Per-location totals */}
+      {Object.keys(locationBreakdown).length > 0 && (
+        <div className="flex flex-wrap gap-3">
+          {Object.entries(locationBreakdown).map(([loc, info]) => (
+            <div key={loc} className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg text-sm">
+              <span className="font-medium text-gray-700">{loc}</span>
+              <span className="text-gray-400">·</span>
+              <span className="font-semibold text-primary-700">
+                {(info.totalAmount || 0).toLocaleString()} FRW
+              </span>
+              <span className="text-xs text-gray-400">({info.count || 0})</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="flex space-x-4">
+      <div className="flex flex-wrap gap-2">
         {['all', 'Bank', 'SACCO', 'MTN MoMo', 'Cash'].map((location) => (
           <button
             key={location}
@@ -318,6 +397,7 @@ function Savings() {
           saving={selectedSaving}
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
+          currentTotal={totalSaved}
         />
       )}
 

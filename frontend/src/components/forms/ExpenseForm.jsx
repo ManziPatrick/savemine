@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { XMarkIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
-import { expensesAPI } from '../../services/api';
+import { expensesAPI, savingsAPI } from '../../services/api';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -24,8 +24,26 @@ function ExpenseForm({ onClose, onSuccess }) {
     receipt: '',
     photos: [],
     isBusinessExpense: false,
-    isTaxDeductible: false
+    isTaxDeductible: false,
+    deductFrom: 'cash',
+    savingsId: ''
   });
+
+  const [savingsAccounts, setSavingsAccounts] = useState([]);
+
+  useEffect(() => {
+    const fetchSavings = async () => {
+      try {
+        const response = await savingsAPI.getSavings({ limit: 100 });
+        setSavingsAccounts(response.data.data || []);
+      } catch (error) {
+        // Non-blocking — savings picker just stays empty
+      }
+    };
+    fetchSavings();
+  }, []);
+
+  const selectedSaving = savingsAccounts.find((s) => s._id === formData.savingsId);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,13 +53,30 @@ function ExpenseForm({ onClose, onSuccess }) {
       return;
     }
 
+    if (formData.deductFrom === 'savings' && !selectedSaving) {
+      toast.error('Please choose which savings account to deduct from');
+      return;
+    }
+
     setLoading(true);
     try {
+      const amount = parseFloat(formData.amount);
+
+      if (formData.deductFrom === 'savings' && amount > selectedSaving.amount) {
+        toast.error(`Insufficient funds in savings: ${selectedSaving.currency} ${selectedSaving.amount.toLocaleString()}`);
+        setLoading(false);
+        return;
+      }
+
+      const { deductFrom, savingsId, ...rest } = formData;
       const expenseData = {
-        ...formData,
-        amount: parseFloat(formData.amount),
+        ...rest,
+        amount,
         unitPrice: formData.unitPrice ? parseFloat(formData.unitPrice) : null,
-        tags: formData.tags.filter(tag => tag.trim())
+        tags: formData.tags.filter(tag => tag.trim()),
+        source: formData.deductFrom === 'savings' && selectedSaving
+          ? { type: 'savings', sourceId: selectedSaving._id, sourceName: selectedSaving.name, amount }
+          : { type: 'cash' }
       };
 
       await expensesAPI.createExpense(expenseData);
@@ -177,6 +212,42 @@ function ExpenseForm({ onClose, onSuccess }) {
                   <option value="donation">❤️ Donations</option>
                   <option value="other">📝 Other</option>
                 </select>
+              </div>
+
+              {/* Deduct From (source) */}
+              <div className="col-span-1 md:col-span-2">
+                <label htmlFor="deductFrom" className="block text-sm font-medium text-gray-700 mb-2">
+                  Deduct from
+                </label>
+                <select
+                  id="deductFrom"
+                  name="deductFrom"
+                  value={formData.deductFrom}
+                  onChange={handleInputChange}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="cash">💰 Cash (not tracked)</option>
+                  <option value="savings">🏦 Savings account</option>
+                </select>
+                {formData.deductFrom === 'savings' && savingsAccounts.length > 0 && (
+                  <select
+                    id="savingsId"
+                    name="savingsId"
+                    value={formData.savingsId}
+                    onChange={handleInputChange}
+                    className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">Select savings account…</option>
+                    {savingsAccounts.map((saving) => (
+                      <option key={saving._id} value={saving._id}>
+                        {saving.name} — available: {saving.currency} {saving.amount.toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {formData.deductFrom === 'savings' && !selectedSaving && (
+                  <p className="mt-1 text-sm text-orange-600">Please choose which savings account to deduct from.</p>
+                )}
               </div>
 
               {/* Subcategory */}

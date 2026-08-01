@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, CurrencyDollarIcon, ChartBarIcon, TagIcon } from '@heroicons/react/24/outline';
 import { expensesAPI } from '../services/api';
+import ExportButtons from '../components/ExportButtons';
+import { buildExpenseSections } from '../utils/exportSections';
 import ExpenseForm from '../components/forms/ExpenseForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -103,24 +105,30 @@ function Expenses() {
 
   const expensesList = expenses?.data?.data || expenses?.data?.data || [];
   const stats = expenseStats?.data?.data || {};
-console.log("jjjj",stats)
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
           <p className="mt-1 text-sm text-gray-500">
             Track your spending and manage expenses by category
           </p>
         </div>
-        <button 
-          onClick={() => setShowForm(true)}
-          className="btn btn-primary"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Add Expense
-        </button>
+        <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+          <ExportButtons
+            filename="expenses"
+            title="Expenses Report"
+            sections={buildExpenseSections(expensesList)}
+          />
+          <button 
+            onClick={() => setShowForm(true)}
+            className="btn btn-primary"
+          >
+            <PlusIcon className="h-5 w-5 mr-2" />
+            Add Expense
+          </button>
+        </div>
       </div>
 
       {/* Expense Statistics */}
@@ -199,7 +207,7 @@ console.log("jjjj",stats)
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {[
             'food', 'transport', 'housing', 'utilities', 'healthcare', 
             'education', 'business', 'animal_care', 'agriculture'
@@ -219,7 +227,7 @@ console.log("jjjj",stats)
           ))}
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'business', 'personal'].map((type) => (
             <button
               key={type}

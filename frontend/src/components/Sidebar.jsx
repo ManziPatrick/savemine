@@ -29,6 +29,7 @@ const navigation = [
   { name: 'Expenses', href: '/expenses', icon: ChartBarIcon },
   { name: 'Business', href: '/business', icon: BuildingOfficeIcon },
   { name: 'Investments', href: '/investments', icon: ArrowTrendingUpIcon },
+  { name: 'My Projects', href: '/projects', icon: HomeIcon },
   { name: 'Reminders', href: '/reminders', icon: BellIcon },
 ];
 

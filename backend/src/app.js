@@ -21,6 +21,7 @@ const businessRoutes = require('./routes/businesses');
 const giftRoutes = require('./routes/gifts');
 const expenseRoutes = require('./routes/expenses');
 const investmentRoutes = require('./routes/investments');
+const projectRoutes = require('./routes/projects');
 const messageRoutes = require('./routes/messages');
 
 // Import middleware
@@ -208,6 +209,7 @@ app.use('/businesses', businessRoutes);
 app.use('/gifts', giftRoutes);
 app.use('/expenses', expenseRoutes);
 app.use('/investments', investmentRoutes);
+app.use('/projects', projectRoutes);
 app.use('/messages', messagingLimiter, require('./routes/messages'));
 
 // Apply messaging rate limiting to messaging routes

@@ -140,8 +140,8 @@ export const businessesAPI = {
   updateBusiness: (id, businessData) => api.put(`/businesses/${id}`, businessData),
   deleteBusiness: (id) => api.delete(`/businesses/${id}`),
   updateProgress: (id, progress) => api.post(`/businesses/${id}/progress`, { progress }),
-  addMonthlyIncome: (id, month, amount, notes) => api.post(`/businesses/${id}/income`, { month, amount, notes }),
-  addMonthlyExpense: (id, month, amount, category, notes) => api.post(`/businesses/${id}/expense`, { month, amount, category, notes }),
+  addMonthlyIncome: (id, data = {}) => api.post(`/businesses/${id}/income`, { amount: data.amount }),
+  addMonthlyExpense: (id, data = {}) => api.post(`/businesses/${id}/expense`, { amount: data.amount }),
   getBusinessStats: () => api.get('/businesses/stats'),
 };
 
@@ -186,6 +186,20 @@ export const investmentsAPI = {
   updateValue: (id, value, notes) => api.post(`/investments/${id}/update-value`, { value, notes }),
   addDividend: (id, amount, type, notes) => api.post(`/investments/${id}/dividends`, { amount, type, notes }),
   getInvestmentStats: () => api.get('/investments/stats'),
+};
+
+// Projects (My Projects) API — track any project you own
+export const projectsAPI = {
+  getProjects: (params = {}) => api.get('/projects', { params }),
+  getProject: (id) => api.get(`/projects/${id}`),
+  createProject: (projectData) => api.post('/projects', projectData),
+  updateProject: (id, projectData) => api.put(`/projects/${id}`, projectData),
+  deleteProject: (id) => api.delete(`/projects/${id}`),
+  addExpense: (id, expenseData) => api.post(`/projects/${id}/expenses`, expenseData),
+  removeExpense: (id, expenseId) => api.delete(`/projects/${id}/expenses/${expenseId}`),
+  addIncome: (id, incomeData) => api.post(`/projects/${id}/incomes`, incomeData),
+  removeIncome: (id, incomeId) => api.delete(`/projects/${id}/incomes/${incomeId}`),
+  getProjectStats: () => api.get('/projects/stats'),
 };
 
 // Petty Cash API

@@ -132,7 +132,7 @@ const createExpense = asyncHandler(async (req, res) => {
           });
         }
 
-        await saving.withdrawAmount(amount);
+        await saving.withdrawAmount(amount, `Expense: ${title || 'expense'}`);
       } else if (source.type === 'petty_cash') {
         // Reduce amount from petty cash
         const pettyCash = await PettyCash.findOne({

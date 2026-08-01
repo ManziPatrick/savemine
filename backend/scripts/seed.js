@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-require('dotenv').config();
+const path = require('path');
+// Load env from project root (same convention as server.js)
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 // Import models
 const User = require('../src/models/User');
@@ -11,6 +12,7 @@ const Savings = require('../src/models/Savings');
 const Asset = require('../src/models/Asset');
 const BusinessProject = require('../src/models/BusinessProject');
 const Reminder = require('../src/models/Reminder');
+const Project = require('../src/models/Project');
 
 // Sample data
 const sampleUsers = [
@@ -99,14 +101,20 @@ const sampleSavings = [
     targetAmount: 1000000,
     targetDate: new Date('2024-12-31'),
     description: 'Emergency savings account',
-    notes: 'Building emergency fund'
+    notes: 'Building emergency fund',
+    movements: [
+      { type: 'deposit', amount: 500000, date: new Date('2024-01-15'), notes: 'Opening balance', balanceAfter: 500000 }
+    ]
   },
   {
     name: 'MoMo Savings',
     location: 'MTN MoMo',
     amount: 150000,
     description: 'Mobile money savings',
-    notes: 'Easy access savings'
+    notes: 'Easy access savings',
+    movements: [
+      { type: 'deposit', amount: 150000, date: new Date('2024-02-10'), notes: 'Opening balance', balanceAfter: 150000 }
+    ]
   }
 ];
 
@@ -146,18 +154,32 @@ const sampleBusinessProjects = [
 
 const sampleLoans = [
   {
-    amount: 100000,
-    givenDate: new Date('2024-01-01'),
+    principalAmount: 100000,
+    totalAmount: 105000,
+    remainingAmount: 105000,
+    loanDate: new Date('2024-01-01'),
     dueDate: new Date('2024-02-01'),
     interestRate: 5,
+    source: {
+      type: 'savings',
+      sourceName: 'Personal Savings',
+      amount: 100000
+    },
     description: 'Business loan for inventory',
     notes: '30-day loan'
   },
   {
-    amount: 75000,
-    givenDate: new Date('2024-01-10'),
+    principalAmount: 75000,
+    totalAmount: 75000,
+    remainingAmount: 75000,
+    loanDate: new Date('2024-01-10'),
     dueDate: new Date('2024-02-10'),
     interestRate: 0,
+    source: {
+      type: 'income',
+      sourceName: 'Salary Income',
+      amount: 75000
+    },
     description: 'Personal loan',
     notes: 'Interest-free loan'
   }
@@ -166,11 +188,10 @@ const sampleLoans = [
 const sampleReminders = [
   {
     title: 'Loan Payment Reminder',
-    modelType: 'loan',
-    sendAt: new Date('2024-01-28T10:00:00Z'),
-    messageTemplate: 'Hi {contactName}, this is a reminder that your loan of {amount} FRW is due on {dueDate}. Please ensure payment is made on time.',
-    autoSend: true,
-    channels: ['sms', 'whatsapp'],
+    reminderType: 'loan_payment',
+    scheduledDate: new Date('2024-01-28T10:00:00Z'),
+    message: 'Hi, this is a reminder that your loan is due soon. Please ensure payment is made on time.',
+    sendMethod: 'sms',
     priority: 'high'
   }
 ];
@@ -192,14 +213,21 @@ async function seedDatabase() {
       Savings.deleteMany({}),
       Asset.deleteMany({}),
       BusinessProject.deleteMany({}),
-      Reminder.deleteMany({})
+      Reminder.deleteMany({}),
+      Project.deleteMany({})
     ]);
     console.log('🧹 Cleared existing data');
 
     // Create users
     const users = [];
     for (const userData of sampleUsers) {
-      const user = await User.create(userData);
+      const user = await User.create({
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+        role: userData.role,
+        passwordHash: userData.password // hashed by User pre-save hook
+      });
       users.push(user);
     }
     console.log(`✅ Created ${users.length} users`);
@@ -279,15 +307,73 @@ async function seedDatabase() {
       const reminder = await Reminder.create({
         ...reminderData,
         userId: users[0]._id,
-        modelId: loans[i]._id
+        contactId: contacts[i]._id,
+        loanId: loans[i]._id
       });
       reminders.push(reminder);
-
-      // Add reminder to loan
-      loans[i].reminders.push(reminder._id);
-      await loans[i].save();
     }
     console.log(`✅ Created ${reminders.length} reminders`);
+
+    // Create sample projects for the first user (the owner creates their own projects)
+    const sampleProjects = [
+      {
+        name: 'Maize Field - Musanze',
+        projectType: 'farming',
+        description: 'Season A maize farming with drip irrigation',
+        location: 'Musanze, Rwanda',
+        startDate: new Date('2024-01-10'),
+        expectedEndDate: new Date('2024-05-15'),
+        status: 'active',
+        plannedBudget: 1500000,
+        expenses: [
+          { category: 'survey', reason: 'Land survey and soil testing', amount: 150000, date: new Date('2024-01-15') },
+          { category: 'equipment', reason: 'Drip irrigation pipes and installation', amount: 450000, date: new Date('2024-01-20') },
+          { category: 'materials', reason: 'Hybrid maize seeds (10kg)', amount: 120000, date: new Date('2024-02-01') }
+        ],
+        incomes: []
+      },
+      {
+        name: 'Tomato Project - Bugesera',
+        projectType: 'farming',
+        description: 'Irrigated tomato project — season 1 completed',
+        location: 'Bugesera, Rwanda',
+        startDate: new Date('2023-08-01'),
+        expectedEndDate: new Date('2024-01-15'),
+        status: 'completed',
+        plannedBudget: 900000,
+        expenses: [
+          { category: 'survey', reason: 'Soil survey', amount: 80000, date: new Date('2023-08-05') },
+          { category: 'equipment', reason: 'Irrigation system', amount: 300000, date: new Date('2023-08-10') },
+          { category: 'labor', reason: 'Planting and maintenance labor', amount: 200000, date: new Date('2023-09-01') }
+        ],
+        incomes: [
+          { date: new Date('2023-12-20'), title: 'Sold tomatoes', quantity: 3000, unit: 'kg', amount: 1500000, customer: 'Kigali market' },
+          { date: new Date('2024-01-10'), title: 'Sold tomatoes', quantity: 2500, unit: 'kg', amount: 1250000, customer: 'Simba Supermarket' }
+        ]
+      },
+      {
+        name: 'My Shop - Kigali',
+        projectType: 'business',
+        description: 'Small retail shop startup',
+        location: 'Kigali, Rwanda',
+        startDate: new Date('2024-02-01'),
+        expectedEndDate: null,
+        status: 'planning',
+        plannedBudget: 2000000,
+        expenses: [
+          { category: 'rent', reason: 'First month shop rent', amount: 250000, date: new Date('2024-02-01') },
+          { category: 'materials', reason: 'Initial stock purchase', amount: 800000, date: new Date('2024-02-05') }
+        ],
+        incomes: []
+      }
+    ];
+
+    const projects = [];
+    for (const projectData of sampleProjects) {
+      const project = await Project.create({ ...projectData, userId: users[0]._id });
+      projects.push(project);
+    }
+    console.log(`✅ Created ${projects.length} projects`);
 
     // Create some additional data for the second user
     const secondUserContact = await Contact.create({
@@ -298,10 +384,17 @@ async function seedDatabase() {
     });
 
     await Loan.create({
-      amount: 200000,
-      givenDate: new Date('2024-01-05'),
+      principalAmount: 200000,
+      totalAmount: 220000,
+      remainingAmount: 220000,
+      loanDate: new Date('2024-01-05'),
       dueDate: new Date('2024-02-05'),
       interestRate: 10,
+      source: {
+        type: 'business',
+        sourceName: 'Business Revenue',
+        amount: 200000
+      },
       description: 'Investment loan',
       userId: users[1]._id,
       contactId: secondUserContact._id

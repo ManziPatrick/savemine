@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, CurrencyDollarIcon, ClockIcon, ExclamationTriangleIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { loansAPI } from '../services/api';
+import ExportButtons from '../components/ExportButtons';
+import { buildLoanSections } from '../utils/exportSections';
 import LoanForm from '../components/forms/LoanForm';
 import PaymentForm from '../components/forms/PaymentForm';
 import ImportLoansForm from '../components/forms/ImportLoansForm';
@@ -156,14 +158,14 @@ function Loans() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Loans</h1>
           <p className="mt-1 text-sm text-gray-500">
             Track loans, payments, and manage debtors
           </p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-2">
           <button 
             onClick={() => setShowSMSTest(true)}
             className="btn btn-secondary"
@@ -172,6 +174,11 @@ function Loans() {
             <PhoneIcon className="h-5 w-5 mr-2" />
             Test SMS
           </button>
+          <ExportButtons
+            filename="loans"
+            title="Loans Report"
+            sections={buildLoanSections(loansList)}
+          />
           <button 
             onClick={() => setShowImportForm(true)}
             className="btn btn-secondary"
@@ -246,7 +253,7 @@ function Loans() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['all', 'active', 'overdue', 'completed', 'defaulted'].map((status) => (
             <button
               key={status}
@@ -262,7 +269,7 @@ function Loans() {
           ))}
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {['', 'personal', 'business', 'animal', 'emergency', 'investment'].map((type) => (
             <button
               key={type}
@@ -387,14 +394,14 @@ function Loans() {
 
               {/* Pagination */}
               {loans?.data?.pagination?.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mt-6">
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-500">
                       Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, loans?.data?.pagination?.totalItems || 0)} of {loans?.data?.pagination?.totalItems || 0} loans
                     </span>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <select
                       value={pageSize}
                       onChange={(e) => {
