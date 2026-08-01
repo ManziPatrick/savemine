@@ -1,6 +1,6 @@
-# SmartMoney FRW - Mobile App
+# FinController - Mobile App
 
-React Native mobile application for SmartMoney FRW financial management system.
+React Native mobile application for FinController financial management system.
 
 ## 📁 Project Structure
 

@@ -84,7 +84,7 @@ if (process.env.VERCEL !== '1') {
       // Start the server
       const server = app.listen(availablePort, () => {
         console.log(`
-🚀 SmartMoney FRW API Server is running!
+🚀 FinController API Server is running!
 📍 Port: ${availablePort}
 🌍 Environment: ${process.env.NODE_ENV || 'development'}
 📚 API Documentation: http://localhost:${availablePort}/api-docs

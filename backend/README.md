@@ -1,6 +1,6 @@
-# SmartMoney FRW - Backend API
+# FinController - Backend API
 
-Node.js + Express backend API for SmartMoney FRW financial management system.
+Node.js + Express backend API for FinController financial management system.
 
 ## 📁 Project Structure
 

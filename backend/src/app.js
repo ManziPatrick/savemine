@@ -146,12 +146,12 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'SmartMoney FRW API',
+      title: 'FinController API',
       version: '1.0.0',
       description: 'A comprehensive financial management API with SMS/WhatsApp reminders',
       contact: {
-        name: 'SmartMoney Team',
-        email: 'support@smartmoney.com'
+        name: 'FinController Team',
+        email: 'support@fincontroller.com'
       }
     },
     servers: [
@@ -184,7 +184,7 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.get('/health', (req, res) => {
   res.json({
     success: true,
-    message: 'SmartMoney FRW API is running',
+    message: 'FinController API is running',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development'
@@ -194,7 +194,7 @@ app.get('/health', (req, res) => {
 // API documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'SmartMoney FRW API Documentation'
+  customSiteTitle: 'FinController API Documentation'
 }));
 
 // API routes

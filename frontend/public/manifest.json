@@ -1,6 +1,6 @@
 {
-  "name": "SmartMoney FRW",
-  "short_name": "SmartMoney",
+  "name": "FinController",
+  "short_name": "FinController",
   "description": "Financial management app with SMS reminders for loans and payments",
   "theme_color": "#059669",
   "background_color": "#ffffff",

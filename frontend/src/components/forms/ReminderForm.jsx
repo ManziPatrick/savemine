@@ -100,7 +100,7 @@ function ReminderForm({ reminder, onClose, onSuccess }) {
   const defaultTemplates = {
     loan: 'Hi {contactName}, this is a reminder that your loan of {amount} FRW is due on {dueDate}. Remaining balance: {remainingAmount} FRW. Please ensure payment is made on time. Thank you!',
     transaction: 'Reminder: {description} transaction of {amount} FRW is scheduled for {date}.',
-    custom: 'Hi {contactName}, this is a reminder: {message}. From SmartMoney FRW.'
+    custom: 'Hi {contactName}, this is a reminder: {message}. From FinController.'
   };
 
   const handleTemplateChange = (template) => {

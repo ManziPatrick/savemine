@@ -14,7 +14,7 @@ const QUICK_PROMPTS = [
   'Record that I spent 15,000 on food',
 ];
 
-const WELCOME_MESSAGE = `Hi! 👋 I'm your SmartMoney assistant.
+const WELCOME_MESSAGE = `Hi! 👋 I'm your FinController assistant.
 
 Tell me things in plain language and I'll take care of the rest — for example:
 

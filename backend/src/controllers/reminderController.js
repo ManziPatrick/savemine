@@ -323,7 +323,7 @@ const sendReminderNow = asyncHandler(async (req, res) => {
     }
 
     // Send SMS
-    const smsResult = await smsService.sendSMS(contactPhone, message, 'SmartMoney');
+    const smsResult = await smsService.sendSMS(contactPhone, message, 'FinController');
 
     if (smsResult.success) {
       // Mark as sent
@@ -652,7 +652,7 @@ const sendBulkReminders = asyncHandler(async (req, res) => {
       const smsResult = await smsService.sendSMS(
         reminder.contactId.phone,
         message,
-        'SmartMoney'
+        'FinController'
       );
 
       if (smsResult.success) {

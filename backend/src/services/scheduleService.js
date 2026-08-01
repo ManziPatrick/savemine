@@ -144,7 +144,7 @@ class ScheduleService {
 
               if (dueSoon.length > 0) {
                 // Send summary SMS if user has phone
-                const summary = `Daily Summary - ${outstandingLoans.length} outstanding loans, ${dueSoon.length} due soon. Check SmartMoney app for details.`;
+                const summary = `Daily Summary - ${outstandingLoans.length} outstanding loans, ${dueSoon.length} due soon. Check FinController app for details.`;
                 
                 try {
                   await messageService.sendSMS(user.phone, summary);

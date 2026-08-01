@@ -36,9 +36,9 @@ function Header({ onMenuClick }) {
         return;
       }
       if (format === 'pdf') {
-        exportToPDF('smartmoney_full_report', 'Complete Financial Report', sections);
+        exportToPDF('fincontroller_full_report', 'Complete Financial Report', sections);
       } else {
-        exportToCSV('smartmoney_all_data', sections);
+        exportToCSV('fincontroller_all_data', sections);
       }
       toast.success('Export started — check your downloads');
     } catch (err) {
@@ -64,7 +64,7 @@ function Header({ onMenuClick }) {
           {/* Logo - hidden on mobile */}
           <div className="hidden lg:flex lg:items-center">
             <h1 className="text-xl font-semibold text-gray-900">
-              SmartMoney FRW
+              FinController
             </h1>
           </div>
 

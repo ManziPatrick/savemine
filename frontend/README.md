@@ -1,6 +1,6 @@
-# SmartMoney FRW - Frontend Web
+# FinController - Frontend Web
 
-React web application for SmartMoney FRW financial management system.
+React web application for FinController financial management system.
 
 ## 📁 Project Structure
 

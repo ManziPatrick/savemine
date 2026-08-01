@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "SmartMoney FRW",
+    "name": "FinController",
     "slug": "smartmoney-frw",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -45,7 +45,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "Allow SmartMoney to access your contacts to select contacts for loans and transactions."
+          "contactsPermission": "Allow FinController to access your contacts to select contacts for loans and transactions."
         }
       ]
     ],

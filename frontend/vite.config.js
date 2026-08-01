@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'SmartMoney FRW',
-        short_name: 'SmartMoney',
+        name: 'FinController',
+        short_name: 'FinController',
         description: 'Financial management app with SMS reminders',
         theme_color: '#059669',
         background_color: '#ffffff',

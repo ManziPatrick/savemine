@@ -42,7 +42,7 @@ export default function RegisterScreen() {
             Create Account
           </Text>
           <Text variant="bodyLarge" style={styles.subtitle}>
-            Sign up for SmartMoney FRW
+            Sign up for FinController
           </Text>
 
           <TextInput

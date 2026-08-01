@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 
 function SMSTest({ onClose }) {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [message, setMessage] = useState('Hello! This is a test message from SmartMoney FRW. Your SMS integration is working correctly! 📱✅');
+  const [message, setMessage] = useState('Hello! This is a test message from FinController. Your SMS integration is working correctly! 📱✅');
   const [testResult, setTestResult] = useState(null);
 
   const testSMSMutation = useMutation(

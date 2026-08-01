@@ -37,7 +37,7 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
           <Text variant="headlineMedium" style={styles.title}>
-            SmartMoney FRW
+            FinController
           </Text>
           <Text variant="bodyLarge" style={styles.subtitle}>
             Sign in to your account

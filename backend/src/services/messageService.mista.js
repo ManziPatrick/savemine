@@ -6,7 +6,7 @@ class MistaMessageService {
     // Use only the specified endpoint and token
     this.apiUrl = 'https://api.mista.io/sms';
     this.apiKey = '667|K2XEOiGKnoZZxF4EFFRPJio8RmDrQYb7XfraseMi';
-    this.senderId = process.env.MISTA_SENDER_ID || process.env.SMS_SENDER_NAME || 'SmartMoney';
+    this.senderId = process.env.MISTA_SENDER_ID || process.env.SMS_SENDER_NAME || 'FinController';
     
     console.log('✅ Mista API configured with SMS endpoint');
   }

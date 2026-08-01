@@ -2,10 +2,10 @@ const smsService = require('../services/smsService');
 
 /**
  * Test SMS functionality
- * Usage: node -e "require('./src/utils/smsTest.js').testSMS('+250788123456', 'Test message from SmartMoney FRW')"
+ * Usage: node -e "require('./src/utils/smsTest.js').testSMS('+250788123456', 'Test message from FinController')"
  */
 
-async function testSMS(phoneNumber, message = 'Test message from SmartMoney FRW') {
+async function testSMS(phoneNumber, message = 'Test message from FinController') {
   console.log('Testing SMS Service...');
   console.log('Phone:', phoneNumber);
   console.log('Message:', message);
@@ -68,7 +68,7 @@ function testMessageTemplate() {
     name: 'John Doe',
     amount: '50000',
     dueDate: '2024-01-15',
-    appName: 'SmartMoney FRW'
+    appName: 'FinController'
   };
   
   const message = smsService.generateMessage(template, variables);
@@ -95,5 +95,5 @@ if (require.main === module) {
   console.log('\n');
   
   // Uncomment to test actual SMS sending (requires valid phone number)
-  // testSMS('+250788123456', 'Test message from SmartMoney FRW - SMS integration working!');
+  // testSMS('+250788123456', 'Test message from FinController - SMS integration working!');
 }

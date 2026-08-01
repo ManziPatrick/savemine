@@ -104,13 +104,13 @@ function buildReportHTML(title, sections) {
 <body>
   <div class="report-header">
     <div>
-      <h1>SmartMoney FRW</h1>
+      <h1>FinController</h1>
       <div style="font-size:12px;color:#6b7280;">${title}</div>
     </div>
     <div class="meta">Generated: ${now}</div>
   </div>
   ${rowsHtml || '<p>No data to export.</p>'}
-  <div class="footer">SmartMoney FRW — Financial Management &amp; SMS Reminders</div>
+  <div class="footer">FinController — Financial Management &amp; SMS Reminders</div>
   <script>window.onload = function () { setTimeout(function () { window.print(); }, 300); };</script>
 </body>
 </html>`;

@@ -372,7 +372,7 @@ Loan Type: ${loan.loanType}
 
 Please ensure payment is made on time. Thank you!
 
-SmartMoney FRW`;
+FinController`;
 
         // Send SMS asynchronously (don't wait for it)
         messageService.sendSMS(formattedPhone, smsMessage, {

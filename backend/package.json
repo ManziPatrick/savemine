@@ -1,7 +1,7 @@
 {
   "name": "smartmoney-backend",
   "version": "1.0.0",
-  "description": "SmartMoney FRW Backend API",
+  "description": "FinController Backend API",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -51,7 +51,7 @@
     "whatsapp",
     "rwanda"
   ],
-  "author": "SmartMoney Team",
+  "author": "FinController Team",
   "license": "MIT",
   "engines": {
     "node": ">=18.17.0"

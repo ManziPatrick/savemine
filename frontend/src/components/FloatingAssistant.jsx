@@ -25,7 +25,7 @@ const QUICK_PROMPTS = [
 ];
 
 function buildWelcome(name) {
-  return `Hi ${name ? name.split(' ')[0] : 'there'}! 👋 I'm your SmartMoney assistant — always here to help you.\n\nI can fill forms for you, answer questions, and guide you — all in plain language:\n\n• **💰 Loans** — "I lent 30,000 FRW to Alice"\n• **🏦 Savings** — "Withdraw 20,000 from my savings"\n• **📊 Reports** — "What's my profit this month?"\n• **🏪 Business** — "Start a new business selling shoes"\n• **📝 Anything else** — "I spent 15,000 on food"\n\nAsk me anything, or tap a suggestion below.`;
+  return `Hi ${name ? name.split(' ')[0] : 'there'}! 👋 I'm your FinController assistant — always here to help you.\n\nI can fill forms for you, answer questions, and guide you — all in plain language:\n\n• **💰 Loans** — "I lent 30,000 FRW to Alice"\n• **🏦 Savings** — "Withdraw 20,000 from my savings"\n• **📊 Reports** — "What's my profit this month?"\n• **🏪 Business** — "Start a new business selling shoes"\n• **📝 Anything else** — "I spent 15,000 on food"\n\nAsk me anything, or tap a suggestion below.`;
 }
 
 function FloatingAssistant() {

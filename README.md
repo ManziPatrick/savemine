@@ -1,4 +1,4 @@
-# SmartMoney-FRW
+# FinController
 
 A comprehensive financial management application with SMS/WhatsApp reminders for loans, transactions, and savings tracking.
 
@@ -194,8 +194,8 @@ The API is documented using OpenAPI/Swagger. Access it at `/api-docs` when the b
    - Select "Google CSV format"
    - Click "Export" to download your contacts
 
-2. **Import to SmartMoney**:
-   - Go to Contacts page in SmartMoney
+2. **Import to FinController**:
+   - Go to Contacts page in FinController
    - Click "Import" button
    - Upload your Google Contacts CSV file
    - Preview the contacts and fix any errors
@@ -218,7 +218,7 @@ The API is documented using OpenAPI/Swagger. Access it at `/api-docs` when the b
 
 1. **Import Contacts from Google**:
    - Export your Google Contacts as CSV
-   - Import them into SmartMoney
+   - Import them into FinController
    - All phone numbers automatically formatted
 
 2. **Create a Loan**:
