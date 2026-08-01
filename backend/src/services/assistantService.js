@@ -802,12 +802,12 @@ async function executeTool(name, args, user, created = createCreatedMap()) {
   switch (name) {
     case 'search_contacts': {
       const { body } = await runController(contactController.getContacts, { user, query: { search: args.search, limit: 10 } });
-      const list = (body && body.data) || [];
+      const list = ((body && body.data) || []).filter(Boolean);
       return { summary: `Contacts matching "${args.search}": ${list.length ? JSON.stringify(list.map(c => ({ id: String(c._id), name: c.name, phone: c.phone, type: c.type }))) : 'none found'}` };
     }
     case 'list_contacts': {
       const { body } = await runController(contactController.getContacts, { user, query: { type: args.type, limit: 50 } });
-      const list = (body && body.data) || [];
+      const list = ((body && body.data) || []).filter(Boolean);
       return { summary: `Contacts (${list.length}): ${JSON.stringify(list.map(c => ({ id: String(c._id), name: c.name, phone: c.phone, type: c.type })))}` };
     }
     case 'send_sms_message': {
@@ -935,7 +935,7 @@ async function executeTool(name, args, user, created = createCreatedMap()) {
     }
     case 'list_loans': {
       const { body } = await runController(loanController.getLoans, { user, query: { status: args.status, limit: 20 } });
-      const list = (body && body.data) || [];
+      const list = ((body && body.data) || []).filter(Boolean);
       return { summary: `Loans: ${JSON.stringify(list.map(l => ({ id: String(l._id), contact: l.contactId && l.contactId.name, amount: l.principalAmount, remaining: l.remainingAmount, due: l.dueDate, status: l.status })))}` };
     }
     case 'create_transaction': {
@@ -963,7 +963,7 @@ async function executeTool(name, args, user, created = createCreatedMap()) {
     }
     case 'list_savings': {
       const { body } = await runController(savingsController.getSavings, { user, query: { limit: 20 } });
-      const list = (body && body.data) || [];
+      const list = ((body && body.data) || []).filter(Boolean);
       return { summary: `Savings accounts: ${JSON.stringify(list.map(s => ({ id: String(s._id), name: s.name, location: s.location, balance: s.amount, currency: s.currency })))}` };
     }
     case 'create_business': {
@@ -974,7 +974,7 @@ async function executeTool(name, args, user, created = createCreatedMap()) {
     }
     case 'list_businesses': {
       const { body } = await runController(businessController.getBusinesses, { user, query: { limit: 20 } });
-      const list = (body && body.data) || [];
+      const list = ((body && body.data) || []).filter(Boolean);
       return { summary: `Businesses: ${JSON.stringify(list.map(b => ({ id: String(b._id), name: b.name, type: b.businessType, revenue: b.totalRevenue, expenses: b.totalExpenses, profit: (b.totalRevenue || 0) - (b.totalExpenses || 0) })))}` };
     }
     case 'create_investment': {
@@ -1032,7 +1032,7 @@ async function executeTool(name, args, user, created = createCreatedMap()) {
     }
     case 'list_reminders': {
       const { body } = await runController(reminderController.getReminders, { user, query: { status: args.status, type: args.type, limit: 20 } });
-      const list = (body && body.data) || [];
+      const list = ((body && body.data) || []).filter(Boolean);
       return { summary: `Reminders: ${JSON.stringify(list.map(r => ({ id: String(r._id), title: r.title, type: r.reminderType, scheduled: r.scheduledDate, status: r.status })))}` };
     }
     case 'create_project': {
@@ -1046,7 +1046,7 @@ async function executeTool(name, args, user, created = createCreatedMap()) {
     }
     case 'list_projects': {
       const { body } = await runController(projectController.getProjects, { user, query: { status: args.status, limit: 20 } });
-      const list = (body && body.data) || [];
+      const list = ((body && body.data) || []).filter(Boolean);
       return { summary: `Projects: ${JSON.stringify(list.map(p => ({ id: String(p._id), name: p.name, type: p.projectType, status: p.status, income: p.totalIncome, expenses: p.totalExpenses, profit: p.profit })))}` };
     }
     case 'add_project_expense': {
@@ -1083,12 +1083,12 @@ async function executeTool(name, args, user, created = createCreatedMap()) {
     }
     case 'list_asset_assignments': {
       const { body } = await runController(assetAssignmentController.getAssetAssignments, { user, query: { status: args.status, limit: 20 } });
-      const list = (body && body.data) || [];
+      const list = ((body && body.data) || []).filter(Boolean);
       return { summary: `Asset assignments: ${JSON.stringify(list.map(a => ({ id: String(a._id), asset: a.assetDescription, type: a.assignmentType, value: a.assetValue, status: a.status, expectedReturn: a.expectedReturnDate })))}` };
     }
     case 'list_documents': {
       const { body } = await runController(documentController.getDocuments, { user, query: { documentType: args.documentType, search: args.search, limit: 20 } });
-      const list = (body && body.data) || [];
+      const list = ((body && body.data) || []).filter(Boolean);
       return { summary: `Documents: ${JSON.stringify(list.map(d => ({ id: String(d._id), title: d.title, type: d.documentType, file: d.originalFileName, url: d.fileUrl })))}` };
     }
     case 'get_financial_report': {

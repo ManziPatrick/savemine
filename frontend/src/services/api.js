@@ -1,12 +1,23 @@
 import axios from 'axios';
 
 // Backend URL resolution order:
-// 1. VITE_API_URL build-time env (Vercel) — highest priority
+// 1. VITE_API_URL build-time env (Vercel) — highest priority, BUT only if it
+//    points somewhere real. A leftover localhost URL must never leak into a
+//    production build (it would break every request with "Network Error").
 // 2. Production default: the Render backend (https://savemine.onrender.com)
 // 3. Local development fallback
+const configuredUrl = import.meta.env.VITE_API_URL;
+const isProdBuild = import.meta.env.PROD;
+const looksLikeLocalhost =
+  typeof configuredUrl === 'string' && /localhost|127\.0\.0\.1|::1/.test(configuredUrl);
+
+// Production builds always use the deployed backend — never a local address.
 const API_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? 'https://savemine.onrender.com' : 'http://localhost:5000');
+  configuredUrl && !(isProdBuild && looksLikeLocalhost)
+    ? configuredUrl
+    : isProdBuild
+      ? 'https://savemine.onrender.com'
+      : 'http://localhost:5000';
 
 // Create axios instance
 const api = axios.create({
