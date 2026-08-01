@@ -183,6 +183,18 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
+// Root route - provide basic API info instead of a 404
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    name: 'FinController API',
+    message: 'FinController API is running',
+    version: '1.0.0',
+    health: '/health',
+    docs: '/api-docs'
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
