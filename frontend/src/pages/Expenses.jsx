@@ -102,7 +102,7 @@ function Expenses() {
     });
   };
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner size="lg" />;
   if (error) return <div className="text-center text-red-600">Error loading expenses: {error.message}</div>;
 
   const expensesList = expenses?.data?.data || expenses?.data?.data || [];

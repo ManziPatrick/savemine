@@ -124,11 +124,7 @@ function Dashboard() {
     !assetsLoading && !projectsLoading && !recentTxLoading && !allProjectsLoading;
 
   if (!standingReady) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+    return <LoadingSpinner size="lg" />;
   }
 
   const stats = [
@@ -280,9 +276,7 @@ function Dashboard() {
       )}
 
       {!detailsReady ? (
-        <div className="flex items-center justify-center h-40">
-          <LoadingSpinner size="lg" />
-        </div>
+        <LoadingSpinner className="min-h-[12rem] py-8" />
       ) : (
       <>
       <div className="card">

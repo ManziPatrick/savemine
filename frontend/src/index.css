@@ -108,6 +108,59 @@
   .loading-spinner {
     @apply animate-spin rounded-full h-4 w-4 border-b-2 border-white;
   }
+
+  .office-loader {
+    position: relative;
+    width: 7.25rem;
+    height: 7.25rem;
+  }
+
+  .office-loader__ring,
+  .office-loader__ring-inner {
+    position: absolute;
+    border-radius: 9999px;
+    border: 2px solid transparent;
+  }
+
+  .office-loader__ring {
+    inset: 0;
+    border-top-color: #b7791f;
+    border-right-color: #1f6b45;
+    animation: office-spin 1.05s linear infinite;
+  }
+
+  .office-loader__ring-inner {
+    inset: 10px;
+    border-bottom-color: #14221c;
+    border-left-color: #e2b657;
+    animation: office-spin 1.6s linear infinite reverse;
+  }
+
+  .office-loader__mark {
+    position: absolute;
+    inset: 18px;
+    width: calc(100% - 36px);
+    height: calc(100% - 36px);
+    object-fit: contain;
+    animation: office-bob 1.5s ease-in-out infinite;
+  }
+
+  @keyframes office-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes office-bob {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-5px) scale(1.05); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .office-loader__ring,
+    .office-loader__ring-inner,
+    .office-loader__mark {
+      animation: none;
+    }
+  }
   
   .page-header {
     @apply bg-paper-card shadow-sm border border-line rounded-2xl;

@@ -170,7 +170,7 @@ function PettyCash() {
     }
   };
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner size="lg" />;
 
   const pettyCashData = pettyCash?.data?.data;
   const stats = pettyCashStats?.data?.data;

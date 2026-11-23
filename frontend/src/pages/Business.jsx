@@ -179,7 +179,7 @@ function Business() {
     });
   };
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner size="lg" />;
   if (error) return <div className="text-center text-red-600">Error loading businesses: {error.message}</div>;
 
   const businessesList = businesses?.data?.data || businesses?.data || [];

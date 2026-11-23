@@ -115,7 +115,7 @@ function Gifts() {
     });
   };
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner size="lg" />;
   if (error) return <div className="text-center text-red-600">Error loading gifts: {error.message}</div>;
 
   const giftsList = gifts?.data?.data || gifts?.data || [];

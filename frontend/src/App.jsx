@@ -30,7 +30,7 @@ function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner size="lg" className="min-h-screen" />;
   }
   
   if (!user) {
@@ -45,7 +45,7 @@ function PublicRoute({ children }) {
   const { user, loading } = useAuth();
   
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner size="lg" className="min-h-screen" />;
   }
   
   if (user) {

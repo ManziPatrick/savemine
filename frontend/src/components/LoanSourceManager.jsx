@@ -46,9 +46,7 @@ function LoanSourceManager() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
+      <LoadingSpinner size="lg" />
     );
   }
 

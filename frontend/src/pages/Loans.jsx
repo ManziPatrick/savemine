@@ -159,7 +159,7 @@ function Loans() {
     return diffDays;
   };
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner size="lg" />;
   if (error) return <div className="text-center text-red-600">Error loading loans: {error.message}</div>;
 
   const loansList = loans?.data?.data || loans?.data || [];

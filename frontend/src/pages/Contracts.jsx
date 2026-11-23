@@ -59,9 +59,7 @@ function Contracts() {
       />
 
       {isLoading ? (
-        <div className="flex h-40 items-center justify-center">
-          <LoadingSpinner size="lg" />
-        </div>
+        <LoadingSpinner className="min-h-[12rem] py-8" />
       ) : error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           Could not load contracts. {error.response?.data?.message || error.message}

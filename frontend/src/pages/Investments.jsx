@@ -131,7 +131,7 @@ function Investments() {
     return `${value > 0 ? '+' : ''}${value}%`;
   };
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner size="lg" />;
   if (error) return <div className="text-center text-red-600">Error loading investments: {error.message}</div>;
 
   const investmentsList = investments?.data?.data || investments?.data || [];
