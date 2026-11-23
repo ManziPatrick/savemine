@@ -41,7 +41,7 @@ class SMSService {
         to: cleanPhone,
         from: sender,
         text: message.trim(),
-        type: 'text'
+        type: 'plain'
       };
 
       console.log('Sending SMS:', {

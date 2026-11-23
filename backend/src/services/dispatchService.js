@@ -65,7 +65,13 @@ async function deliver(dispatch, { onlyUnsent = false } = {}) {
     }
     person.phone = phone;
     try {
-      await smsService.sendSMS(phone, dispatch.message);
+      const result = await smsService.sendSMS(phone, dispatch.message);
+      if (!result?.success) {
+        const problems = Array.isArray(result?.details?.detail) ? result.details.detail : [];
+        const fromProblems = problems.map((item) => item.msg).filter(Boolean).join('; ');
+        const detail = fromProblems || result?.details?.message || result?.details?.error || result?.error || 'Could not send';
+        throw new Error(typeof detail === 'string' ? detail : 'Could not send');
+      }
       person.status = 'sent';
       person.sentAt = new Date();
       person.error = '';
