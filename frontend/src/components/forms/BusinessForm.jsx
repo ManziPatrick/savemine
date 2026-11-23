@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { businessesAPI } from '../../services/api';
+import { businessesAPI, projectsAPI } from '../../services/api';
 import SlideOver from '../SlideOver';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
-function BusinessForm({ business, onClose, onSuccess }) {
+function BusinessForm({ business, knownProjects = [], onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState(knownProjects);
+  const [projectIds, setProjectIds] = useState([]);
   const [formData, setFormData] = useState({
     businessType: 'animal_farming',
     name: '',
@@ -75,6 +77,39 @@ function BusinessForm({ business, onClose, onSuccess }) {
     }
   }, [business]);
 
+  useEffect(() => {
+    const list = knownProjects.length ? knownProjects : null;
+    if (!list) return;
+    setProjects(list);
+    if (business?._id) {
+      setProjectIds(list
+        .filter((project) => String(project.businessId?._id || project.businessId) === String(business._id))
+        .map((project) => project._id));
+    }
+  }, [knownProjects, business]);
+
+  useEffect(() => {
+    if (knownProjects.length) return undefined;
+    let gone = false;
+    projectsAPI.getProjects({ limit: 100 }).then((response) => {
+      if (gone) return;
+      const list = response.data?.data || [];
+      setProjects(list);
+      if (business?._id) {
+        setProjectIds(list
+          .filter((project) => String(project.businessId?._id || project.businessId) === String(business._id))
+          .map((project) => project._id));
+      }
+    }).catch(() => {});
+    return () => { gone = true; };
+  }, [business, knownProjects.length]);
+
+  const toggleProject = (id) => {
+    setProjectIds((current) => (
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    ));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -99,13 +134,17 @@ function BusinessForm({ business, onClose, onSuccess }) {
         tags: formData.tags.filter(tag => tag.trim())
       };
 
+      let savedId = business?._id;
       if (business) {
         await businessesAPI.updateBusiness(business._id, businessData);
-        toast.success('Business updated successfully');
       } else {
-        await businessesAPI.createBusiness(businessData);
-        toast.success('Business added successfully');
+        const created = await businessesAPI.createBusiness(businessData);
+        savedId = created.data?.data?._id || created.data?._id;
       }
+      if (savedId) {
+        await businessesAPI.setProjects(savedId, projectIds);
+      }
+      toast.success(business ? 'Business updated successfully' : 'Business added successfully');
 
       onSuccess();
     } catch (error) {
@@ -296,6 +335,37 @@ function BusinessForm({ business, onClose, onSuccess }) {
                   required
                 />
               </div>
+            </div>
+
+            <div>
+              <p className="mb-1 text-sm font-medium text-gray-700">Choose projects</p>
+              <p className="mb-2 text-sm text-gray-500">Tick every project that belongs to this business. Their income and spending are added together.</p>
+              {projects.length === 0 ? (
+                <p className="text-sm text-gray-500">None loaded yet. Open Projects in the menu, create one, then come back and tick it here.</p>
+              ) : (
+                <div className="max-h-56 space-y-2 overflow-y-auto">
+                  {projects.map((project) => {
+                    const ownerId = String(project.businessId?._id || project.businessId || '');
+                    const elsewhere = ownerId && ownerId !== String(business?._id || '');
+                    return (
+                      <label key={project._id} className="flex items-start gap-3 rounded-xl border border-line bg-paper px-3 py-2">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={projectIds.includes(project._id)}
+                          onChange={() => toggleProject(project._id)}
+                        />
+                        <span>
+                          <span className="block font-medium text-ink">{project.name}</span>
+                          {elsewhere && (
+                            <span className="block text-xs text-ink/50">Moves from {project.businessId?.name || 'another business'}</span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Description and Location */}

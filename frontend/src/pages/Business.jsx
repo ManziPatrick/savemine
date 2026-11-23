@@ -570,6 +570,7 @@ function Business() {
       {showForm && (
         <BusinessForm
           business={selectedBusiness}
+          knownProjects={businessProjects?.data?.data || []}
           onClose={() => {
             setShowForm(false);
             setSelectedBusiness(null);
