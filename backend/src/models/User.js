@@ -53,6 +53,12 @@ const userSchema = new mongoose.Schema({
     timezone: {
       type: String,
       default: 'Africa/Kigali'
+    },
+    reports: {
+      phone: { type: String, default: '' },
+      weekly: { type: Boolean, default: false },
+      monthly: { type: Boolean, default: false },
+      yearly: { type: Boolean, default: false }
     }
   }
 }, {

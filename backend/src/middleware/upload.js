@@ -24,12 +24,14 @@ const storage = multer.diskStorage({
 // File filter function
 const fileFilter = (req, file, cb) => {
   const allowedTypes = process.env.ALLOWED_FILE_TYPES || 'image/jpeg,image/png,image/gif,image/webp,application/pdf';
-  const allowedMimeTypes = allowedTypes.split(',');
-  
-  if (allowedMimeTypes.includes(file.mimetype)) {
+  const allowedMimeTypes = allowedTypes.split(',').map((type) => type.trim());
+  const extension = path.extname(file.originalname || '').toLowerCase();
+  const pdfMime = ['application/pdf', 'application/x-pdf', 'application/octet-stream', 'binary/octet-stream', ''];
+
+  if (allowedMimeTypes.includes(file.mimetype) || (extension === '.pdf' && pdfMime.includes(file.mimetype))) {
     cb(null, true);
   } else {
-    cb(new Error(`File type ${file.mimetype} not allowed. Allowed types: ${allowedTypes}`), false);
+    cb(new Error('Upload a PDF or a photo (JPG, PNG, GIF, WEBP)'), false);
   }
 };
 
@@ -189,6 +191,7 @@ const getFileInfo = (file) => {
 };
 
 module.exports = {
+  uploadsDir,
   upload,
   uploadSingle,
   uploadMultiple,

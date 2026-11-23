@@ -4,7 +4,7 @@ import { CameraIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 function fileFromClipboard(event) {
   const items = event.clipboardData?.items || [];
   for (const item of items) {
-    if (item.type.startsWith('image/')) {
+    if (item.type.startsWith('image/') || item.type === 'application/pdf') {
       const blob = item.getAsFile();
       if (!blob) return null;
       const extension = blob.type.split('/')[1] || 'png';
@@ -95,11 +95,11 @@ function ProofCapture({ file, onFile, error }) {
       ) : (
         <div className="text-center">
           <PhotoIcon className="mx-auto h-8 w-8 text-primary-700" />
-          <p className="mt-2 font-medium text-ink">Drop a screenshot, or paste it here</p>
-          <p className="mt-1 text-sm text-ink/60">MoMo slips, bank screens, receipts, and signed contracts.</p>
+          <p className="mt-2 font-medium text-ink">Drop a PDF or a photo, or paste it here</p>
+          <p className="mt-1 text-sm text-ink/60">Contract PDFs, MoMo slips, bank screens, and receipts.</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <button type="button" className="btn btn-primary" onClick={() => uploadRef.current?.click()}>
-              Upload screenshot
+              Upload PDF or photo
             </button>
             <button type="button" className="btn btn-secondary" onClick={() => cameraRef.current?.click()}>
               <CameraIcon className="mr-2 h-4 w-4" />

@@ -229,13 +229,23 @@ app.use('/investments', investmentRoutes);
 app.use('/projects', projectRoutes);
 app.use('/documents', documentRoutes);
 app.use('/assistant', assistantRoutes);
+app.use('/reports', require('./routes/reports'));
+app.use('/categories', require('./routes/categories'));
 app.use('/messages', messagingLimiter, require('./routes/messages'));
 
 // Apply messaging rate limiting to messaging routes
 // app.use('/messages', messagingLimiter, messageRoutes);
 
-// Serve static files (uploads)
-app.use('/uploads', express.static('uploads'));
+// Serve the same folder multer writes into, including contract PDFs
+const { uploadsDir } = require('./middleware/upload');
+app.use('/uploads', express.static(uploadsDir, {
+  setHeaders(res, filePath) {
+    if (String(filePath).toLowerCase().endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+    }
+  }
+}));
 
 // 404 handler
 app.use(notFound);

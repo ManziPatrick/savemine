@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const Expense = require('../models/Expense');
+const Project = require('../models/Project');
+const Asset = require('../models/Asset');
 const Savings = require('../models/Savings');
 const PettyCash = require('../models/PettyCash');
 const { asyncHandler } = require('../middleware/errorHandler');
@@ -69,7 +71,9 @@ const createExpense = asyncHandler(async (req, res) => {
     photos,
     isBusinessExpense,
     isTaxDeductible,
-    source
+    source,
+    projectId,
+    assetId
   } = req.body;
 
   // Source is REQUIRED - expense must be deducted from somewhere
@@ -100,8 +104,32 @@ const createExpense = asyncHandler(async (req, res) => {
     photos: photos || [],
     isBusinessExpense: isBusinessExpense || false,
     isTaxDeductible: isTaxDeductible || false,
-    source: source || null
+    source: source || null,
+    projectId: null,
+    assetId: null
   };
+
+  if (projectId) {
+    const project = await Project.findOne({ _id: projectId, userId: req.user._id, isActive: true });
+    if (!project) {
+      return res.status(400).json({
+        success: false,
+        message: 'Choose one of your projects, or leave the expense as general'
+      });
+    }
+    expenseData.projectId = project._id;
+  }
+
+  if (assetId) {
+    const asset = await Asset.findOne({ _id: assetId, userId: req.user._id, isActive: true });
+    if (!asset) {
+      return res.status(400).json({
+        success: false,
+        message: 'Choose one of your assets, or leave this expense unattached'
+      });
+    }
+    expenseData.assetId = asset._id;
+  }
 
   const expense = await Expense.create(expenseData);
 

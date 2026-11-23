@@ -11,8 +11,9 @@ const expenseSchema = new mongoose.Schema({
     type: String,
     enum: [
       'food', 'transport', 'housing', 'utilities', 'healthcare', 'education',
+      'school', 'tax', 'salary', 'insurance',
       'entertainment', 'clothing', 'personal_care', 'business', 'animal_care',
-      'agriculture', 'investment', 'emergency', 'gift', 'donation', 'other'
+      'agriculture', 'investment', 'loan', 'emergency', 'gift', 'donation', 'other'
     ],
     required: true
   },
@@ -113,6 +114,16 @@ const expenseSchema = new mongoose.Schema({
       type: Number,
       default: 0
     }
+  },
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    default: null
+  },
+  assetId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Asset',
+    default: null
   },
   isActive: {
     type: Boolean,

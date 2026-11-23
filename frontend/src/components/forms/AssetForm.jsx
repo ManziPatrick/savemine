@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import { assetsAPI, contactsAPI } from '../../services/api';
+import { assetsAPI, contactsAPI, projectsAPI } from '../../services/api';
+import LinkPicker from '../LinkPicker';
+import CategoryPicker from '../CategoryPicker';
+import SlideOver from '../SlideOver';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
 function AssetForm({ asset, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const isEditing = !!asset;
 
@@ -16,7 +19,8 @@ function AssetForm({ asset, onClose, onSuccess }) {
     handleSubmit,
     formState: { errors },
     reset,
-    setValue
+    setValue,
+    watch
   } = useForm({
     defaultValues: {
       name: '',
@@ -25,6 +29,7 @@ function AssetForm({ asset, onClose, onSuccess }) {
       currency: 'FRW',
       category: '',
       status: 'owned',
+      projectId: '',
       ownerContactId: '',
       purchaseDate: '',
       depreciationRate: 0,
@@ -43,6 +48,7 @@ function AssetForm({ asset, onClose, onSuccess }) {
       setValue('currency', asset.currency || 'FRW');
       setValue('category', asset.category || '');
       setValue('status', asset.status || 'owned');
+      setValue('projectId', asset.projectId?._id || asset.projectId || '');
       setValue('ownerContactId', asset.ownerContactId?._id || '');
       setValue('purchaseDate', asset.purchaseDate ? new Date(asset.purchaseDate).toISOString().split('T')[0] : '');
       setValue('depreciationRate', asset.depreciationRate || 0);
@@ -57,8 +63,12 @@ function AssetForm({ asset, onClose, onSuccess }) {
     const fetchContacts = async () => {
       setLoadingContacts(true);
       try {
-        const response = await contactsAPI.getContacts({ limit: 100 });
-        setContacts(response.data.data);
+        const [contactResponse, projectResponse] = await Promise.all([
+          contactsAPI.getContacts({ limit: 100 }),
+          projectsAPI.getProjects({ limit: 100 }),
+        ]);
+        setContacts(contactResponse.data.data || []);
+        setProjects(projectResponse.data.data || []);
       } catch (error) {
         toast.error('Failed to load contacts');
       } finally {
@@ -69,14 +79,34 @@ function AssetForm({ asset, onClose, onSuccess }) {
     fetchContacts();
   }, []);
 
+  const projectId = watch('projectId');
+
+  const createProject = async (name) => {
+    try {
+      const response = await projectsAPI.createProject({
+        name,
+        projectType: 'general',
+        status: 'active',
+        currency: 'FRW',
+      });
+      const project = response.data.data;
+      setProjects((prev) => [...prev, project]);
+      return { id: project._id, name: project.name };
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not create that project');
+      throw error;
+    }
+  };
+
   const onSubmit = async (data) => {
     setLoading(true);
     try {
+      const payload = { ...data, projectId: data.projectId || null };
       if (isEditing) {
-        await assetsAPI.updateAsset(asset._id, data);
+        await assetsAPI.updateAsset(asset._id, payload);
         toast.success('Asset updated successfully');
       } else {
-        await assetsAPI.createAsset(data);
+        await assetsAPI.createAsset(payload);
         toast.success('Asset created successfully');
       }
       onSuccess();
@@ -88,27 +118,9 @@ function AssetForm({ asset, onClose, onSuccess }) {
     }
   };
 
-  const commonCategories = [
-    'Electronics', 'Vehicle', 'Property', 'Furniture', 'Equipment', 
-    'Jewelry', 'Art', 'Books', 'Clothing', 'Other'
-  ];
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {isEditing ? 'Edit Asset' : 'Add New Asset'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <XMarkIcon className="h-6 w-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+    <SlideOver title={isEditing ? 'Edit asset' : 'Add an asset'} subtitle="Assign it, then keep adding expenses" onClose={onClose}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="form-group">
             <label className="label">Name *</label>
             <input
@@ -169,17 +181,12 @@ function AssetForm({ asset, onClose, onSuccess }) {
           <div className="form-row">
             <div className="form-group">
               <label className="label">Category *</label>
-              <select
-                {...register('category', { required: 'Category is required' })}
-                className={`input ${errors.category ? 'input-error' : ''}`}
-              >
-                <option value="">Select category</option>
-                {commonCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+              <CategoryPicker
+                id="asset-category"
+                value={watch('category')}
+                onChange={(name) => setValue('category', name, { shouldValidate: true })}
+              />
+              <input type="hidden" {...register('category', { required: 'Category is required' })} />
               {errors.category && (
                 <p className="error-message">{errors.category.message}</p>
               )}
@@ -196,6 +203,20 @@ function AssetForm({ asset, onClose, onSuccess }) {
                 <option value="shared">Shared</option>
               </select>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="label">Project</label>
+            <LinkPicker
+              id="asset-project"
+              items={projects.map((project) => ({ id: project._id, name: project.name }))}
+              value={projectId || ''}
+              onChange={(id) => setValue('projectId', id)}
+              onCreate={createProject}
+              emptyLabel="No project yet"
+              placeholder="Search a project, or create one"
+            />
+            <p className="mt-1 text-sm text-ink/60">Move it to another project whenever you need, and add expenses afterward.</p>
           </div>
 
           <div className="form-group">
@@ -301,8 +322,7 @@ function AssetForm({ asset, onClose, onSuccess }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </SlideOver>
   );
 }
 

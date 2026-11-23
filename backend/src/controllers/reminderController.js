@@ -163,6 +163,7 @@ const createReminder = asyncHandler(async (req, res) => {
     customContact: finalCustomContact,
     reminderType: finalReminderType,
     title,
+    category: String(req.body.category || '').trim(),
     message: finalMessage,
     scheduledDate: new Date(finalScheduledDate),
     priority: priority || 'medium',

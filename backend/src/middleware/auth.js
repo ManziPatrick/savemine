@@ -112,25 +112,33 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
+const SESSION_SECONDS = 2 * 60 * 60;
+
+const sessionEnd = (sessionEndsAt) => sessionEndsAt || Math.floor(Date.now() / 1000) + SESSION_SECONDS;
+
+const secondsLeft = (sessionEndsAt) => Math.max(1, sessionEnd(sessionEndsAt) - Math.floor(Date.now() / 1000));
+
 /**
- * Generate JWT token
+ * Generate JWT token. A login lasts two hours, and a refresh cannot extend it.
  */
-const generateToken = (userId) => {
+const generateToken = (userId, sessionEndsAt) => {
+  const ends = sessionEnd(sessionEndsAt);
   return jwt.sign(
-    { userId },
+    { userId, sessionEndsAt: ends },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    { expiresIn: secondsLeft(ends) }
   );
 };
 
 /**
- * Generate refresh token
+ * Generate refresh token bound to the same two-hour session.
  */
-const generateRefreshToken = (userId) => {
+const generateRefreshToken = (userId, sessionEndsAt) => {
+  const ends = sessionEnd(sessionEndsAt);
   return jwt.sign(
-    { userId, type: 'refresh' },
+    { userId, type: 'refresh', sessionEndsAt: ends },
     process.env.JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: secondsLeft(ends) }
   );
 };
 
@@ -140,7 +148,8 @@ module.exports = {
   requireOwnership,
   optionalAuth,
   generateToken,
-  generateRefreshToken
+  generateRefreshToken,
+  SESSION_SECONDS
 };
 
 

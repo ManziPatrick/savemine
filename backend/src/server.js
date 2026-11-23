@@ -84,6 +84,7 @@ if (process.env.VERCEL !== '1') {
     try {
       // Connect to database
       await connectDB();
+      require('./services/reportSchedule').startReportSchedule();
 
       // Find available port
       const availablePort = await findAvailablePort(PORT);

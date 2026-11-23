@@ -9,6 +9,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { syncBooks } from '../utils/syncBooks';
 import FilterMenu from '../components/FilterMenu';
+import { exactMoney, formatMoney } from '../utils/money';
 
 function Expenses() {
   const [showForm, setShowForm] = useState(false);
@@ -81,18 +82,17 @@ function Expenses() {
       emergency: 'Emergency',
       gift: 'Gifts',
       donation: 'Donations',
+      school: 'School',
+      tax: 'Tax',
+      salary: 'Salary',
+      insurance: 'Insurance',
+      loan: 'Loan',
       other: 'Other'
     };
     return categories[category] || category;
   };
 
-  const formatCurrency = (amount, currency = 'FRW') => {
-    return new Intl.NumberFormat('en-RW', {
-      style: 'currency',
-      currency: 'RWF',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
+  const formatCurrency = (amount) => formatMoney(amount);
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -146,7 +146,7 @@ function Expenses() {
           </div>
           <div className="card">
             <div className="card-body text-center">
-              <div className="text-2xl font-bold text-red-600">
+              <div className="text-lg font-semibold tabular-nums text-red-600" title={exactMoney(stats.overview?.totalAmount || 0)}>
                 {formatCurrency(stats.overview?.totalAmount || 0)}
               </div>
               <div className="text-sm text-gray-500">Total Amount</div>
@@ -154,7 +154,7 @@ function Expenses() {
           </div>
           <div className="card">
             <div className="card-body text-center">
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-lg font-semibold tabular-nums text-blue-600" title={exactMoney(stats.overview?.businessExpenses || 0)}>
                 {formatCurrency(stats.overview?.businessExpenses || 0)}
               </div>
               <div className="text-sm text-gray-500">Business</div>
@@ -162,7 +162,7 @@ function Expenses() {
           </div>
           <div className="card">
             <div className="card-body text-center">
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-lg font-semibold tabular-nums text-green-600" title={exactMoney(stats.overview?.personalExpenses || 0)}>
                 {formatCurrency(stats.overview?.personalExpenses || 0)}
               </div>
               <div className="text-sm text-gray-500">Personal</div>
@@ -216,6 +216,7 @@ function Expenses() {
             options: [
               { value: '', label: 'All' },
               ...[
+                'school', 'tax', 'salary', 'insurance', 'investment', 'loan',
                 'food', 'transport', 'housing', 'utilities', 'healthcare',
                 'education', 'business', 'animal_care', 'agriculture',
               ].map((category) => ({

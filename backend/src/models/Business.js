@@ -21,6 +21,11 @@ const businessSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  locationMode: {
+    type: String,
+    enum: ['online', 'place'],
+    default: 'place'
+  },
   location: {
     type: String,
     trim: true

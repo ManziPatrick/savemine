@@ -9,7 +9,7 @@ const documentSchema = new mongoose.Schema({
   },
   relatedEntity: {
     type: String,
-    enum: ['loan', 'contact', 'asset', 'investment', 'business', 'expense', 'gift', 'savings', 'pettycash', 'general'],
+    enum: ['loan', 'contact', 'asset', 'investment', 'business', 'project', 'expense', 'gift', 'savings', 'pettycash', 'general'],
     required: true
   },
   relatedEntityId: {

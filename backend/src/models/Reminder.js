@@ -33,6 +33,12 @@ const reminderSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  category: {
+    type: String,
+    trim: true,
+    maxlength: 40,
+    default: ''
+  },
   message: {
     type: String,
     required: true,

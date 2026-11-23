@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { repeatLabel } from '../utils/billMath';
+import { exactMoney, formatMoney } from '../utils/money';
 
 const periods = [
   ['day', 'Daily'],
@@ -10,11 +11,7 @@ const periods = [
 ];
 
 function money(amount) {
-  return new Intl.NumberFormat('en-RW', {
-    style: 'currency',
-    currency: 'RWF',
-    maximumFractionDigits: 0,
-  }).format(Math.round(amount || 0));
+  return formatMoney(amount);
 }
 
 function formatDue(date) {
@@ -60,7 +57,7 @@ function WalletStanding({ wallet, savings, summary, onAddBill }) {
         {cards.map(([label, value, detail]) => (
           <div key={label} className="rounded-2xl border border-line bg-paper-card p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-ink/50">{label}</p>
-            <p className="mt-2 break-words font-display text-2xl text-ink sm:text-3xl">{value}</p>
+            <p className="mt-2 text-lg font-semibold tabular-nums text-ink" title={label === 'Still to come' ? undefined : exactMoney(label === 'In the wallet' ? wallet : label === 'Saved' ? savings : summary.totals[period])}>{value}</p>
             <p className="mt-2 text-xs leading-5 text-ink/60">{detail}</p>
           </div>
         ))}

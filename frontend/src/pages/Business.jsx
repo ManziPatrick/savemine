@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, PencilIcon, TrashIcon, BuildingOfficeIcon, ChartBarIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon, UserGroupIcon } from '@heroicons/react/24/outline';
-import { businessesAPI } from '../services/api';
+import { businessesAPI, projectsAPI } from '../services/api';
 import BusinessForm from '../components/forms/BusinessForm';
+import SlideOver from '../components/SlideOver';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { formatMoney } from '../utils/money';
 import toast from 'react-hot-toast';
 import { syncBooks } from '../utils/syncBooks';
 import FilterMenu from '../components/FilterMenu';
@@ -23,6 +25,9 @@ function Business() {
   const [expenseForm, setExpenseForm] = useState({ amount: '' });
   const [savingIncome, setSavingIncome] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
+  const [projectTarget, setProjectTarget] = useState(null);
+  const [chosenProjects, setChosenProjects] = useState([]);
+  const [savingProjects, setSavingProjects] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: businesses, isLoading, error } = useQuery(
@@ -36,6 +41,7 @@ function Business() {
     { keepPreviousData: true }
   );
 
+  const { data: businessProjects } = useQuery(['projects', 'for-business'], () => projectsAPI.getProjects({ limit: 100 }));
   const { data: businessStats } = useQuery(
     'businessStats',
     businessesAPI.getBusinessStats
@@ -100,6 +106,35 @@ function Business() {
       { id: incomeTarget._id, data: { ...incomeForm, amount: parseFloat(incomeForm.amount) } },
       { onSettled: () => setSavingIncome(false) }
     );
+  };
+
+  const openProjectChooser = (business) => {
+    const attached = (businessProjects?.data?.data || [])
+      .filter((project) => String(project.businessId?._id || project.businessId) === String(business._id))
+      .map((project) => project._id);
+    setChosenProjects(attached);
+    setProjectTarget(business);
+  };
+
+  const toggleProject = (id) => {
+    setChosenProjects((current) => (
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    ));
+  };
+
+  const saveProjects = async (event) => {
+    event.preventDefault();
+    setSavingProjects(true);
+    try {
+      await businessesAPI.setProjects(projectTarget._id, chosenProjects);
+      syncBooks(queryClient, 'business', 'projects');
+      toast.success('Projects gathered on this business');
+      setProjectTarget(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not save those projects');
+    } finally {
+      setSavingProjects(false);
+    }
   };
 
   const handleAddExpense = (e) => {
@@ -360,11 +395,14 @@ function Business() {
                                   {business.description}
                                 </div>
                               )}
-                              {business.location && (
-                                <div className="text-sm text-gray-500">
-                                  📍 {business.location}
-                                </div>
-                              )}
+                              <div className="text-sm text-gray-500">
+                                {business.locationMode === 'online' ? 'Online' : (business.location || 'No place yet')}
+                              </div>
+                              <BusinessProjects
+                                business={business}
+                                projects={businessProjects?.data?.data || []}
+                                onChoose={() => openProjectChooser(business)}
+                              />
                             </div>
                           </td>
                           <td className="table-cell">
@@ -489,6 +527,45 @@ function Business() {
         </div>
       </div>
 
+      {projectTarget && (
+        <SlideOver title={projectTarget.name} subtitle="Choose the projects in this business" onClose={() => setProjectTarget(null)}>
+          <form onSubmit={saveProjects} className="space-y-4">
+            <p className="text-sm text-ink/70">Tick every project that belongs here. Their income and spending are added together.</p>
+            <div className="space-y-2">
+              {(businessProjects?.data?.data || []).length === 0 && (
+                <p className="text-sm text-gray-500">No projects yet. Create one on the Projects page, then come back and choose it.</p>
+              )}
+              {(businessProjects?.data?.data || []).map((project) => {
+                const ownerId = String(project.businessId?._id || project.businessId || '');
+                const elsewhere = ownerId && ownerId !== String(projectTarget._id);
+                return (
+                  <label key={project._id} className="flex items-start gap-3 rounded-xl border border-line bg-paper px-3 py-2">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={chosenProjects.includes(project._id)}
+                      onChange={() => toggleProject(project._id)}
+                    />
+                    <span>
+                      <span className="block font-medium text-ink">{project.name}</span>
+                      {elsewhere && (
+                        <span className="block text-xs text-ink/50">Moves from {project.businessId?.name || 'another business'}</span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setProjectTarget(null)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={savingProjects}>
+                {savingProjects ? 'Saving...' : 'Save projects'}
+              </button>
+            </div>
+          </form>
+        </SlideOver>
+      )}
+
       {/* Business Form */}
       {showForm && (
         <BusinessForm
@@ -574,6 +651,39 @@ function Business() {
       )}
     </div>
   );
+}
+
+function BusinessProjects({ business, projects, onChoose }) {
+  const mine = projects.filter((project) => String(project.businessId?._id || project.businessId) === String(business._id));
+  const moneyIn = mine.reduce((sum, project) => sum + (project.totalIncome || 0), 0);
+  const moneyOut = mine.reduce((sum, project) => sum + (project.officeSpent ?? project.totalExpenses ?? 0), 0);
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        {mine.map((project) => (
+          <Link
+            key={project._id}
+            to={`/projects?business=${business._id}&project=${project._id}`}
+            className="rounded-full bg-paper px-2 py-1 text-xs font-medium text-ink hover:bg-line"
+          >
+            {project.name}
+          </Link>
+        ))}
+        <button type="button" className="text-xs font-medium text-primary-700" onClick={onChoose}>
+          {mine.length ? 'Choose projects' : 'Add projects'}
+        </button>
+      </div>
+      {mine.length > 0 && (
+        <p className="text-sm text-ink/70" title={`In ${exactTitle(moneyIn)} · Out ${exactTitle(moneyOut)}`}>
+          Together · In {formatMoney(moneyIn)} · Out {formatMoney(moneyOut)} · Left {formatMoney(moneyIn - moneyOut)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function exactTitle(amount) {
+  return `${Math.round(Number(amount) || 0).toLocaleString('en-US')} FRW`;
 }
 
 export default Business;

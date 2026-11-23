@@ -34,9 +34,11 @@ import SavingsTrendChart from '../components/charts/SavingsTrendChart';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.jsx';
 import WalletStanding from '../components/WalletStanding';
+import ReportDesk from '../components/ReportDesk';
 import BillForm from '../components/forms/BillForm';
 import { summarizeBills } from '../utils/billMath';
 import { syncBooks } from '../utils/syncBooks';
+import { exactMoney, formatMoney } from '../utils/money';
 
 function Dashboard() {
   const { user } = useAuth();
@@ -227,8 +229,7 @@ function Dashboard() {
   const recentTransactions = recentTx?.data?.data || recentTx?.data || [];
   const monthlyStats = transactionStats?.data?.data?.monthlyStats || [];
 
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF', minimumFractionDigits: 0 }).format(amount || 0);
+  const formatCurrency = (amount) => formatMoney(amount);
 
   return (
     <div className="space-y-6">
@@ -268,6 +269,8 @@ function Dashboard() {
         onAddBill={() => setShowBill(true)}
       />
 
+      <ReportDesk />
+
       {showBill && (
         <BillForm
           onClose={() => setShowBill(false)}
@@ -303,7 +306,7 @@ function Dashboard() {
                 <BanknotesIcon className="h-5 w-5 text-cyan-600 mr-2" />
                 <span className="text-sm font-medium text-cyan-800">Total Money Spent</span>
               </div>
-              <div className="mt-2 text-2xl font-bold text-cyan-900">{formatCurrency(projectOverview.totalExpenses)}</div>
+              <div className="mt-2 text-lg font-semibold tabular-nums text-cyan-900" title={exactMoney(projectOverview.totalExpenses)}>{formatCurrency(projectOverview.totalExpenses)}</div>
               <div className="text-sm text-cyan-700">across {projectOverview.totalProjects || 0} project{projectOverview.totalProjects === 1 ? '' : 's'}</div>
             </div>
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -311,7 +314,7 @@ function Dashboard() {
                 <ArrowTrendingUpIcon className="h-5 w-5 text-green-600 mr-2" />
                 <span className="text-sm font-medium text-green-800">Total Income</span>
               </div>
-              <div className="mt-2 text-2xl font-bold text-green-900">{formatCurrency(projectOverview.totalIncome)}</div>
+              <div className="mt-2 text-lg font-semibold tabular-nums text-green-900" title={exactMoney(projectOverview.totalIncome)}>{formatCurrency(projectOverview.totalIncome)}</div>
               <div className="text-sm text-green-700">outcomes & revenue recorded</div>
             </div>
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
@@ -319,7 +322,7 @@ function Dashboard() {
                 <ChartBarIcon className="h-5 w-5 text-emerald-600 mr-2" />
                 <span className="text-sm font-medium text-emerald-800">Total Profit</span>
               </div>
-              <div className={`mt-2 text-2xl font-bold ${(projectOverview.totalProfit || 0) >= 0 ? 'text-emerald-900' : 'text-red-700'}`}>
+              <div className={`mt-2 text-lg font-semibold tabular-nums ${(projectOverview.totalProfit || 0) >= 0 ? 'text-emerald-900' : 'text-red-700'}`} title={exactMoney(projectOverview.totalProfit)}>
                 {formatCurrency(projectOverview.totalProfit)}
               </div>
               <div className="text-sm text-emerald-700">{projectOverview.completedProjects || 0} completed</div>
@@ -471,7 +474,7 @@ function Dashboard() {
                   <dl>
                     <dt className="stats-card-title">{stat.name}</dt>
                     <dd className="stats-card-value">
-                      {stat.amount ? `FRW ${stat.amount.toLocaleString()}` : stat.value}
+                      {stat.amount ? formatCurrency(stat.amount) : stat.value}
                     </dd>
                   </dl>
                 </div>
@@ -506,7 +509,7 @@ function Dashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-gray-900">
-                        FRW {loan.remainingAmount.toLocaleString()}
+                        {formatCurrency(loan.remainingAmount)}
                       </p>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         loan.status === 'overdue' 
@@ -574,7 +577,7 @@ function Dashboard() {
                     <div className={`text-sm font-medium ${
                       transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {transaction.type === 'income' ? '+' : '-'}FRW {transaction.amount.toLocaleString()}
+                      {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
                     </div>
                   </div>
                 ))}

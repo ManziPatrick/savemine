@@ -265,6 +265,9 @@ const validateReminder = [
     if (value.reminderType === 'bill' && !(Number(value.amount) > 0)) {
       throw new Error('A bill needs an amount');
     }
+    if (value.reminderType === 'bill' && String(value.category || '').trim().length < 2) {
+      throw new Error('Choose a category, or create one');
+    }
     if (value.reminderType === 'bill' && !['daily', 'weekly', 'monthly', 'yearly'].includes(value.recurrence)) {
       throw new Error('Choose how often the bill repeats');
     }

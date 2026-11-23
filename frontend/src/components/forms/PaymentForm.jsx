@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 import { XMarkIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { loansAPI } from '../../services/api';
+import { uploadProof } from '../../utils/uploadProof';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
 function PaymentForm({ loan, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
+  const [receiptFile, setReceiptFile] = useState(null);
   const [formData, setFormData] = useState({
     amount: '',
     paymentMethod: 'cash',
@@ -33,11 +35,15 @@ function PaymentForm({ loan, onClose, onSuccess }) {
 
     setLoading(true);
     try {
+      const receipt = await uploadProof(receiptFile, {
+        title: `Payment ${loan?.title || loan?.name || ''}`.trim(),
+        relatedEntity: 'loan',
+      });
       await loansAPI.addPayment(loan._id, {
         amount: paymentAmount,
         paymentMethod: formData.paymentMethod,
         notes: formData.notes,
-        receipt: formData.receipt
+        receipt
       });
 
       toast.success('Payment added successfully');
@@ -162,34 +168,17 @@ function PaymentForm({ loan, onClose, onSuccess }) {
             </div>
 
             <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={3}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Optional notes about this payment..."
-              />
-            </div>
-
-            <div>
-              <label htmlFor="receipt" className="block text-sm font-medium text-gray-700 mb-2">
-                Receipt/Proof URL
+              <label htmlFor="payment-receipt" className="block text-sm font-medium text-gray-700 mb-2">
+                Receipt
               </label>
               <input
-                type="url"
-                id="receipt"
-                value={formData.receipt}
-                onChange={(e) => setFormData({ ...formData, receipt: e.target.value })}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="https://example.com/receipt.jpg"
+                id="payment-receipt"
+                type="file"
+                accept="image/*,application/pdf,.pdf"
+                className="input"
+                onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
               />
-              <p className="text-sm text-gray-500 mt-1">
-                Optional: URL to receipt image or proof of payment
-              </p>
+              {receiptFile && <p className="mt-1 text-sm text-ink/60">{receiptFile.name}</p>}
             </div>
 
             {/* Payment Summary */}

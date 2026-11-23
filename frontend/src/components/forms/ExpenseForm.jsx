@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
-import { XMarkIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
-import { expensesAPI, savingsAPI } from '../../services/api';
+import { expensesAPI, projectsAPI, savingsAPI, assetsAPI } from '../../services/api';
+import CategoryPicker from '../CategoryPicker';
+import LinkPicker from '../LinkPicker';
+import SlideOver from '../SlideOver';
 import LoadingSpinner from '../LoadingSpinner';
+import { fileExpenseCategory } from '../../utils/fileExpense';
+import { uploadProof } from '../../utils/uploadProof';
 import toast from 'react-hot-toast';
 
 function ExpenseForm({ onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    category: 'food',
+    category: 'Food',
     subcategory: '',
     title: '',
     description: '',
@@ -26,18 +30,29 @@ function ExpenseForm({ onClose, onSuccess }) {
     isBusinessExpense: false,
     isTaxDeductible: false,
     deductFrom: 'cash',
-    savingsId: ''
+    savingsId: '',
+    projectId: '',
+    assetId: ''
   });
 
+  const [receiptFile, setReceiptFile] = useState(null);
   const [savingsAccounts, setSavingsAccounts] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [assets, setAssets] = useState([]);
 
   useEffect(() => {
     const fetchSavings = async () => {
       try {
-        const response = await savingsAPI.getSavings({ limit: 100 });
-        setSavingsAccounts(response.data.data || []);
+        const [savingsResponse, projectResponse, assetResponse] = await Promise.all([
+          savingsAPI.getSavings({ limit: 100 }),
+          projectsAPI.getProjects({ limit: 100 }),
+          assetsAPI.getAssets({ limit: 100 }),
+        ]);
+        setSavingsAccounts(savingsResponse.data.data || []);
+        setProjects(projectResponse.data.data || []);
+        setAssets(assetResponse.data.data || []);
       } catch (error) {
-        // Non-blocking — savings picker just stays empty
+        // Non-blocking — the pickers stay empty
       }
     };
     fetchSavings();
@@ -48,8 +63,8 @@ function ExpenseForm({ onClose, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.title || !formData.amount) {
-      toast.error('Please fill in all required fields');
+    if (!formData.amount) {
+      toast.error('Enter the amount');
       return;
     }
 
@@ -68,10 +83,18 @@ function ExpenseForm({ onClose, onSuccess }) {
         return;
       }
 
-      const { deductFrom, savingsId, ...rest } = formData;
+      const { deductFrom, savingsId, projectId, assetId, category, ...rest } = formData;
+      const filed = fileExpenseCategory(category, formData.subcategory);
+      const title = formData.title.trim() || formData.subcategory || category || 'Expense';
+      const receipt = await uploadProof(receiptFile, { title, relatedEntity: 'expense' });
       const expenseData = {
         ...rest,
+        ...filed,
+        title,
+        receipt,
         amount,
+        projectId: projectId || undefined,
+        assetId: assetId || undefined,
         unitPrice: formData.unitPrice ? parseFloat(formData.unitPrice) : null,
         tags: formData.tags.filter(tag => tag.trim()),
         source: formData.deductFrom === 'savings' && selectedSaving
@@ -163,22 +186,44 @@ function ExpenseForm({ onClose, onSuccess }) {
     return categories[category] || category;
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Add New Expense</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
+  const createProject = async (name) => {
+    try {
+      const response = await projectsAPI.createProject({
+        name,
+        projectType: 'general',
+        status: 'active',
+        currency: 'FRW',
+      });
+      const project = response.data.data;
+      setProjects((prev) => [...prev, project]);
+      return { id: project._id, name: project.name };
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not create that project');
+      throw error;
+    }
+  };
 
-          {/* Form */}
+  const createAsset = async (name) => {
+    try {
+      const response = await assetsAPI.createAsset({
+        name,
+        value: 0,
+        category: 'Equipment',
+        currency: 'FRW',
+        status: 'owned',
+        projectId: formData.projectId || undefined,
+      });
+      const asset = response.data.data.asset;
+      setAssets((prev) => [...prev, asset]);
+      return { id: asset._id, name: asset.name };
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not create that asset');
+      throw error;
+    }
+  };
+
+  return (
+    <SlideOver title="Add an expense" subtitle="One record for the whole office" onClose={onClose}>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Category */}
@@ -186,345 +231,115 @@ function ExpenseForm({ onClose, onSuccess }) {
                 <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
                   Category *
                 </label>
-                <select
+                <CategoryPicker
                   id="category"
-                  name="category"
                   value={formData.category}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  required
-                >
-                  <option value="food">🍽️ Food & Dining</option>
-                  <option value="transport">🚗 Transportation</option>
-                  <option value="housing">🏠 Housing & Rent</option>
-                  <option value="utilities">⚡ Utilities</option>
-                  <option value="healthcare">🏥 Healthcare</option>
-                  <option value="education">📚 Education</option>
-                  <option value="entertainment">🎬 Entertainment</option>
-                  <option value="clothing">👕 Clothing</option>
-                  <option value="personal_care">💄 Personal Care</option>
-                  <option value="business">💼 Business</option>
-                  <option value="animal_care">🐄 Animal Care</option>
-                  <option value="agriculture">🌾 Agriculture</option>
-                  <option value="investment">📈 Investment</option>
-                  <option value="emergency">🚨 Emergency</option>
-                  <option value="gift">🎁 Gifts</option>
-                  <option value="donation">❤️ Donations</option>
-                  <option value="other">📝 Other</option>
-                </select>
-              </div>
-
-              {/* Deduct From (source) */}
-              <div className="col-span-1 md:col-span-2">
-                <label htmlFor="deductFrom" className="block text-sm font-medium text-gray-700 mb-2">
-                  Deduct from
-                </label>
-                <select
-                  id="deductFrom"
-                  name="deductFrom"
-                  value={formData.deductFrom}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="cash">💰 Cash (not tracked)</option>
-                  <option value="savings">🏦 Savings account</option>
-                </select>
-                {formData.deductFrom === 'savings' && savingsAccounts.length > 0 && (
-                  <select
-                    id="savingsId"
-                    name="savingsId"
-                    value={formData.savingsId}
-                    onChange={handleInputChange}
-                    className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    <option value="">Select savings account…</option>
-                    {savingsAccounts.map((saving) => (
-                      <option key={saving._id} value={saving._id}>
-                        {saving.name} — available: {saving.currency} {saving.amount.toLocaleString()}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {formData.deductFrom === 'savings' && !selectedSaving && (
-                  <p className="mt-1 text-sm text-orange-600">Please choose which savings account to deduct from.</p>
-                )}
-              </div>
-
-              {/* Subcategory */}
-              <div>
-                <label htmlFor="subcategory" className="block text-sm font-medium text-gray-700 mb-2">
-                  Subcategory
-                </label>
-                <input
-                  type="text"
-                  id="subcategory"
-                  name="subcategory"
-                  value={formData.subcategory}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="e.g., Groceries, Gas, Rent"
+                  onChange={(name) => setFormData((prev) => ({ ...prev, category: name }))}
                 />
               </div>
-            </div>
 
-            {/* Title */}
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                Title *
-              </label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="e.g., Grocery shopping at Kigali Market"
-                required
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Description
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={3}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Additional details about this expense..."
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Amount */}
-              <div>
-                <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount *
+              <div className="col-span-1 md:col-span-2">
+                <label htmlFor="projectId" className="block text-sm font-medium text-gray-700 mb-2">
+                  Project
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="number"
-                    id="amount"
-                    name="amount"
-                    value={formData.amount}
-                    onChange={handleInputChange}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="0"
-                    min="0"
-                    step="0.01"
-                    required
-                  />
+                <LinkPicker
+                  id="projectId"
+                  items={projects.map((project) => ({ id: project._id, name: project.name }))}
+                  value={formData.projectId}
+                  onChange={(id) => setFormData((prev) => ({ ...prev, projectId: id }))}
+                  onCreate={createProject}
+                  emptyLabel="General, no project"
+                  placeholder="Search a project, or create one"
+                />
+              </div>
+
+              <div className="col-span-1 md:col-span-2">
+                <label htmlFor="assetId" className="block text-sm font-medium text-gray-700 mb-2">
+                  Asset
+                </label>
+                <LinkPicker
+                  id="assetId"
+                  items={assets.map((asset) => ({ id: asset._id, name: asset.name }))}
+                  value={formData.assetId}
+                  onChange={(id) => setFormData((prev) => ({ ...prev, assetId: id }))}
+                  onCreate={createAsset}
+                  emptyLabel="No asset"
+                  placeholder="Search an asset, or create one"
+                />
+              </div>
+
+              <div className="col-span-1 md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory</label>
+                <CategoryPicker
+                  id="subcategory"
+                  value={formData.subcategory}
+                  onChange={(name) => setFormData((prev) => ({ ...prev, subcategory: name }))}
+                  placeholder="Search a detail already in the office"
+                />
+              </div>
+
+              <div className="col-span-1 md:col-span-2">
+                <p className="mb-2 text-sm font-medium text-gray-700">Take the money from</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className={`btn ${formData.deductFrom === 'cash' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFormData((prev) => ({ ...prev, deductFrom: 'cash', savingsId: '' }))}
+                  >
+                    Cash
+                  </button>
+                  {savingsAccounts.map((saving) => (
+                    <button
+                      key={saving._id}
+                      type="button"
+                      className={`btn ${formData.savingsId === saving._id ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setFormData((prev) => ({ ...prev, deductFrom: 'savings', savingsId: saving._id }))}
+                    >
+                      {saving.name} · {Number(saving.amount || 0).toLocaleString()} {saving.currency}
+                    </button>
+                  ))}
                 </div>
               </div>
-
-              {/* Currency */}
-              <div>
-                <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">
-                  Currency
-                </label>
-                <select
-                  id="currency"
-                  name="currency"
-                  value={formData.currency}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="FRW">FRW</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                </select>
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantity
-                </label>
-                <input
-                  type="number"
-                  id="quantity"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  min="1"
-                />
-              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Payment Method */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Method *
-                </label>
-                <select
-                  id="paymentMethod"
-                  name="paymentMethod"
-                  value={formData.paymentMethod}
+                <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">Amount *</label>
+                <input
+                  type="number"
+                  id="amount"
+                  name="amount"
+                  value={formData.amount}
                   onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  className="input"
+                  placeholder="0"
+                  min="0"
                   required
-                >
-                  <option value="cash">Cash</option>
-                  <option value="mobile_money">Mobile Money</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="credit_card">Credit Card</option>
-                  <option value="other">Other</option>
-                </select>
+                />
               </div>
-
-              {/* Expense Date */}
               <div>
-                <label htmlFor="expenseDate" className="block text-sm font-medium text-gray-700 mb-2">
-                  Expense Date *
-                </label>
+                <label htmlFor="expenseDate" className="block text-sm font-medium text-gray-700 mb-2">Date</label>
                 <input
                   type="date"
                   id="expenseDate"
                   name="expenseDate"
                   value={formData.expenseDate}
                   onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  required
+                  className="input"
                 />
               </div>
             </div>
 
-            {/* Location */}
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-                Location
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="receipt-file">Receipt</label>
               <input
-                type="text"
-                id="location"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Where did you make this expense?"
+                id="receipt-file"
+                type="file"
+                accept="image/*,application/pdf,.pdf"
+                className="input"
+                onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
               />
-            </div>
-
-            {/* Vendor */}
-            <div>
-              <label htmlFor="vendor" className="block text-sm font-medium text-gray-700 mb-2">
-                Vendor/Store
-              </label>
-              <input
-                type="text"
-                id="vendor"
-                name="vendor"
-                value={formData.vendor}
-                onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Store, restaurant, or service provider name"
-              />
-            </div>
-
-            {/* Business Expense Options */}
-            <div className="border-t pt-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Business Options</h3>
-              <div className="space-y-3">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isBusinessExpense"
-                    name="isBusinessExpense"
-                    checked={formData.isBusinessExpense}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="isBusinessExpense" className="ml-2 text-sm text-gray-700">
-                    This is a business expense
-                  </label>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isTaxDeductible"
-                    name="isTaxDeductible"
-                    checked={formData.isTaxDeductible}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="isTaxDeductible" className="ml-2 text-sm text-gray-700">
-                    Tax deductible
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Tags */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tags
-              </label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {formData.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-primary-400 hover:bg-primary-200 hover:text-primary-500 focus:outline-none focus:bg-primary-500 focus:text-white"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Add a tag and press Enter"
-                onKeyPress={addTag}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                name="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                rows={3}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Additional notes about this expense..."
-              />
-            </div>
-
-            {/* Receipt URL */}
-            <div>
-              <label htmlFor="receipt" className="block text-sm font-medium text-gray-700 mb-2">
-                Receipt/Proof URL
-              </label>
-              <input
-                type="url"
-                id="receipt"
-                name="receipt"
-                value={formData.receipt}
-                onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="https://example.com/receipt.jpg"
-              />
+              {receiptFile && <p className="mt-1 text-sm text-ink/60">{receiptFile.name}</p>}
             </div>
 
             {/* Actions */}
@@ -553,9 +368,7 @@ function ExpenseForm({ onClose, onSuccess }) {
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+    </SlideOver>
   );
 }
 

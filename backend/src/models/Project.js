@@ -63,6 +63,11 @@ const incomeItemSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  category: {
+    type: String,
+    trim: true,
+    default: 'income'
+  },
   customer: {
     type: String,
     trim: true
@@ -97,10 +102,25 @@ const projectSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  locationMode: {
+    type: String,
+    enum: ['online', 'place'],
+    default: 'place'
+  },
   location: {
     type: String,
     trim: true
   },
+  businessId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Business',
+    default: null
+  },
+  partners: [{
+    type: String,
+    trim: true,
+    maxlength: 80
+  }],
   startDate: {
     type: Date,
     required: true,
@@ -147,12 +167,12 @@ projectSchema.index({ userId: 1, projectType: 1, isActive: 1 });
 
 // Virtual: total money spent on this project
 projectSchema.virtual('totalExpenses').get(function () {
-  return this.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  return (this.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
 });
 
 // Virtual: total income from this project
 projectSchema.virtual('totalIncome').get(function () {
-  return this.incomes.reduce((sum, i) => sum + (i.amount || 0), 0);
+  return (this.incomes || []).reduce((sum, i) => sum + (i.amount || 0), 0);
 });
 
 // Virtual: profit = income - expenses

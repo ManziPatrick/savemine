@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
 import { remindersAPI } from '../../services/api';
 import { REPEAT_OPTIONS } from '../../utils/billMath';
+import CategoryPicker from '../CategoryPicker';
+import SlideOver from '../SlideOver';
 import toast from 'react-hot-toast';
 
 function todayInput() {
@@ -10,6 +11,7 @@ function todayInput() {
 
 function BillForm({ onClose, onSuccess }) {
   const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [due, setDue] = useState(todayInput());
   const [recurrence, setRecurrence] = useState('monthly');
@@ -20,6 +22,10 @@ function BillForm({ onClose, onSuccess }) {
     const value = Number(amount);
     if (!title.trim()) {
       toast.error('Name the bill');
+      return;
+    }
+    if (category.trim().length < 2) {
+      toast.error('Choose a category, or create one');
       return;
     }
     if (!value || value <= 0) {
@@ -35,6 +41,7 @@ function BillForm({ onClose, onSuccess }) {
     try {
       await remindersAPI.createReminder({
         title: title.trim(),
+        category: category.trim(),
         reminderType: 'bill',
         amount: value,
         currency: 'FRW',
@@ -55,19 +62,14 @@ function BillForm({ onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-3 sm:items-center">
-      <form onSubmit={save} className="w-full max-w-lg rounded-2xl bg-paper-card p-5 shadow-xl">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-saffron">Bill reminder</p>
-            <h2 className="font-display text-2xl text-ink">What do you need to pay?</h2>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-ink/50">
-            <XMarkIcon className="h-6 w-6" />
-          </button>
-        </div>
+    <SlideOver title="What do you need to pay?" subtitle="Bill reminder" onClose={onClose}>
+      <form onSubmit={save} className="space-y-4">
 
         <div className="mt-5 space-y-4">
+          <div>
+            <label className="label" htmlFor="bill-category">Category</label>
+            <CategoryPicker id="bill-category" value={category} onChange={setCategory} />
+          </div>
           <div>
             <label className="label" htmlFor="bill-title">Bill</label>
             <input
@@ -127,7 +129,7 @@ function BillForm({ onClose, onSuccess }) {
           {saving ? 'Saving…' : 'Save bill'}
         </button>
       </form>
-    </div>
+    </SlideOver>
   );
 }
 

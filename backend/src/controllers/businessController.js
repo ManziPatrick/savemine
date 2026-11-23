@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Business = require('../models/Business');
+const Project = require('../models/Project');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -69,6 +70,7 @@ const createBusiness = asyncHandler(async (req, res) => {
     name,
     description,
     location,
+    locationMode,
     startDate,
     status,
     initialInvestment,
@@ -86,7 +88,8 @@ const createBusiness = asyncHandler(async (req, res) => {
     businessType: businessType || 'animal_farming',
     name,
     description: description || '',
-    location: location || '',
+    locationMode: locationMode === 'online' ? 'online' : 'place',
+    location: locationMode === 'online' ? 'Online' : (location || ''),
     startDate: new Date(startDate || new Date()),
     status: status || 'active',
     initialInvestment: initialInvestment || 0,
@@ -324,6 +327,51 @@ const getBusinessStats = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Choose which projects belong to this business
+ * @route   PUT /businesses/:id/projects
+ * @access  Private
+ */
+const setBusinessProjects = asyncHandler(async (req, res) => {
+  const business = await Business.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+    isActive: true
+  });
+
+  if (!business) {
+    return res.status(404).json({
+      success: false,
+      message: 'Business not found'
+    });
+  }
+
+  const requested = Array.isArray(req.body.projectIds) ? req.body.projectIds : [];
+  const validIds = requested.filter((id) => mongoose.isValidObjectId(id));
+  const projects = await Project.find({
+    _id: { $in: validIds },
+    userId: req.user._id,
+    isActive: true
+  }).select('_id');
+  const ids = projects.map((project) => project._id);
+
+  await Project.updateMany(
+    { userId: req.user._id, businessId: business._id, _id: { $nin: ids } },
+    { $set: { businessId: null } }
+  );
+  if (ids.length) {
+    await Project.updateMany(
+      { userId: req.user._id, _id: { $in: ids } },
+      { $set: { businessId: business._id } }
+    );
+  }
+
+  res.json({
+    success: true,
+    data: { projectIds: ids }
+  });
+});
+
 module.exports = {
   getBusinesses,
   getBusiness,
@@ -332,5 +380,6 @@ module.exports = {
   deleteBusiness,
   addMonthlyIncome,
   addMonthlyExpense,
-  getBusinessStats
+  getBusinessStats,
+  setBusinessProjects
 };

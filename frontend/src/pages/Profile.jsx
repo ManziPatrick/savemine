@@ -1,3 +1,4 @@
+import ReportDesk from '../components/ReportDesk';
 import { useAuth } from '../hooks/useAuth.jsx';
 
 function Profile() {
@@ -6,19 +7,11 @@ function Profile() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Profile</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Manage your account settings
-        </p>
+        <p className="text-sm font-medium text-saffron">Account</p>
+        <h1 className="mt-1 font-display text-3xl text-ink">{user?.name || 'Profile'}</h1>
+        <p className="mt-2 text-sm text-ink/70">{user?.email}</p>
       </div>
-
-      <div className="card">
-        <div className="card-body">
-          <p className="text-center text-gray-500 py-12">
-            Profile management coming soon...
-          </p>
-        </div>
-      </div>
+      <ReportDesk />
     </div>
   );
 }

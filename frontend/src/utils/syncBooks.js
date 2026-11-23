@@ -5,12 +5,12 @@ export const bookLinks = {
   loans: ['loans', 'loanStats', 'overdueLoans'],
   contacts: ['contacts', 'loans', 'loanStats', 'overdueLoans'],
   transactions: ['transactions', 'transactionStats', 'recentTransactions'],
-  expenses: ['expenses', 'expenseStats'],
+  expenses: ['expenses', 'expenseStats', 'projects', 'allProjects', 'projectStats'],
   gifts: ['gifts', 'giftStats'],
-  business: ['businesses', 'businessStats'],
-  projects: ['projects', 'allProjects', 'projectStats'],
+  business: ['businesses', 'businessStats', 'projects', 'allProjects', 'projectStats'],
+  projects: ['projects', 'allProjects', 'projectStats', 'expenses', 'expenseStats', 'businesses', 'businessStats'],
   investments: ['investments', 'investmentStats'],
-  assets: ['assets', 'assetAssignmentStats'],
+  assets: ['assets', 'assetAssignmentStats', 'projects', 'allProjects'],
   contracts: ['contracts'],
 };
 

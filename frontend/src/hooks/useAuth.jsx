@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { sessionExpired } from '../utils/session';
 import toast from 'react-hot-toast';
 
 // Auth context
@@ -69,11 +70,25 @@ const initialState = {
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  const endSession = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    dispatch({ type: 'LOGOUT' });
+    if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+      window.location.replace('/login');
+    }
+  };
+
   // Check if user is authenticated on app load
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
       const userData = localStorage.getItem('user');
+
+      if (token && sessionExpired(token)) {
+        endSession();
+        return;
+      }
 
       if (token && userData) {
         try {
@@ -86,7 +101,6 @@ export function AuthProvider({ children }) {
             },
           });
         } catch (error) {
-          // Token is invalid, clear storage
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           dispatch({ type: 'LOGOUT' });
@@ -97,6 +111,21 @@ export function AuthProvider({ children }) {
     };
 
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      const token = localStorage.getItem('token');
+      if (token && sessionExpired(token)) endSession();
+    };
+    const timer = window.setInterval(tick, 15000);
+    window.addEventListener('focus', tick);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', tick);
+      document.removeEventListener('visibilitychange', tick);
+    };
   }, []);
 
   // Login function

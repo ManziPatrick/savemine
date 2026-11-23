@@ -11,7 +11,7 @@ import { syncBooks } from '../utils/syncBooks';
 const kinds = [
   { id: 'savings', title: 'Savings', detail: 'A MoMo, bank, SACCO, or cash screenshot' },
   { id: 'wallet', title: 'Wallet', detail: 'Cash you spent or received today' },
-  { id: 'contract', title: 'Contract', detail: 'A signed paper or agreement photo' },
+  { id: 'contract', title: 'Contract', detail: 'A PDF, or a photo of the signed paper' },
 ];
 
 const empty = {

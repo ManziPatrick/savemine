@@ -31,9 +31,9 @@ const register = asyncHandler(async (req, res) => {
     passwordHash: password // Will be hashed by pre-save middleware
   });
 
-  // Generate tokens
-  const token = generateToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  const sessionEndsAt = Math.floor(Date.now() / 1000) + (2 * 60 * 60);
+  const token = generateToken(user._id, sessionEndsAt);
+  const refreshToken = generateRefreshToken(user._id, sessionEndsAt);
 
   res.status(201).json({
     success: true,
@@ -91,9 +91,9 @@ const login = asyncHandler(async (req, res) => {
   // Update last login
   await user.updateLastLogin();
 
-  // Generate tokens
-  const token = generateToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  const sessionEndsAt = Math.floor(Date.now() / 1000) + (2 * 60 * 60);
+  const token = generateToken(user._id, sessionEndsAt);
+  const refreshToken = generateRefreshToken(user._id, sessionEndsAt);
 
   res.json({
     success: true,
@@ -147,9 +147,15 @@ const refreshToken = asyncHandler(async (req, res) => {
       });
     }
 
-    // Generate new tokens
-    const newToken = generateToken(user._id);
-    const newRefreshToken = generateRefreshToken(user._id);
+    if (!decoded.sessionEndsAt || decoded.sessionEndsAt * 1000 <= Date.now()) {
+      return res.status(401).json({
+        success: false,
+        message: 'Session ended'
+      });
+    }
+
+    const newToken = generateToken(user._id, decoded.sessionEndsAt);
+    const newRefreshToken = generateRefreshToken(user._id, decoded.sessionEndsAt);
 
     res.json({
       success: true,

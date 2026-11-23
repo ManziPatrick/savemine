@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { transactionsAPI, contactsAPI } from '../../services/api';
+import CategoryPicker from '../CategoryPicker';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -32,8 +33,6 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
       tags: []
     }
   });
-
-  const transactionType = watch('type');
 
   useEffect(() => {
     if (transaction) {
@@ -85,10 +84,8 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
     }
   };
 
-  const commonCategories = {
-    income: ['Salary', 'Business', 'Freelance', 'Investment', 'Gift', 'Other'],
-    expense: ['Food', 'Transport', 'Utilities', 'Entertainment', 'Healthcare', 'Education', 'Shopping', 'Other']
-  };
+  const category = watch('category');
+  const subcategory = watch('subcategory');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -138,47 +135,29 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
               )}
             </div>
 
-            <div className="form-group">
-              <label className="label">Currency</label>
-              <select
-                {...register('currency')}
-                className="input"
-              >
-                <option value="FRW">FRW</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="label">Category *</label>
-              <select
-                {...register('category', { required: 'Category is required' })}
-                className={`input ${errors.category ? 'input-error' : ''}`}
-              >
-                <option value="">Select category</option>
-                {commonCategories[transactionType]?.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-              {errors.category && (
-                <p className="error-message">{errors.category.message}</p>
-              )}
-            </div>
+          <div className="form-group">
+            <label className="label">Category *</label>
+            <input type="hidden" {...register('category', { required: 'Category is required' })} />
+            <CategoryPicker
+              id="transaction-category"
+              value={category}
+              onChange={(name) => setValue('category', name, { shouldValidate: true })}
+            />
+            {errors.category && (
+              <p className="error-message">{errors.category.message}</p>
+            )}
+          </div>
 
-            <div className="form-group">
-              <label className="label">Subcategory</label>
-              <input
-                {...register('subcategory')}
-                type="text"
-                className="input"
-                placeholder="Optional subcategory"
-              />
-            </div>
+          <div className="form-group">
+            <label className="label">Subcategory</label>
+            <CategoryPicker
+              id="transaction-subcategory"
+              value={subcategory}
+              onChange={(name) => setValue('subcategory', name)}
+              placeholder="Search a detail already in the office"
+            />
           </div>
 
           <div className="form-group">
@@ -207,26 +186,6 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="form-group">
-            <label className="label">Description</label>
-            <input
-              {...register('description')}
-              type="text"
-              className="input"
-              placeholder="Brief description of the transaction"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="label">Notes</label>
-            <textarea
-              {...register('notes')}
-              rows={3}
-              className="input"
-              placeholder="Additional notes about this transaction"
-            />
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">

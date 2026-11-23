@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useQuery } from 'react-query';
 import { XMarkIcon, GiftIcon } from '@heroicons/react/24/outline';
 import { giftsAPI, contactsAPI } from '../../services/api';
+import { uploadProof } from '../../utils/uploadProof';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
 function GiftForm({ gift, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
+  const [receiptFile, setReceiptFile] = useState(null);
   const [formData, setFormData] = useState({
     contactId: '',
     giftType: 'given',
@@ -65,8 +67,13 @@ function GiftForm({ gift, onClose, onSuccess }) {
 
     setLoading(true);
     try {
+      const uploaded = await uploadProof(receiptFile, {
+        title: formData.title || 'Gift',
+        relatedEntity: 'gift',
+      });
       const giftData = {
         ...formData,
+        receipt: uploaded || formData.receipt,
         amount: parseFloat(formData.amount),
         unitPrice: formData.unitPrice ? parseFloat(formData.unitPrice) : null,
         contactId: formData.contactId || null,
@@ -203,76 +210,21 @@ function GiftForm({ gift, onClose, onSuccess }) {
               />
             </div>
 
-            {/* Description */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Description
+              <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
+                Amount *
               </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
+              <input
+                type="number"
+                id="amount"
+                name="amount"
+                value={formData.amount}
                 onChange={handleInputChange}
-                rows={3}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Additional details about the gift..."
+                placeholder="0"
+                min="0"
+                required
               />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Amount */}
-              <div>
-                <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount *
-                </label>
-                <input
-                  type="number"
-                  id="amount"
-                  name="amount"
-                  value={formData.amount}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="0"
-                  min="0"
-                  step="0.01"
-                  required
-                />
-              </div>
-
-              {/* Currency */}
-              <div>
-                <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">
-                  Currency
-                </label>
-                <select
-                  id="currency"
-                  name="currency"
-                  value={formData.currency}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="FRW">FRW</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                </select>
-              </div>
-
-              {/* Quantity */}
-              <div>
-                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-2">
-                  Quantity
-                </label>
-                <input
-                  type="number"
-                  id="quantity"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  min="1"
-                />
-              </div>
             </div>
 
             {/* Contact */}
@@ -339,82 +291,18 @@ function GiftForm({ gift, onClose, onSuccess }) {
               </div>
             </div>
 
-            {/* Location */}
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-                Location
+              <label htmlFor="gift-receipt" className="block text-sm font-medium text-gray-700 mb-2">
+                Receipt
               </label>
               <input
-                type="text"
-                id="location"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Where was the gift given/received?"
+                id="gift-receipt"
+                type="file"
+                accept="image/*,application/pdf,.pdf"
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md"
+                onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
               />
-            </div>
-
-            {/* Tags */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tags
-              </label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {formData.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-primary-400 hover:bg-primary-200 hover:text-primary-500 focus:outline-none focus:bg-primary-500 focus:text-white"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Add a tag and press Enter"
-                onKeyPress={addTag}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                name="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                rows={3}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Additional notes about this gift..."
-              />
-            </div>
-
-            {/* Receipt URL */}
-            <div>
-              <label htmlFor="receipt" className="block text-sm font-medium text-gray-700 mb-2">
-                Receipt/Proof URL
-              </label>
-              <input
-                type="url"
-                id="receipt"
-                name="receipt"
-                value={formData.receipt}
-                onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                placeholder="https://example.com/receipt.jpg"
-              />
+              {receiptFile && <p className="mt-1 text-sm text-gray-500">{receiptFile.name}</p>}
             </div>
 
             {/* Actions */}

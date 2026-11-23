@@ -34,6 +34,9 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
     return config;
   },
   (error) => {
@@ -160,6 +163,7 @@ export const businessesAPI = {
   addMonthlyIncome: (id, data = {}) => api.post(`/businesses/${id}/income`, { amount: data.amount }),
   addMonthlyExpense: (id, data = {}) => api.post(`/businesses/${id}/expense`, { amount: data.amount }),
   getBusinessStats: () => api.get('/businesses/stats'),
+  setProjects: (id, projectIds) => api.put(`/businesses/${id}/projects`, { projectIds }),
 };
 
 // Reminders API
@@ -252,11 +256,7 @@ export const documentsAPI = {
     Object.keys(metadata).forEach(key => {
       formData.append(key, metadata[key]);
     });
-    return api.post('/documents/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return api.post('/documents/upload', formData);
   },
   deleteDocument: (id) => api.delete(`/documents/${id}`),
   getDocumentStats: () => api.get('/documents/stats'),
@@ -267,6 +267,17 @@ export const messagesAPI = {
   testSMS: (phone, message) => api.post('/messages/test-sms', { phone, message }),
   getMessageLogs: (params = {}) => api.get('/messages/logs', { params }),
   getMessageStats: () => api.get('/messages/stats'),
+};
+
+export const categoriesAPI = {
+  list: (q = '') => api.get('/categories', { params: q ? { q } : {} }),
+  create: (name) => api.post('/categories', { name }),
+};
+
+export const reportsAPI = {
+  getReport: (period = 'week') => api.get('/reports', { params: { period } }),
+  saveSettings: (settings) => api.put('/reports/settings', settings),
+  sendReport: (period, phone) => api.post('/reports/send', { period, phone }),
 };
 
 // AI Assistant API

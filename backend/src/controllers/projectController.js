@@ -1,4 +1,6 @@
 const Project = require('../models/Project');
+const Expense = require('../models/Expense');
+const Business = require('../models/Business');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -15,15 +17,42 @@ const getProjects = asyncHandler(async (req, res) => {
 
   if (req.query.status) filter.status = req.query.status;
   if (req.query.projectType) filter.projectType = req.query.projectType;
+  if (req.query.businessId) {
+    if (!/^[a-f\d]{24}$/i.test(String(req.query.businessId))) {
+      return res.status(400).json({ success: false, message: 'Choose a business' });
+    }
+    filter.businessId = req.query.businessId;
+  }
 
   const projects = await Project.find(filter)
+    .populate('businessId', 'name')
     .sort(sort)
     .skip(skip)
     .limit(limit);
 
   const total = await Project.countDocuments(filter);
+  const ids = projects.map((project) => project._id);
+  const linked = ids.length
+    ? await Expense.find({
+      userId: req.user._id,
+      isActive: true,
+      projectId: { $in: ids }
+    }).select('projectId title amount expenseDate category subcategory vendor').lean()
+    : [];
+  const byProject = {};
+  linked.forEach((row) => {
+    const key = String(row.projectId);
+    if (!byProject[key]) byProject[key] = [];
+    byProject[key].push(row);
+  });
+  const rows = projects.map((project) => {
+    const json = project.toJSON();
+    json.linkedExpenses = byProject[String(project._id)] || [];
+    json.officeSpent = json.totalExpenses + json.linkedExpenses.reduce((sum, row) => sum + (row.amount || 0), 0);
+    return json;
+  });
 
-  res.json(createPaginatedResponse(projects, page, limit, total));
+  res.json(createPaginatedResponse(rows, page, limit, total));
 });
 
 /**
@@ -57,17 +86,29 @@ const getProject = asyncHandler(async (req, res) => {
  */
 const createProject = asyncHandler(async (req, res) => {
   const {
-    name, projectType, description, location,
+    name, projectType, description, location, locationMode, businessId, partners,
     startDate, expectedEndDate, status, plannedBudget, currency,
     expenses, incomes, tags, notes
   } = req.body;
+
+  const where = locationMode === 'online' ? 'online' : 'place';
+  let linkedBusiness = null;
+  if (businessId) {
+    linkedBusiness = await Business.findOne({ _id: businessId, userId: req.user._id, isActive: true });
+    if (!linkedBusiness) {
+      return res.status(400).json({ success: false, message: 'Choose one of your businesses' });
+    }
+  }
 
   const projectData = {
     userId: req.user._id,
     name,
     projectType: projectType || 'general',
     description: description || '',
-    location: location || '',
+    locationMode: where,
+    location: where === 'online' ? 'Online' : (location || ''),
+    businessId: linkedBusiness ? linkedBusiness._id : null,
+    partners: Array.isArray(partners) ? partners.map((name) => String(name).trim()).filter(Boolean).slice(0, 20) : [],
     startDate: new Date(startDate || new Date()),
     expectedEndDate: expectedEndDate ? new Date(expectedEndDate) : null,
     status: status || 'planning',
@@ -106,6 +147,24 @@ const updateProject = asyncHandler(async (req, res) => {
   }
 
   const updateData = { ...req.body };
+  if (updateData.locationMode === 'online') {
+    updateData.locationMode = 'online';
+    updateData.location = 'Online';
+  } else if (updateData.locationMode) {
+    updateData.locationMode = 'place';
+  }
+  if (Array.isArray(updateData.partners)) {
+    updateData.partners = updateData.partners.map((name) => String(name).trim()).filter(Boolean).slice(0, 20);
+  }
+  if (updateData.businessId) {
+    const linkedBusiness = await Business.findOne({ _id: updateData.businessId, userId: req.user._id, isActive: true });
+    if (!linkedBusiness) {
+      return res.status(400).json({ success: false, message: 'Choose one of your businesses' });
+    }
+    updateData.businessId = linkedBusiness._id;
+  } else if (updateData.businessId === '' || updateData.businessId === null) {
+    updateData.businessId = null;
+  }
   if (updateData.startDate) updateData.startDate = new Date(updateData.startDate);
   if (updateData.expectedEndDate) updateData.expectedEndDate = new Date(updateData.expectedEndDate);
   delete updateData.userId;
@@ -238,7 +297,7 @@ const addIncome = asyncHandler(async (req, res) => {
     });
   }
 
-  const { date, title, amount, quantity, unit, customer, notes } = req.body;
+  const { date, title, amount, quantity, unit, customer, notes, category } = req.body;
   if (!title || amount == null) {
     return res.status(400).json({
       success: false,
@@ -258,6 +317,7 @@ const addIncome = asyncHandler(async (req, res) => {
   project.incomes.push({
     date: date ? new Date(date) : new Date(),
     title,
+    category: category || 'income',
     amount: numericAmount,
     quantity: parseFloat(quantity) || 0,
     unit: unit || '',
@@ -308,14 +368,20 @@ const getProjectStats = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
   const projects = await Project.find({ userId, isActive: true });
+  const linked = await Expense.aggregate([
+    { $match: { userId, isActive: true, projectId: { $ne: null } } },
+    { $group: { _id: '$projectId', total: { $sum: '$amount' } } }
+  ]);
+  const extraByProject = new Map(linked.map((row) => [String(row._id), row.total]));
+  const spentOf = (project) => project.totalExpenses + (extraByProject.get(String(project._id)) || 0);
 
   const overview = {
     totalProjects: projects.length,
     activeProjects: projects.filter(p => ['planning', 'active'].includes(p.status)).length,
     completedProjects: projects.filter(p => ['completed'].includes(p.status)).length,
-    totalExpenses: projects.reduce((sum, p) => sum + p.totalExpenses, 0),
+    totalExpenses: projects.reduce((sum, p) => sum + spentOf(p), 0),
     totalIncome: projects.reduce((sum, p) => sum + p.totalIncome, 0),
-    totalProfit: projects.reduce((sum, p) => sum + p.profit, 0),
+    totalProfit: projects.reduce((sum, p) => sum + (p.totalIncome - spentOf(p)), 0),
     totalPlannedBudget: projects.reduce((sum, p) => sum + (p.plannedBudget || 0), 0)
   };
 
@@ -323,18 +389,18 @@ const getProjectStats = asyncHandler(async (req, res) => {
   projects.forEach(p => {
     byStatus[p.status] = byStatus[p.status] || { count: 0, expenses: 0, income: 0, profit: 0 };
     byStatus[p.status].count += 1;
-    byStatus[p.status].expenses += p.totalExpenses;
+    byStatus[p.status].expenses += spentOf(p);
     byStatus[p.status].income += p.totalIncome;
-    byStatus[p.status].profit += p.profit;
+    byStatus[p.status].profit += p.totalIncome - spentOf(p);
   });
 
   const byType = {};
   projects.forEach(p => {
     byType[p.projectType] = byType[p.projectType] || { count: 0, expenses: 0, income: 0, profit: 0 };
     byType[p.projectType].count += 1;
-    byType[p.projectType].expenses += p.totalExpenses;
+    byType[p.projectType].expenses += spentOf(p);
     byType[p.projectType].income += p.totalIncome;
-    byType[p.projectType].profit += p.profit;
+    byType[p.projectType].profit += p.totalIncome - spentOf(p);
   });
 
   res.json({

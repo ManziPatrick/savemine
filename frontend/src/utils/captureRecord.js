@@ -5,7 +5,7 @@ export function validateCapture(input) {
   const kind = input.kind || 'savings';
 
   if (!input.file) {
-    errors.file = 'Add a screenshot or photo first';
+    errors.file = 'Add a PDF or a photo first';
   }
   if (!String(input.title || '').trim()) {
     errors.title = 'Give this record a short name';

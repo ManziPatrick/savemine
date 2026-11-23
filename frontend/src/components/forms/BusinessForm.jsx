@@ -10,6 +10,7 @@ function BusinessForm({ business, onClose, onSuccess }) {
     businessType: 'animal_farming',
     name: '',
     description: '',
+    locationMode: 'place',
     location: '',
     startDate: new Date().toISOString().split('T')[0],
     status: 'active',
@@ -57,7 +58,8 @@ function BusinessForm({ business, onClose, onSuccess }) {
         businessType: business.businessType || 'animal_farming',
         name: business.name || '',
         description: business.description || '',
-        location: business.location || '',
+        locationMode: business.locationMode || (business.location === 'Online' ? 'online' : 'place'),
+        location: business.location === 'Online' ? '' : (business.location || ''),
         startDate: business.startDate ? new Date(business.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         status: business.status || 'active',
         initialInvestment: business.initialInvestment || '',
@@ -330,18 +332,22 @@ function BusinessForm({ business, onClose, onSuccess }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  id="location"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleInputChange}
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Where is your business located?"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <div className="flex gap-2">
+                  <button type="button" className={`btn ${formData.locationMode === 'online' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFormData((prev) => ({ ...prev, locationMode: 'online', location: '' }))}>Online</button>
+                  <button type="button" className={`btn ${formData.locationMode === 'place' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFormData((prev) => ({ ...prev, locationMode: 'place' }))}>A place</button>
+                </div>
+                {formData.locationMode === 'place' && (
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Kigali, the market, the office"
+                  />
+                )}
               </div>
 
               <div>

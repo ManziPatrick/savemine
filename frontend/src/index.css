@@ -145,6 +145,15 @@
     animation: office-bob 1.5s ease-in-out infinite;
   }
 
+  .slide-over {
+    animation: slideOverIn 0.28s ease-out;
+  }
+
+  @keyframes slideOverIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
   @keyframes office-spin {
     to { transform: rotate(360deg); }
   }
@@ -157,8 +166,10 @@
   @media (prefers-reduced-motion: reduce) {
     .office-loader__ring,
     .office-loader__ring-inner,
-    .office-loader__mark {
+    .office-loader__mark,
+    .slide-over {
       animation: none;
+      transform: none;
     }
   }
   

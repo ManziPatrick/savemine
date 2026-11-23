@@ -1,5 +1,6 @@
 const Asset = require('../models/Asset');
 const Contact = require('../models/Contact');
+const Project = require('../models/Project');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -26,6 +27,7 @@ const getAssets = asyncHandler(async (req, res) => {
 
   const assets = await Asset.find(filter)
     .populate('ownerContactId', 'name phone type')
+    .populate('projectId', 'name')
     .sort(sort)
     .skip(skip)
     .limit(limit);
@@ -78,7 +80,8 @@ const createAsset = asyncHandler(async (req, res) => {
     location,
     serialNumber,
     notes,
-    tags
+    tags,
+    projectId
   } = req.body;
 
   // Verify contact belongs to user if provided
@@ -110,8 +113,20 @@ const createAsset = asyncHandler(async (req, res) => {
     location,
     serialNumber,
     notes,
-    tags: tags || []
+    tags: tags || [],
+    projectId: null
   };
+
+  if (projectId) {
+    const project = await Project.findOne({ _id: projectId, userId: req.user._id, isActive: true });
+    if (!project) {
+      return res.status(400).json({
+        success: false,
+        message: 'Choose one of your projects'
+      });
+    }
+    assetData.projectId = project._id;
+  }
 
   const asset = await Asset.create(assetData);
 
@@ -144,7 +159,8 @@ const updateAsset = asyncHandler(async (req, res) => {
     location,
     serialNumber,
     notes,
-    tags
+    tags,
+    projectId
   } = req.body;
 
   const asset = await Asset.findOne({
@@ -188,6 +204,20 @@ const updateAsset = asyncHandler(async (req, res) => {
   if (serialNumber !== undefined) updateData.serialNumber = serialNumber;
   if (notes !== undefined) updateData.notes = notes;
   if (tags !== undefined) updateData.tags = tags;
+  if (projectId !== undefined) {
+    if (!projectId) {
+      updateData.projectId = null;
+    } else {
+      const project = await Project.findOne({ _id: projectId, userId: req.user._id, isActive: true });
+      if (!project) {
+        return res.status(400).json({
+          success: false,
+          message: 'Choose one of your projects'
+        });
+      }
+      updateData.projectId = project._id;
+    }
+  }
 
   const updatedAsset = await Asset.findByIdAndUpdate(
     req.params.id,

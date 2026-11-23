@@ -181,6 +181,7 @@ function Reminders() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-ink">{reminder.title}</p>
+                  {reminder.category && <p className="text-xs text-ink/50">{reminder.category}</p>}
                   <p className="mt-1 text-sm text-ink/60">
                     {when ? new Date(when).toLocaleDateString() : 'No date'} · {repeatLabel(reminder.recurrence)}
                   </p>
@@ -220,6 +221,7 @@ function Reminders() {
                           <div className="font-medium text-gray-900">
                             {reminder.title}
                           </div>
+                          {reminder.category && <div className="text-xs text-gray-500">{reminder.category}</div>}
                           {reminder.description && (
                             <div className="text-sm text-gray-500">
                               {reminder.description}

@@ -132,6 +132,11 @@ function Assets() {
                           <div className="font-medium text-gray-900">
                             {asset.name}
                           </div>
+                          {asset.projectId?.name && (
+                            <div className="text-sm text-gray-500">
+                              Project: {asset.projectId.name}
+                            </div>
+                          )}
                           {asset.description && (
                             <div className="text-sm text-gray-500">
                               {asset.description}
