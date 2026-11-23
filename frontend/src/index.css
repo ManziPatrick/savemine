@@ -4,17 +4,21 @@
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Outfit', system-ui, sans-serif;
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-paper text-ink antialiased;
+  }
+
+  h1, h2, .font-display {
+    font-family: Fraunces, Georgia, serif;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200;
+    @apply inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200;
   }
   
   .btn-primary {
@@ -38,7 +42,7 @@
   }
   
   .input {
-    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm;
+    @apply block w-full px-3 py-2.5 border border-line rounded-xl bg-white shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm;
   }
   
   .input-error {
@@ -50,7 +54,7 @@
   }
   
   .card {
-    @apply bg-white overflow-hidden shadow rounded-lg;
+    @apply bg-paper-card overflow-hidden shadow-sm rounded-2xl border border-line;
   }
   
   .card-header {
@@ -106,19 +110,23 @@
   }
   
   .page-header {
-    @apply bg-white shadow-sm border-b border-gray-200;
+    @apply bg-paper-card shadow-sm border border-line rounded-2xl;
   }
   
   .page-content {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+    @apply max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6;
   }
   
   .stats-grid {
-    @apply grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4;
+    @apply grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4;
+  }
+
+  .quick-actions {
+    @apply grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4;
   }
   
   .stats-card {
-    @apply bg-white overflow-hidden shadow rounded-lg;
+    @apply bg-paper-card overflow-hidden shadow-sm rounded-2xl border border-line;
   }
   
   .stats-card-body {
@@ -134,7 +142,7 @@
   }
   
   .table-container {
-    @apply overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg;
+    @apply overflow-x-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg;
   }
   
   .table {

@@ -1,17 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useSearchParams } from 'react-router-dom';
 import { PlusIcon, PencilIcon, TrashIcon, BellIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { remindersAPI } from '../services/api';
 import ReminderForm from '../components/forms/ReminderForm';
+import BillForm from '../components/forms/BillForm';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { repeatLabel, summarizeBills } from '../utils/billMath';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Reminders() {
   const [showForm, setShowForm] = useState(false);
+  const [showBill, setShowBill] = useState(false);
   const [selectedReminder, setSelectedReminder] = useState(null);
   const [filter, setFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setSelectedReminder(null);
+    setShowForm(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const { data: reminders, isLoading, error } = useQuery(
     ['reminders', filter, typeFilter],
@@ -19,12 +35,13 @@ function Reminders() {
       status: filter === 'all' ? undefined : filter,
       modelType: typeFilter === 'all' ? undefined : typeFilter,
       limit: 50
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const deleteMutation = useMutation(remindersAPI.deleteReminder, {
     onSuccess: () => {
-      queryClient.invalidateQueries('reminders');
+      syncBooks(queryClient, 'bills');
       toast.success('Reminder deleted successfully');
     },
     onError: (error) => {
@@ -34,7 +51,7 @@ function Reminders() {
 
   const sendNowMutation = useMutation(remindersAPI.sendReminderNow, {
     onSuccess: () => {
-      queryClient.invalidateQueries('reminders');
+      syncBooks(queryClient, 'bills');
       toast.success('Reminder sent successfully');
     },
     onError: (error) => {
@@ -60,7 +77,7 @@ function Reminders() {
   };
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries('reminders');
+    syncBooks(queryClient, 'bills');
   };
 
   const handleCloseForm = () => {
@@ -88,57 +105,103 @@ function Reminders() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Reminders</h1>
+          <p className="text-sm font-medium text-saffron">Bills</p>
+          <h1 className="font-display text-3xl text-ink sm:text-4xl">Reminders</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Set up SMS and WhatsApp reminders for loans and payments
+            Set a bill to repeat every day, week, month, or year. The wallet adds them up for you.
           </p>
         </div>
-        <button 
-          onClick={() => setShowForm(true)}
-          className="btn btn-primary self-start sm:self-auto"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Set Reminder
-        </button>
+        <div className="flex flex-wrap gap-2 self-start">
+          <button onClick={() => setShowBill(true)} className="btn btn-primary">
+            Add a bill
+          </button>
+          <button 
+            onClick={() => setShowForm(true)}
+            className="btn btn-secondary"
+          >
+            <PlusIcon className="h-5 w-5 mr-2" />
+            Other reminder
+          </button>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex flex-wrap gap-2">
-          {['all', 'scheduled', 'sent', 'failed', 'cancelled'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                filter === status
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {['all', 'loan', 'transaction', 'custom'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setTypeFilter(type)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                typeFilter === type
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-      </div>
+      <FilterMenu
+        groups={[
+          {
+            label: 'Status',
+            value: filter,
+            onChange: setFilter,
+            options: ['all', 'scheduled', 'sent', 'failed', 'cancelled'].map((status) => ({
+              value: status,
+              label: status,
+            })),
+          },
+          {
+            label: 'Type',
+            value: typeFilter,
+            onChange: setTypeFilter,
+            options: ['all', 'loan', 'transaction', 'custom'].map((type) => ({
+              value: type,
+              label: type,
+            })),
+          },
+        ]}
+      />
+
+      {(() => {
+        const summary = summarizeBills(reminders?.data?.data || []);
+        const money = (amount) => new Intl.NumberFormat('en-RW', {
+          style: 'currency', currency: 'RWF', maximumFractionDigits: 0,
+        }).format(Math.round(amount || 0));
+        return (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {[
+              ['Each day', summary.totals.day],
+              ['Each week', summary.totals.week],
+              ['Each month', summary.totals.month],
+              ['Each year', summary.totals.year],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-2xl border border-line bg-paper-card p-4">
+                <p className="text-xs uppercase tracking-wide text-ink/50">{label}</p>
+                <p className="mt-2 break-words font-display text-xl text-ink sm:text-2xl">{money(value)}</p>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Reminders List */}
-      <div className="card">
+      {(reminders?.data?.data || []).length === 0 && (
+        <div className="rounded-2xl border border-dashed border-line bg-paper-card p-8 text-center md:hidden">
+          <p className="text-sm text-ink/60">No bills yet. Add the first one and choose how often it repeats.</p>
+        </div>
+      )}
+
+      <div className="space-y-3 md:hidden">
+        {(reminders?.data?.data || []).map((reminder) => {
+          const when = reminder.scheduledDate || reminder.sendAt;
+          return (
+            <div key={reminder._id} className="rounded-2xl border border-line bg-paper-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-ink">{reminder.title}</p>
+                  <p className="mt-1 text-sm text-ink/60">
+                    {when ? new Date(when).toLocaleDateString() : 'No date'} · {repeatLabel(reminder.recurrence)}
+                  </p>
+                </div>
+                {Number(reminder.amount) > 0 && (
+                  <p className="shrink-0 text-sm font-semibold">{Number(reminder.amount).toLocaleString()} FRW</p>
+                )}
+              </div>
+              <button type="button" onClick={() => handleDelete(reminder)} className="mt-3 text-xs font-medium text-red-700">
+                Remove
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="card hidden md:block">
         <div className="card-body">
           {reminders?.data?.data?.length > 0 ? (
             <div className="overflow-x-auto">
@@ -170,22 +233,23 @@ function Reminders() {
                       </td>
                       <td className="table-cell">
                         <span className="badge badge-info">
-                          {reminder.modelType}
+                          {reminder.reminderType || reminder.modelType || 'general'}
+                          {reminder.recurrence && reminder.recurrence !== 'none' ? ` · ${repeatLabel(reminder.recurrence)}` : ''}
                         </span>
                       </td>
                       <td className="table-cell">
                         <div>
                           <div className="font-medium text-gray-900">
-                            {new Date(reminder.sendAt).toLocaleDateString()}
+                            {new Date(reminder.sendAt || reminder.scheduledDate).toLocaleDateString()}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {new Date(reminder.sendAt).toLocaleTimeString()}
+                            {reminder.amount ? `${Number(reminder.amount).toLocaleString()} FRW` : new Date(reminder.sendAt || reminder.scheduledDate).toLocaleTimeString()}
                           </div>
                         </div>
                       </td>
                       <td className="table-cell">
                         <div className="flex space-x-1">
-                          {reminder.channels.map((channel) => (
+                          {(reminder.channels || [reminder.sendMethod].filter(Boolean)).map((channel) => (
                             <span key={channel} className="badge badge-gray text-xs">
                               {channel.toUpperCase()}
                             </span>
@@ -258,6 +322,9 @@ function Reminders() {
           onClose={handleCloseForm}
           onSuccess={handleFormSuccess}
         />
+      )}
+      {showBill && (
+        <BillForm onClose={() => setShowBill(false)} onSuccess={handleFormSuccess} />
       )}
     </div>
   );

@@ -167,7 +167,7 @@ function FloatingAssistant() {
       {!open && !isAssistantPage && (
         <button
           onClick={() => setOpen(true)}
-          className="group fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 text-white shadow-xl shadow-primary-500/30 transition hover:scale-105 hover:shadow-2xl"
+          className="group fixed bottom-4 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 text-white shadow-xl shadow-primary-500/30 transition hover:scale-105 hover:shadow-2xl sm:bottom-5 sm:right-5 sm:h-14 sm:w-14"
           title="Ask the AI assistant"
         >
           <ChatBubbleLeftRightIcon className="h-7 w-7 transition group-hover:scale-110" />

@@ -1190,7 +1190,7 @@ async function getFinancialReport(userId, period = 'month') {
 function describeAiFailure(err) {
   const msg = (err && err.message) || '';
   if (msg.includes('not configured')) {
-    return 'The AI assistant is not configured yet. Please add GROQ_API_KEY (or HUGGINGFACE_API_KEY) to the backend .env file.';
+    return 'The AI assistant is not configured yet. Please add GROQ_API_KEY or APINEX_API_KEY to the backend .env file.';
   }
   // The router combines both providers' errors, e.g.
   // "Request failed with status code 429 (both providers failed: ...; ...)"
@@ -1204,7 +1204,7 @@ function describeAiFailure(err) {
     return `The AI service is blocked by a permission error (403)${bothFailed ? ' on the fallback provider' : ''}. If you use Hugging Face, open https://huggingface.co/settings/tokens and enable the "Inference Providers" scope on your token.${has429 ? ' The main provider was also rate-limited (429) - please retry in a minute.' : ''}`;
   }
   if (has401) {
-    return 'The AI service rejected an API key (401). Check that GROQ_API_KEY and HUGGINGFACE_API_KEY in the backend .env file are correct.';
+    return 'The AI service rejected an API key (401). Check that GROQ_API_KEY and APINEX_API_KEY in the backend .env file are correct.';
   }
   if (has429) {
     return 'The AI service is temporarily rate-limited (429). Please wait a minute and try again - I will retry automatically.';

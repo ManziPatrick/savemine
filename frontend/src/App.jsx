@@ -19,6 +19,8 @@ import Business from './pages/Business';
 import Investments from './pages/Investments';
 import Projects from './pages/Projects';
 import PettyCash from './pages/PettyCash';
+import Capture from './pages/Capture';
+import Contracts from './pages/Contracts';
 import Profile from './pages/Profile';
 import Assistant from './pages/Assistant';
 import NotFound from './pages/NotFound';
@@ -98,6 +100,8 @@ function App() {
           <Route path="investments" element={<Investments />} />
           <Route path="projects" element={<Projects />} />
           <Route path="petty-cash" element={<PettyCash />} />
+          <Route path="capture" element={<Capture />} />
+          <Route path="contracts" element={<Contracts />} />
           <Route path="assistant" element={<Assistant />} />
           <Route path="profile" element={<Profile />} />
         </Route>

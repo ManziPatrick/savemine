@@ -5,6 +5,8 @@ import { giftsAPI, contactsAPI } from '../services/api';
 import GiftForm from '../components/forms/GiftForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Gifts() {
   const [showForm, setShowForm] = useState(false);
@@ -23,7 +25,8 @@ function Gifts() {
       occasion: occasionFilter || undefined,
       page: currentPage,
       limit: pageSize
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const { data: giftStats } = useQuery(
@@ -33,8 +36,7 @@ function Gifts() {
 
   const deleteMutation = useMutation(giftsAPI.deleteGift, {
     onSuccess: () => {
-      queryClient.invalidateQueries('gifts');
-      queryClient.invalidateQueries('giftStats');
+      syncBooks(queryClient, 'gifts');
       toast.success('Gift deleted successfully');
     },
     onError: (error) => {
@@ -57,8 +59,7 @@ function Gifts() {
     setShowForm(false);
     setSelectedGift(null);
     setCurrentPage(1);
-    queryClient.invalidateQueries('gifts');
-    queryClient.invalidateQueries('giftStats');
+    syncBooks(queryClient, 'gifts');
   };
 
   const getGiftTypeIcon = (type) => {
@@ -178,40 +179,28 @@ function Gifts() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex flex-wrap gap-2">
-          {['', 'given', 'received', 'charity', 'donation'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setGiftTypeFilter(type)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                giftTypeFilter === type
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {type || 'All Types'}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {['', 'birthday', 'wedding', 'holiday', 'thank_you'].map((occasion) => (
-            <button
-              key={occasion}
-              onClick={() => setOccasionFilter(occasion)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                occasionFilter === occasion
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {occasion || 'All Occasions'}
-            </button>
-          ))}
-        </div>
-      </div>
+      <FilterMenu
+        groups={[
+          {
+            label: 'Type',
+            value: giftTypeFilter,
+            onChange: setGiftTypeFilter,
+            options: ['', 'given', 'received', 'charity', 'donation'].map((type) => ({
+              value: type,
+              label: type || 'All types',
+            })),
+          },
+          {
+            label: 'Occasion',
+            value: occasionFilter,
+            onChange: setOccasionFilter,
+            options: ['', 'birthday', 'wedding', 'holiday', 'thank_you'].map((occasion) => ({
+              value: occasion,
+              label: occasion ? occasion.replace('_', ' ') : 'All occasions',
+            })),
+          },
+        ]}
+      />
 
       {/* Gifts List */}
       <div className="card">

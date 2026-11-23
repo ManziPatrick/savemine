@@ -5,6 +5,8 @@ import { assetsAPI } from '../services/api';
 import AssetForm from '../components/forms/AssetForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Assets() {
   const [showForm, setShowForm] = useState(false);
@@ -19,12 +21,13 @@ function Assets() {
       status: filter === 'all' ? undefined : filter,
       category: categoryFilter || undefined,
       limit: 50
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const deleteMutation = useMutation(assetsAPI.deleteAsset, {
     onSuccess: () => {
-      queryClient.invalidateQueries('assets');
+      syncBooks(queryClient, 'assets');
       toast.success('Asset deleted successfully');
     },
     onError: (error) => {
@@ -44,7 +47,7 @@ function Assets() {
   };
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries('assets');
+    syncBooks(queryClient, 'assets');
   };
 
   const handleCloseForm = () => {
@@ -86,33 +89,27 @@ function Assets() {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex flex-wrap gap-2">
-          {['all', 'owned', 'loaned', 'shared'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                filter === status
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex-1 max-w-md">
-          <input
-            type="text"
-            placeholder="Filter by category..."
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="input"
-          />
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <FilterMenu
+          groups={[
+            {
+              label: 'Status',
+              value: filter,
+              onChange: setFilter,
+              options: ['all', 'owned', 'loaned', 'shared'].map((status) => ({
+                value: status,
+                label: status,
+              })),
+            },
+          ]}
+        />
+        <input
+          type="text"
+          placeholder="Filter by category..."
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="input max-w-md"
+        />
       </div>
 
       {/* Assets List */}

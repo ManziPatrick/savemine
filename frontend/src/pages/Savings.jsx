@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { Link } from 'react-router-dom';
 import { PlusIcon, PencilIcon, TrashIcon, CircleStackIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
 import { savingsAPI } from '../services/api';
 import ExportButtons from '../components/ExportButtons';
@@ -7,6 +8,8 @@ import { buildSavingsSections } from '../utils/exportSections';
 import SavingsForm from '../components/forms/SavingsForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Savings() {
   const [showForm, setShowForm] = useState(false);
@@ -19,15 +22,15 @@ function Savings() {
 
   const { data: savings, isLoading, error } = useQuery(
     ['savings', filter],
-    () => savingsAPI.getSavings({ location: filter === 'all' ? undefined : filter })
+    () => savingsAPI.getSavings({ location: filter === 'all' ? undefined : filter }),
+    { keepPreviousData: true }
   );
 
   const { data: savingsStats } = useQuery('savingsStats', savingsAPI.getSavingsStats);
 
   const deleteMutation = useMutation(savingsAPI.deleteSavings, {
     onSuccess: () => {
-      queryClient.invalidateQueries('savings');
-      queryClient.invalidateQueries('savingsStats');
+      syncBooks(queryClient, 'savings');
       toast.success('Savings deleted successfully');
     },
     onError: (error) => {
@@ -39,8 +42,7 @@ function Savings() {
     ({ id, data }) => savingsAPI.addAmount(id, data.amount, data.notes),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('savings');
-        queryClient.invalidateQueries('savingsStats');
+        syncBooks(queryClient, 'savings');
         toast.success('Amount added successfully');
         setShowAddModal(false);
         setSelectedSavingForAction(null);
@@ -55,8 +57,7 @@ function Savings() {
     ({ id, data }) => savingsAPI.withdrawAmount(id, data.amount, data.notes),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries('savings');
-        queryClient.invalidateQueries('savingsStats');
+        syncBooks(queryClient, 'savings');
         toast.success('Amount withdrawn successfully');
         setShowWithdrawModal(false);
         setSelectedSavingForAction(null);
@@ -89,8 +90,7 @@ function Savings() {
   };
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries('savings');
-    queryClient.invalidateQueries('savingsStats');
+    syncBooks(queryClient, 'savings');
   };
 
   const handleCloseForm = () => {
@@ -163,9 +163,9 @@ function Savings() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Savings</h1>
+          <h1 className="font-display text-4xl text-ink">Savings</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Track your savings across different accounts and locations
+            Jars for MoMo, bank, SACCO, and cash. Attach a screenshot when you add money.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 self-start sm:self-auto">
@@ -174,6 +174,9 @@ function Savings() {
             title="Savings Report"
             sections={buildSavingsSections(savings?.data?.data || [])}
           />
+          <Link to="/capture" className="btn btn-secondary">
+            From a photo
+          </Link>
           <button 
             onClick={() => setShowForm(true)}
             className="btn btn-primary"
@@ -242,22 +245,19 @@ function Savings() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        {['all', 'Bank', 'SACCO', 'MTN MoMo', 'Cash'].map((location) => (
-          <button
-            key={location}
-            onClick={() => setFilter(location)}
-            className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-              filter === location
-                ? 'bg-primary-100 text-primary-700'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {location}
-          </button>
-        ))}
-      </div>
+      <FilterMenu
+        groups={[
+          {
+            label: 'Location',
+            value: filter,
+            onChange: setFilter,
+            options: ['all', 'Bank', 'SACCO', 'MTN MoMo', 'Cash'].map((location) => ({
+              value: location,
+              label: location,
+            })),
+          },
+        ]}
+      />
 
       {/* Savings List */}
       <div className="card">

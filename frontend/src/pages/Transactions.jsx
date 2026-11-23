@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useSearchParams } from 'react-router-dom';
 import { PlusIcon, PencilIcon, TrashIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 import { transactionsAPI } from '../services/api';
 import ExportButtons from '../components/ExportButtons';
@@ -7,6 +8,8 @@ import { buildTransactionSections } from '../utils/exportSections';
 import TransactionForm from '../components/forms/TransactionForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Transactions() {
   const [showForm, setShowForm] = useState(false);
@@ -15,6 +18,16 @@ function Transactions() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('');
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setSelectedTransaction(null);
+    setShowForm(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const { data: transactions, isLoading, error } = useQuery(
     ['transactions', filter, typeFilter, categoryFilter],
@@ -23,12 +36,13 @@ function Transactions() {
       type: typeFilter === 'all' ? undefined : typeFilter,
       category: categoryFilter || undefined,
       limit: 50
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const deleteMutation = useMutation(transactionsAPI.deleteTransaction, {
     onSuccess: () => {
-      queryClient.invalidateQueries('transactions');
+      syncBooks(queryClient, 'transactions');
       toast.success('Transaction deleted successfully');
     },
     onError: (error) => {
@@ -48,7 +62,7 @@ function Transactions() {
   };
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries('transactions');
+    syncBooks(queryClient, 'transactions');
   };
 
   const handleCloseForm = () => {
@@ -97,50 +111,36 @@ function Transactions() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex flex-wrap gap-2">
-          {['all', 'completed', 'pending', 'cancelled'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                filter === status
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {['all', 'income', 'expense'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setTypeFilter(type)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                typeFilter === type
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 max-w-md">
-          <input
-            type="text"
-            placeholder="Filter by category..."
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="input"
-          />
-        </div>
-      </div>
+      <FilterMenu
+        groups={[
+          {
+            label: 'Status',
+            value: filter,
+            onChange: setFilter,
+            options: ['all', 'completed', 'pending', 'cancelled'].map((status) => ({
+              value: status,
+              label: status,
+            })),
+          },
+          {
+            label: 'Type',
+            value: typeFilter,
+            onChange: setTypeFilter,
+            options: ['all', 'income', 'expense'].map((type) => ({
+              value: type,
+              label: type,
+            })),
+          },
+        ]}
+      >
+        <input
+          type="text"
+          placeholder="Filter by category..."
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="input"
+        />
+      </FilterMenu>
 
       {/* Transactions List */}
       <div className="card">

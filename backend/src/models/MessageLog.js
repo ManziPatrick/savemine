@@ -72,7 +72,6 @@ const messageLogSchema = new mongoose.Schema({
 
 // Indexes for performance and analytics
 messageLogSchema.index({ userId: 1, createdAt: -1 });
-messageLogSchema.index({ reminderId: 1 });
 messageLogSchema.index({ channel: 1, status: 1 });
 messageLogSchema.index({ createdAt: -1 });
 messageLogSchema.index({ phone: 1 });

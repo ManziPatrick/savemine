@@ -1,4 +1,5 @@
 const Contact = require('../models/Contact');
+const { normalizePhone, phoneTail } = require('../utils/phone');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -235,13 +236,15 @@ const searchContacts = asyncHandler(async (req, res) => {
     });
   }
 
+  const digits = String(q).replace(/\D/g, '').replace(/^0+/, '');
   const filter = {
     userId: req.user._id,
     isActive: true,
     $or: [
       { name: { $regex: q, $options: 'i' } },
       { phone: { $regex: q, $options: 'i' } },
-      { email: { $regex: q, $options: 'i' } }
+      { email: { $regex: q, $options: 'i' } },
+      ...(digits.length >= 3 ? [{ phone: { $regex: digits } }] : [])
     ]
   };
 
@@ -338,17 +341,21 @@ const bulkImportContacts = asyncHandler(async (req, res) => {
     
     try {
       // Validate required fields
-      if (!contactData.name || !contactData.phone) {
+      const phone = normalizePhone(contactData.phone);
+      if (!contactData.name || !phone) {
         results.failed++;
         results.errors.push(`Row ${i + 1}: Missing name or phone`);
         continue;
       }
 
-      // Check if contact already exists
+      const tail = phoneTail(phone);
       const existingContact = await Contact.findOne({
         userId: req.user._id,
-        phone: contactData.phone,
-        isActive: true
+        isActive: true,
+        $or: [
+          { phone },
+          { phone: { $regex: `${tail}$` } }
+        ]
       });
 
       if (existingContact) {
@@ -356,6 +363,7 @@ const bulkImportContacts = asyncHandler(async (req, res) => {
         try {
           await Contact.findByIdAndUpdate(existingContact._id, {
             name: contactData.name.trim(),
+            phone,
             type: contactData.type || 'debtor',
             email: contactData.email ? contactData.email.trim() : undefined,
             address: contactData.address ? contactData.address.trim() : undefined,
@@ -376,7 +384,7 @@ const bulkImportContacts = asyncHandler(async (req, res) => {
       const newContact = {
         userId: req.user._id,
         name: contactData.name.trim(),
-        phone: contactData.phone.trim(),
+        phone,
         type: contactData.type || 'debtor',
         email: contactData.email ? contactData.email.trim() : undefined,
         address: contactData.address ? contactData.address.trim() : undefined,

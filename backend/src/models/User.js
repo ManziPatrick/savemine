@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { normalizePhone } = require('../utils/phone');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -20,7 +21,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Phone number is required'],
     trim: true,
-    match: [/^\+?[1-9]\d{1,14}$/, 'Please enter a valid phone number']
+    set: (value) => normalizePhone(value) || value,
+    match: [/^\+[1-9]\d{7,14}$/, 'Please enter a valid phone number']
   },
   passwordHash: {
     type: String,
@@ -64,8 +66,7 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Index for performance
-userSchema.index({ email: 1 });
+// email already has a unique index from the field definition
 userSchema.index({ phone: 1 });
 
 // Hash password before saving

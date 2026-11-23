@@ -11,7 +11,7 @@ const VALID_DOCUMENT_TYPES = [
   'statement', 'tax_document', 'other'
 ];
 
-const VALID_RELATED_ENTITIES = ['loan', 'contact', 'asset', 'investment', 'business', 'expense', 'gift', 'general'];
+const VALID_RELATED_ENTITIES = ['loan', 'contact', 'asset', 'investment', 'business', 'expense', 'gift', 'savings', 'pettycash', 'general'];
 
 /**
  * @desc    Get all documents for user

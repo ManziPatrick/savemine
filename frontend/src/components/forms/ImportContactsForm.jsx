@@ -28,8 +28,12 @@ function ImportContactsForm({ onClose, onSuccess }) {
   const parseCSV = (file) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target.result;
-      const lines = text.split('\n').filter(line => line.trim());
+      const raw = e.target.result.replace(/^\uFEFF/, '');
+      const headerLine = raw.split(/\r?\n/).find((line) => line.trim()) || '';
+      const commas = (headerLine.match(/,/g) || []).length;
+      const semis = (headerLine.match(/;/g) || []).length;
+      const text = semis > commas ? raw.replace(/;/g, ',') : raw;
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
       
       if (lines.length < 2) {
         toast.error('CSV file must have at least a header row and one data row');
@@ -237,7 +241,11 @@ function ImportContactsForm({ onClose, onSuccess }) {
         } else {
           // Handle our custom format
           headers.forEach((header, index) => {
-            contact[header] = values[index] || '';
+            const key = header.trim().toLowerCase();
+            const value = values[index] || '';
+            if (key.includes('phone') && !contact.phone) contact.phone = value;
+            else if ((key === 'name' || key.includes('full name')) && !contact.name) contact.name = value;
+            else contact[key] = value;
           });
         }
 
@@ -248,15 +256,12 @@ function ImportContactsForm({ onClose, onSuccess }) {
           
           console.log(`Phone processing: "${contact.phone}" -> "${cleanedPhone}" -> "${formattedPhone}"`);
           
-          if (!formattedPhone) {
-            continue; // Skip invalid phone numbers silently
+          if (!formattedPhone || !validatePhone(formattedPhone)) {
+            newErrors.push(`Row ${i + 1}: could not read "${contact.phone}"`);
+            contact.phone = '';
+          } else {
+            contact.phone = formattedPhone;
           }
-          
-          if (!validatePhone(formattedPhone)) {
-            continue; // Skip invalid phone numbers silently
-          }
-          
-          contact.phone = formattedPhone;
         }
 
         // Set default type if not provided
@@ -264,9 +269,14 @@ function ImportContactsForm({ onClose, onSuccess }) {
           contact.type = 'debtor';
         }
 
+        if (!contact.name && contact.phone) {
+          contact.name = contact.phone.replace(/\D/g, '').slice(-10);
+        }
+
         // Skip if no name or phone
         if (!contact.name || !contact.phone) {
-          continue; // Skip silently
+          newErrors.push(`Row ${i + 1}: needs a name and a phone number`);
+          continue;
         }
 
         contacts.push(contact);
@@ -361,12 +371,16 @@ function ImportContactsForm({ onClose, onSuccess }) {
             <div className="mt-3 text-sm text-blue-800">
               <strong>Phone Number Formatting:</strong>
               <ul className="mt-1 space-y-1">
-                <li>• Rwanda numbers: 0788123456 → +250788123456</li>
-                <li>• International numbers: Preserved as-is</li>
-                <li>• Invalid numbers: Silently skipped</li>
+                <li>• Keep the number as you saved it: 0788 123 456, 788123456, or +250 788 123 456</li>
+                <li>• A person you already imported is updated, not entered again</li>
+                <li>• Excel files that use semicolons are accepted</li>
               </ul>
             </div>
           </div>
+
+          {errors.length > 0 && (
+            <p className="mb-4 text-sm text-red-700">{errors.slice(0, 3).join(' · ')}</p>
+          )}
 
           {/* Preview */}
           {preview.length > 0 && (

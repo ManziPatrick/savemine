@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useSearchParams } from 'react-router-dom';
 import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, CurrencyDollarIcon, ClockIcon, ExclamationTriangleIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { loansAPI } from '../services/api';
 import ExportButtons from '../components/ExportButtons';
@@ -10,6 +11,8 @@ import ImportLoansForm from '../components/forms/ImportLoansForm';
 import SMSTest from '../components/SMSTest';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Loans() {
   const [showForm, setShowForm] = useState(false);
@@ -22,6 +25,16 @@ function Loans() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setSelectedLoan(null);
+    setShowForm(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const { data: loans, isLoading, error } = useQuery(
     ['loans', filter, loanTypeFilter, currentPage, pageSize],
@@ -30,7 +43,8 @@ function Loans() {
       loanType: loanTypeFilter || undefined,
       page: currentPage,
       limit: pageSize
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const { data: loanStats } = useQuery(
@@ -46,8 +60,7 @@ function Loans() {
 
   const deleteMutation = useMutation(loansAPI.deleteLoan, {
     onSuccess: () => {
-      queryClient.invalidateQueries('loans');
-      queryClient.invalidateQueries('loanStats');
+      syncBooks(queryClient, 'loans');
       toast.success('Loan deleted successfully');
     },
     onError: (error) => {
@@ -75,22 +88,19 @@ function Loans() {
     setShowForm(false);
     setSelectedLoan(null);
     setCurrentPage(1);
-    queryClient.invalidateQueries('loans');
-    queryClient.invalidateQueries('loanStats');
+    syncBooks(queryClient, 'loans', 'wallet');
   };
 
   const handlePaymentSuccess = () => {
     setShowPaymentForm(false);
     setSelectedLoan(null);
-    queryClient.invalidateQueries('loans');
-    queryClient.invalidateQueries('loanStats');
+    syncBooks(queryClient, 'loans', 'wallet');
   };
 
   const handleImportSuccess = () => {
     setShowImportForm(false);
     setCurrentPage(1);
-    queryClient.invalidateQueries('loans');
-    queryClient.invalidateQueries('loanStats');
+    syncBooks(queryClient, 'loans');
   };
 
   const handleFilterChange = (newFilter) => {
@@ -251,40 +261,28 @@ function Loans() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex flex-wrap gap-2">
-          {['all', 'active', 'overdue', 'completed', 'defaulted'].map((status) => (
-            <button
-              key={status}
-              onClick={() => handleFilterChange(status)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                filter === status
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {['', 'personal', 'business', 'animal', 'emergency', 'investment'].map((type) => (
-            <button
-              key={type}
-              onClick={() => handleLoanTypeFilterChange(type)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                loanTypeFilter === type
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {type || 'All Types'}
-            </button>
-          ))}
-        </div>
-      </div>
+      <FilterMenu
+        groups={[
+          {
+            label: 'Status',
+            value: filter,
+            onChange: handleFilterChange,
+            options: ['all', 'active', 'overdue', 'completed', 'defaulted'].map((status) => ({
+              value: status,
+              label: status,
+            })),
+          },
+          {
+            label: 'Type',
+            value: loanTypeFilter,
+            onChange: handleLoanTypeFilterChange,
+            options: ['', 'personal', 'business', 'animal', 'emergency', 'investment'].map((type) => ({
+              value: type,
+              label: type || 'All types',
+            })),
+          },
+        ]}
+      />
 
       {/* Loans List */}
       <div className="card">

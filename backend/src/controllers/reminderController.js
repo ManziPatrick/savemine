@@ -5,6 +5,7 @@ const Loan = require('../models/Loan');
 const smsService = require('../services/smsService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
+const { normalizePhone } = require('../utils/phone');
 
 /**
  * @desc    Get all reminders for user
@@ -100,6 +101,8 @@ const createReminder = asyncHandler(async (req, res) => {
     sendMethod,
     recurrence,
     recurrenceEndDate,
+    amount,
+    currency,
     escalation,
     tags,
     notes,
@@ -118,7 +121,7 @@ const createReminder = asyncHandler(async (req, res) => {
   // Handle custom contact for custom reminders
   const finalCustomContact = (modelType === 'custom' && customPhone) ? {
     name: customContactName || 'Contact',
-    phone: customPhone
+    phone: normalizePhone(customPhone) || customPhone
   } : null;
 
   // Validate contact exists if provided
@@ -166,6 +169,8 @@ const createReminder = asyncHandler(async (req, res) => {
     sendMethod: finalSendMethod,
     recurrence: recurrence || 'none',
     recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : null,
+    amount: Number(amount) > 0 ? Number(amount) : 0,
+    currency: currency || 'FRW',
     escalation: escalation || { enabled: true, levels: [] },
     tags: tags || [],
     notes: notes || description || ''

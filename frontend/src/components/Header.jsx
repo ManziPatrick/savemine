@@ -49,27 +49,28 @@ function Header({ onMenuClick }) {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="border-b border-line bg-paper/90 backdrop-blur">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 justify-between items-center">
+        <div className="flex h-16 min-w-0 items-center justify-between gap-3">
           {/* Mobile menu button */}
-          <button
-            type="button"
-            className="lg:hidden rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500"
-            onClick={onMenuClick}
-          >
-            <Bars3Icon className="h-6 w-6" />
-          </button>
+          <div className="flex items-center gap-2 lg:hidden">
+            <button
+              type="button"
+              className="rounded-xl p-2 text-ink/70 hover:bg-white"
+              onClick={onMenuClick}
+            >
+              <Bars3Icon className="h-6 w-6" />
+            </button>
+            <span className="font-display text-xl text-ink">SaveMine</span>
+          </div>
 
           {/* Logo - hidden on mobile */}
           <div className="hidden lg:flex lg:items-center">
-            <h1 className="text-xl font-semibold text-gray-900">
-              FinController
-            </h1>
+            <p className="text-sm text-ink/60">Your private account</p>
           </div>
 
           {/* Right side */}
-          <div className="flex items-center space-x-4">
+          <div className="flex min-w-0 items-center space-x-1 sm:space-x-3">
             {/* Export All dropdown */}
             <Menu as="div" className="relative">
               <Menu.Button
@@ -136,6 +137,8 @@ function Header({ onMenuClick }) {
             {/* Notifications */}
             <button
               type="button"
+              title="Bills and reminders"
+              onClick={() => navigate('/reminders')}
               className="rounded-full p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
               <BellIcon className="h-6 w-6" />
@@ -143,10 +146,10 @@ function Header({ onMenuClick }) {
 
             {/* Profile dropdown */}
             <Menu as="div" className="relative">
-              <Menu.Button className="flex max-w-xs items-center rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+              <Menu.Button className="flex min-w-0 max-w-[11rem] items-center rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
                 <span className="sr-only">Open user menu</span>
-                <UserCircleIcon className="h-8 w-8 text-gray-400" />
-                <span className="ml-2 hidden text-sm font-medium text-gray-700 md:block">
+                <UserCircleIcon className="h-8 w-8 shrink-0 text-gray-400" />
+                <span className="ml-2 hidden truncate text-sm font-medium text-ink md:block">
                   {user?.name}
                 </span>
               </Menu.Button>

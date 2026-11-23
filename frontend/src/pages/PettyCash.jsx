@@ -8,9 +8,11 @@ import {
   ArrowTrendingDownIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import { pettyCashAPI } from '../services/api';
+import { Link } from 'react-router-dom';
+import { documentsAPI, pettyCashAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
 
 function PettyCash() {
   const [showDepositForm, setShowDepositForm] = useState(false);
@@ -20,6 +22,8 @@ function PettyCash() {
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [withdrawalDescription, setWithdrawalDescription] = useState('');
   const [withdrawalPurpose, setWithdrawalPurpose] = useState('');
+  const [depositFile, setDepositFile] = useState(null);
+  const [withdrawalFile, setWithdrawalFile] = useState(null);
   
   const queryClient = useQueryClient();
 
@@ -40,9 +44,7 @@ function PettyCash() {
 
   const depositMutation = useMutation(pettyCashAPI.addDeposit, {
     onSuccess: () => {
-      queryClient.invalidateQueries('pettyCash');
-      queryClient.invalidateQueries('pettyCashStats');
-      queryClient.invalidateQueries('pettyCashTransactions');
+      syncBooks(queryClient, 'wallet');
       toast.success('Deposit added successfully');
       setShowDepositForm(false);
       setDepositAmount('');
@@ -55,9 +57,7 @@ function PettyCash() {
 
   const withdrawalMutation = useMutation(pettyCashAPI.makeWithdrawal, {
     onSuccess: () => {
-      queryClient.invalidateQueries('pettyCash');
-      queryClient.invalidateQueries('pettyCashStats');
-      queryClient.invalidateQueries('pettyCashTransactions');
+      syncBooks(queryClient, 'wallet');
       toast.success('Withdrawal made successfully');
       setShowWithdrawalForm(false);
       setWithdrawalAmount('');
@@ -69,35 +69,67 @@ function PettyCash() {
     }
   });
 
-  const handleDeposit = () => {
+  const attachReceipt = async (file, title) => {
+    if (!file) return;
+    await documentsAPI.uploadDocument(file, {
+      title,
+      relatedEntity: 'pettycash',
+      documentType: 'receipt',
+      description: title,
+    });
+  };
+
+  const handleDeposit = async () => {
     if (!depositAmount || depositAmount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
 
-    depositMutation.mutate({
-      amount: parseFloat(depositAmount),
-      description: depositDescription,
-      source: 'Manual Deposit'
-    });
+    try {
+      await depositMutation.mutateAsync({
+        amount: parseFloat(depositAmount),
+        description: depositDescription,
+        source: 'Manual Deposit'
+      });
+    } catch {
+      return;
+    }
+
+    try {
+      await attachReceipt(depositFile, depositDescription || 'Wallet money in');
+      setDepositFile(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Money was saved, but the receipt photo was not');
+    }
   };
 
-  const handleWithdrawal = () => {
+  const handleWithdrawal = async () => {
     if (!withdrawalAmount || withdrawalAmount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
 
-    if (parseFloat(withdrawalAmount) > pettyCash?.data?.currentBalance) {
+    if (parseFloat(withdrawalAmount) > (pettyCash?.data?.data?.currentBalance || pettyCash?.data?.currentBalance || 0)) {
       toast.error('Insufficient funds');
       return;
     }
 
-    withdrawalMutation.mutate({
-      amount: parseFloat(withdrawalAmount),
-      description: withdrawalDescription,
-      purpose: withdrawalPurpose
-    });
+    try {
+      await withdrawalMutation.mutateAsync({
+        amount: parseFloat(withdrawalAmount),
+        description: withdrawalDescription,
+        purpose: withdrawalPurpose
+      });
+    } catch {
+      return;
+    }
+
+    try {
+      await attachReceipt(withdrawalFile, withdrawalPurpose || withdrawalDescription || 'Wallet money out');
+      setWithdrawalFile(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Money was saved, but the receipt photo was not');
+    }
   };
 
   const formatCurrency = (amount, currency = 'FRW') => {
@@ -149,12 +181,16 @@ function PettyCash() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Petty Cash</h1>
+          <p className="text-sm font-medium text-saffron">Daily money</p>
+          <h1 className="font-display text-4xl text-ink">Wallet</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage your petty cash account and track transactions
+            Cash in and cash out for the day. Add a receipt photo when you have one.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link to="/capture" className="btn btn-secondary">
+            From a photo
+          </Link>
           <button
             onClick={() => setShowWithdrawalForm(true)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -173,7 +209,9 @@ function PettyCash() {
       </div>
 
       {/* Low Balance Alert */}
-      {pettyCashData?.currentBalance <= (pettyCashData?.settings?.lowBalanceThreshold || 10000) && (
+      {pettyCashData &&
+        transactionsList.length > 0 &&
+        pettyCashData.currentBalance <= (pettyCashData?.settings?.lowBalanceThreshold || 10000) && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <div className="flex items-center">
             <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mr-2" />
@@ -193,7 +231,7 @@ function PettyCash() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Current Balance</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Wallet balance</h2>
             <p className="text-3xl font-bold text-blue-600">
               {formatCurrency(pettyCashData?.currentBalance || 0)}
             </p>
@@ -345,6 +383,18 @@ function PettyCash() {
                   placeholder="Enter description"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Receipt photo or screenshot
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  capture="environment"
+                  onChange={(e) => setDepositFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-600"
+                />
+              </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
               <button
@@ -410,6 +460,18 @@ function PettyCash() {
                   onChange={(e) => setWithdrawalDescription(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter description"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Receipt photo or screenshot
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  capture="environment"
+                  onChange={(e) => setWithdrawalFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm text-gray-600"
                 />
               </div>
             </div>

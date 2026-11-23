@@ -1,4 +1,5 @@
 const { body, param, query, validationResult } = require('express-validator');
+const { normalizePhone } = require('../utils/phone');
 
 /**
  * Handle validation errors
@@ -32,7 +33,8 @@ const validateUserRegistration = [
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
   body('phone')
-    .matches(/^\+?[1-9]\d{1,14}$/)
+    .customSanitizer(normalizePhone)
+    .matches(/^\+[1-9]\d{7,14}$/)
     .withMessage('Please provide a valid phone number'),
   body('password')
     .isLength({ min: 6 })
@@ -63,7 +65,8 @@ const validateContact = [
     .isLength({ min: 2, max: 100 })
     .withMessage('Name must be between 2 and 100 characters'),
   body('phone')
-    .matches(/^\+?[1-9]\d{1,14}$/)
+    .customSanitizer(normalizePhone)
+    .matches(/^\+[1-9]\d{7,14}$/)
     .withMessage('Please provide a valid phone number'),
   body('type')
     .isIn(['debtor', 'creditor', 'partner'])
@@ -214,9 +217,11 @@ const validateBusinessProject = [
  */
 const validateReminder = [
   body('modelType')
+    .optional({ values: 'falsy' })
     .isIn(['loan', 'transaction', 'custom'])
     .withMessage('Model type must be loan, transaction, or custom'),
   body('modelId')
+    .optional({ values: 'falsy' })
     .isMongoId()
     .withMessage('Model ID must be a valid MongoDB ObjectId'),
   body('title')
@@ -224,12 +229,47 @@ const validateReminder = [
     .isLength({ min: 2, max: 100 })
     .withMessage('Title must be between 2 and 100 characters'),
   body('sendAt')
+    .optional({ values: 'falsy' })
     .isISO8601()
     .withMessage('Send date must be a valid ISO date'),
+  body('scheduledDate')
+    .optional({ values: 'falsy' })
+    .isISO8601()
+    .withMessage('Due date must be a valid ISO date'),
   body('messageTemplate')
+    .optional({ values: 'falsy' })
     .trim()
     .isLength({ min: 10, max: 500 })
     .withMessage('Message template must be between 10 and 500 characters'),
+  body('message')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 2, max: 500 })
+    .withMessage('Message must be between 2 and 500 characters'),
+  body('reminderType')
+    .optional()
+    .isIn(['loan_payment', 'general', 'follow_up', 'birthday', 'appointment', 'bill'])
+    .withMessage('Reminder type is not recognised'),
+  body('recurrence')
+    .optional()
+    .isIn(['none', 'daily', 'weekly', 'monthly', 'yearly'])
+    .withMessage('Repeat must be daily, weekly, monthly, or yearly'),
+  body('amount')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Amount must be zero or more'),
+  body().custom((value) => {
+    if (!value.sendAt && !value.scheduledDate) {
+      throw new Error('Choose a due date');
+    }
+    if (value.reminderType === 'bill' && !(Number(value.amount) > 0)) {
+      throw new Error('A bill needs an amount');
+    }
+    if (value.reminderType === 'bill' && !['daily', 'weekly', 'monthly', 'yearly'].includes(value.recurrence)) {
+      throw new Error('Choose how often the bill repeats');
+    }
+    return true;
+  }),
   body('channels')
     .optional()
     .isArray()

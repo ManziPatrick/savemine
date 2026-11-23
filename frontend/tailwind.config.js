@@ -7,18 +7,31 @@ export default {
   theme: {
     extend: {
       colors: {
+        ink: {
+          DEFAULT: '#14221c',
+          soft: '#24352c',
+        },
+        paper: {
+          DEFAULT: '#f4efe6',
+          card: '#fffdf8',
+        },
+        line: '#e6dfd2',
+        saffron: {
+          DEFAULT: '#b7791f',
+          soft: '#f8efd8',
+        },
         primary: {
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          300: '#6ee7b7',
-          400: '#34d399',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065f46',
-          900: '#064e3b',
-          950: '#022c22',
+          50: '#eef6f1',
+          100: '#d7ebdf',
+          200: '#b3d6c2',
+          300: '#7fb89a',
+          400: '#4d9472',
+          500: '#2f7a56',
+          600: '#1f6b45',
+          700: '#185538',
+          800: '#13452e',
+          900: '#0e3323',
+          950: '#071910',
         },
         secondary: {
           50: '#f8fafc',
@@ -35,7 +48,8 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Outfit', 'system-ui', 'sans-serif'],
+        display: ['Fraunces', 'Georgia', 'serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

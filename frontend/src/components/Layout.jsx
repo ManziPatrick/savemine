@@ -8,7 +8,7 @@ function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-paper">
       {/* Mobile sidebar */}
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
       
@@ -18,8 +18,8 @@ function Layout() {
         <Header onMenuClick={() => setSidebarOpen(true)} />
         
         {/* Page content */}
-        <main className="py-6">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <main className="py-4 pb-24 sm:py-6 lg:pb-8">
+          <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
             <Outlet />
           </div>
         </main>

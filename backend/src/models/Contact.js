@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { normalizePhone } = require('../utils/phone');
 
 const contactSchema = new mongoose.Schema({
   userId: {
@@ -17,6 +18,7 @@ const contactSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Phone number is required'],
     trim: true,
+    set: (value) => normalizePhone(value) || value,
     validate: {
       validator: function(v) {
         // Remove all non-digit characters except +

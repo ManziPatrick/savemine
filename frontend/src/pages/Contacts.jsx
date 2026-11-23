@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useSearchParams } from 'react-router-dom';
 import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, ArrowDownTrayIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { contactsAPI } from '../services/api';
 import ExportButtons from '../components/ExportButtons';
@@ -9,6 +10,8 @@ import ImportContactsForm from '../components/forms/ImportContactsForm';
 import BulkSMSForm from '../components/forms/BulkSMSForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Contacts() {
   const [showForm, setShowForm] = useState(false);
@@ -20,6 +23,16 @@ function Contacts() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setSelectedContact(null);
+    setShowForm(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const { data: contacts, isLoading, error } = useQuery(
     ['contacts', filter, searchTerm, currentPage, pageSize],
@@ -28,12 +41,13 @@ function Contacts() {
       search: searchTerm || undefined,
       page: currentPage,
       limit: pageSize
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const deleteMutation = useMutation(contactsAPI.deleteContact, {
     onSuccess: () => {
-      queryClient.invalidateQueries('contacts');
+      syncBooks(queryClient, 'contacts');
       toast.success('Contact deleted successfully');
     },
     onError: (error) => {
@@ -53,7 +67,7 @@ function Contacts() {
   };
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries('contacts');
+    syncBooks(queryClient, 'contacts');
     setCurrentPage(1); // Reset to first page
   };
 
@@ -137,33 +151,27 @@ function Contacts() {
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex flex-wrap gap-2">
-          {['all', 'debtor', 'creditor', 'partner'].map((type) => (
-            <button
-              key={type}
-              onClick={() => handleFilterChange(type)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                filter === type
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex-1 max-w-md">
-          <input
-            type="text"
-            placeholder="Search contacts..."
-            value={searchTerm}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="input"
-          />
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <FilterMenu
+          groups={[
+            {
+              label: 'Type',
+              value: filter,
+              onChange: handleFilterChange,
+              options: ['all', 'debtor', 'creditor', 'partner'].map((type) => ({
+                value: type,
+                label: type,
+              })),
+            },
+          ]}
+        />
+        <input
+          type="text"
+          placeholder="Search contacts..."
+          value={searchTerm}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="input max-w-md"
+        />
       </div>
 
       {/* Contacts Statistics */}

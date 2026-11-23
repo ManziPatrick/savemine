@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { contactsAPI } from '../../services/api';
+import { formatRwandaPhone } from '../../utils/phoneUtils';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -43,12 +44,13 @@ function ContactForm({ contact, onClose, onSuccess }) {
 
   const onSubmit = async (data) => {
     setLoading(true);
+    const payload = { ...data, phone: formatRwandaPhone(data.phone) || data.phone };
     try {
       if (isEditing) {
-        await contactsAPI.updateContact(contact._id, data);
+        await contactsAPI.updateContact(contact._id, payload);
         toast.success('Contact updated successfully');
       } else {
-        await contactsAPI.createContact(data);
+        await contactsAPI.createContact(payload);
         toast.success('Contact created successfully');
       }
       onSuccess();
@@ -97,14 +99,11 @@ function ContactForm({ contact, onClose, onSuccess }) {
             <input
               {...register('phone', {
                 required: 'Phone number is required',
-                pattern: {
-                  value: /^\+?[1-9]\d{1,14}$/,
-                  message: 'Please enter a valid phone number'
-                }
+                validate: (value) => Boolean(formatRwandaPhone(value)) || 'Use the number as you have it, such as 0788 123 456'
               })}
               type="tel"
               className={`input ${errors.phone ? 'input-error' : ''}`}
-              placeholder="+250 788 123 456"
+              placeholder="0788 123 456"
             />
             {errors.phone && (
               <p className="error-message">{errors.phone.message}</p>

@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, PencilIcon, TrashIcon, BuildingOfficeIcon, ChartBarIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { businessesAPI } from '../services/api';
 import BusinessForm from '../components/forms/BusinessForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Business() {
   const [showForm, setShowForm] = useState(false);
@@ -29,7 +32,8 @@ function Business() {
       status: statusFilter || undefined,
       page: currentPage,
       limit: pageSize
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const { data: businessStats } = useQuery(
@@ -39,8 +43,7 @@ function Business() {
 
   const deleteMutation = useMutation(businessesAPI.deleteBusiness, {
     onSuccess: () => {
-      queryClient.invalidateQueries('businesses');
-      queryClient.invalidateQueries('businessStats');
+      syncBooks(queryClient, 'business');
       toast.success('Business deleted successfully');
     },
     onError: (error) => {
@@ -63,14 +66,12 @@ function Business() {
     setShowForm(false);
     setSelectedBusiness(null);
     setCurrentPage(1);
-    queryClient.invalidateQueries('businesses');
-    queryClient.invalidateQueries('businessStats');
+    syncBooks(queryClient, 'business');
   };
 
   const addIncomeMutation = useMutation(({ id, data }) => businessesAPI.addMonthlyIncome(id, data), {
     onSuccess: () => {
-      queryClient.invalidateQueries('businesses');
-      queryClient.invalidateQueries('businessStats');
+      syncBooks(queryClient, 'business');
       toast.success('Income recorded successfully');
       setIncomeTarget(null);
       setIncomeForm({ amount: '' });
@@ -80,8 +81,7 @@ function Business() {
 
   const addExpenseMutation = useMutation(({ id, data }) => businessesAPI.addMonthlyExpense(id, data), {
     onSuccess: () => {
-      queryClient.invalidateQueries('businesses');
-      queryClient.invalidateQueries('businessStats');
+      syncBooks(queryClient, 'business');
       toast.success('Expense recorded successfully');
       setExpenseTarget(null);
       setExpenseForm({ amount: '' });
@@ -190,18 +190,24 @@ function Business() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Business Management</h1>
+          <p className="text-sm font-medium text-saffron">Office</p>
+          <h1 className="font-display text-4xl text-ink">Business</h1>
           <p className="mt-1 text-sm text-gray-500">
             Track your business ventures, animals, and agricultural projects
           </p>
         </div>
-        <button 
-          onClick={() => setShowForm(true)}
-          className="btn btn-primary self-start sm:self-auto"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Add Business
-        </button>
+        <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+          <Link to="/contracts" className="btn btn-secondary">
+            Contracts
+          </Link>
+          <button 
+            onClick={() => setShowForm(true)}
+            className="btn btn-primary"
+          >
+            <PlusIcon className="h-5 w-5 mr-2" />
+            Add Business
+          </button>
+        </div>
       </div>
 
       {/* Business Statistics */}
@@ -286,41 +292,28 @@ function Business() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex flex-wrap gap-2">
-          {['', 'animal_farming', 'agriculture', 'trading', 'services', 'manufacturing', 'retail'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setBusinessTypeFilter(type)}
-              className={`px-4 py-2 rounded-md text-sm font-medium flex items-center ${
-                businessTypeFilter === type
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <span className="mr-1">{getBusinessTypeIcon(type)}</span>
-              {type ? getBusinessTypeName(type) : 'All Types'}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {['', 'planning', 'active', 'paused', 'completed'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                statusFilter === status
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {status || 'All Status'}
-            </button>
-          ))}
-        </div>
-      </div>
+      <FilterMenu
+        groups={[
+          {
+            label: 'Type',
+            value: businessTypeFilter,
+            onChange: setBusinessTypeFilter,
+            options: ['', 'animal_farming', 'agriculture', 'trading', 'services', 'manufacturing', 'retail'].map((type) => ({
+              value: type,
+              label: type ? `${getBusinessTypeIcon(type)} ${getBusinessTypeName(type)}` : 'All types',
+            })),
+          },
+          {
+            label: 'Status',
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: ['', 'planning', 'active', 'paused', 'completed'].map((status) => ({
+              value: status,
+              label: status || 'All status',
+            })),
+          },
+        ]}
+      />
 
       {/* Businesses List */}
       <div className="card">

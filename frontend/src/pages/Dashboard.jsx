@@ -1,9 +1,11 @@
-import { useQuery } from 'react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from 'react-query';
 import { 
   loansAPI, 
   transactionsAPI, 
   savingsAPI, 
   remindersAPI,
+  pettyCashAPI,
   giftsAPI,
   expensesAPI,
   businessesAPI,
@@ -30,8 +32,16 @@ import MonthlyTrendChart from '../components/charts/MonthlyTrendChart';
 import CategoryBreakdownChart from '../components/charts/CategoryBreakdownChart';
 import SavingsTrendChart from '../components/charts/SavingsTrendChart';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth.jsx';
+import WalletStanding from '../components/WalletStanding';
+import BillForm from '../components/forms/BillForm';
+import { summarizeBills } from '../utils/billMath';
+import { syncBooks } from '../utils/syncBooks';
 
 function Dashboard() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [showBill, setShowBill] = useState(false);
   // Fetch dashboard data
   const { data: loanStats, isLoading: loansLoading } = useQuery(
     'loanStats',
@@ -45,7 +55,7 @@ function Dashboard() {
 
   const { data: transactionStats, isLoading: statsLoading } = useQuery(
     'transactionStats',
-    transactionsAPI.getTransactionStats
+    () => transactionsAPI.getTransactionStats()
   );
 
   const { data: savingsStats, isLoading: savingsLoading } = useQuery(
@@ -56,6 +66,16 @@ function Dashboard() {
   const { data: reminderStats, isLoading: remindersLoading } = useQuery(
     'reminderStats',
     remindersAPI.getReminderStats
+  );
+
+  const { data: billReminders, isLoading: billLoading } = useQuery(
+    'billReminders',
+    () => remindersAPI.getReminders({ limit: 100 })
+  );
+
+  const { data: walletAccount, isLoading: walletLoading } = useQuery(
+    'pettyCash',
+    pettyCashAPI.getPettyCash
   );
 
   const { data: giftStats, isLoading: giftsLoading } = useQuery(
@@ -98,11 +118,12 @@ function Dashboard() {
     () => transactionsAPI.getTransactions({ limit: 5, sortBy: 'date', sortOrder: 'desc' })
   );
 
-  const isLoading = loansLoading || dueSoonLoading || statsLoading || savingsLoading || 
-    remindersLoading || giftsLoading || expensesLoading || businessLoading || 
-    investmentsLoading || assetsLoading || projectsLoading || recentTxLoading || allProjectsLoading;
+  const standingReady = !savingsLoading && !billLoading && !walletLoading;
+  const detailsReady = !loansLoading && !dueSoonLoading && !statsLoading && !remindersLoading &&
+    !giftsLoading && !expensesLoading && !businessLoading && !investmentsLoading &&
+    !assetsLoading && !projectsLoading && !recentTxLoading && !allProjectsLoading;
 
-  if (isLoading) {
+  if (!standingReady) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="lg" />
@@ -216,14 +237,54 @@ function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Welcome back! Here's what's happening with your finances.
-        </p>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <p className="text-sm font-medium text-saffron">Today</p>
+          <h1 className="mt-1 font-display text-3xl text-ink sm:text-4xl">
+            {user?.name ? `Hello, ${user.name.split(' ')[0]}` : 'Your office'}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-ink/70">
+            Record a screenshot, check the wallet, or open a contract. Everything here belongs to this account.
+          </p>
+        </div>
+        <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 xl:w-auto xl:min-w-[24rem]">
+          {[
+            ['/capture', 'Record'],
+            ['/petty-cash', 'Wallet'],
+            ['/savings', 'Savings'],
+            ['/contracts', 'Contracts'],
+          ].map(([href, label]) => (
+            <Link
+              key={href}
+              to={href}
+              className="rounded-2xl border border-line bg-paper-card px-4 py-3 text-center text-sm font-medium text-ink hover:border-primary-400"
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {/* My Projects Overview */}
+      <WalletStanding
+        wallet={walletAccount?.data?.data?.currentBalance || 0}
+        savings={savingsStats?.data?.data?.overall?.totalAmount || 0}
+        summary={summarizeBills(billReminders?.data?.data || [])}
+        onAddBill={() => setShowBill(true)}
+      />
+
+      {showBill && (
+        <BillForm
+          onClose={() => setShowBill(false)}
+          onSuccess={() => syncBooks(queryClient, 'bills')}
+        />
+      )}
+
+      {!detailsReady ? (
+        <div className="flex items-center justify-center h-40">
+          <LoadingSpinner size="lg" />
+        </div>
+      ) : (
+      <>
       <div className="card">
         <div className="card-header">
           <div className="flex items-center justify-between">
@@ -553,25 +614,25 @@ function Dashboard() {
         <div className="card-body">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Link
-              to="/loans/new"
+              to="/loans?new=1"
               className="btn btn-primary w-full justify-center"
             >
               Add New Loan
             </Link>
             <Link
-              to="/transactions/new"
+              to="/transactions?new=1"
               className="btn btn-secondary w-full justify-center"
             >
               Add Transaction
             </Link>
             <Link
-              to="/contacts/new"
+              to="/contacts?new=1"
               className="btn btn-secondary w-full justify-center"
             >
               Add Contact
             </Link>
             <Link
-              to="/reminders/new"
+              to="/reminders?new=1"
               className="btn btn-secondary w-full justify-center"
             >
               Set Reminder
@@ -579,6 +640,8 @@ function Dashboard() {
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

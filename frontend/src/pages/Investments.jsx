@@ -5,6 +5,8 @@ import { investmentsAPI } from '../services/api';
 import InvestmentForm from '../components/forms/InvestmentForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Investments() {
   const [showForm, setShowForm] = useState(false);
@@ -23,7 +25,8 @@ function Investments() {
       riskLevel: riskFilter || undefined,
       page: currentPage,
       limit: pageSize
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const { data: investmentStats } = useQuery(
@@ -33,8 +36,7 @@ function Investments() {
 
   const deleteMutation = useMutation(investmentsAPI.deleteInvestment, {
     onSuccess: () => {
-      queryClient.invalidateQueries('investments');
-      queryClient.invalidateQueries('investmentStats');
+      syncBooks(queryClient, 'investments');
       toast.success('Investment deleted successfully');
     },
     onError: (error) => {
@@ -57,8 +59,7 @@ function Investments() {
     setShowForm(false);
     setSelectedInvestment(null);
     setCurrentPage(1);
-    queryClient.invalidateQueries('investments');
-    queryClient.invalidateQueries('investmentStats');
+    syncBooks(queryClient, 'investments');
   };
 
   const getInvestmentTypeIcon = (type) => {
@@ -229,41 +230,28 @@ function Investments() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex flex-wrap gap-2">
-          {['', 'savings', 'stocks', 'bonds', 'real_estate', 'crypto', 'business', 'animals', 'agriculture'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setInvestmentTypeFilter(type)}
-              className={`px-4 py-2 rounded-md text-sm font-medium flex items-center ${
-                investmentTypeFilter === type
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <span className="mr-1">{getInvestmentTypeIcon(type)}</span>
-              {type ? getInvestmentTypeName(type) : 'All Types'}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {['', 'low', 'medium', 'high', 'very_high'].map((risk) => (
-            <button
-              key={risk}
-              onClick={() => setRiskFilter(risk)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                riskFilter === risk
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {risk ? getRiskBadge(risk).name : 'All Risks'}
-            </button>
-          ))}
-        </div>
-      </div>
+      <FilterMenu
+        groups={[
+          {
+            label: 'Type',
+            value: investmentTypeFilter,
+            onChange: setInvestmentTypeFilter,
+            options: ['', 'savings', 'stocks', 'bonds', 'real_estate', 'crypto', 'business', 'animals', 'agriculture'].map((type) => ({
+              value: type,
+              label: type ? `${getInvestmentTypeIcon(type)} ${getInvestmentTypeName(type)}` : 'All types',
+            })),
+          },
+          {
+            label: 'Risk',
+            value: riskFilter,
+            onChange: setRiskFilter,
+            options: ['', 'low', 'medium', 'high', 'very_high'].map((risk) => ({
+              value: risk,
+              label: risk ? getRiskBadge(risk).name : 'All risks',
+            })),
+          },
+        ]}
+      />
 
       {/* Investments List */}
       <div className="card">

@@ -1,14 +1,21 @@
+const path = require('path');
+// Load env before the app so database, login, text messages, and the assistant see the same values.
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+
 const mongoose = require('mongoose');
 const app = require('./app');
-const path = require('path');
 
-// Load environment variables from project root
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
-
-// Database connection
+// Database connection. Local development uses the .env file, then the MongoDB on this computer.
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    const mongoUri = process.env.MONGODB_URI || (process.env.NODE_ENV === 'production'
+      ? ''
+      : 'mongodb://127.0.0.1:27017/savemine');
+    if (!mongoUri) {
+      throw new Error('MONGODB_URI is missing. Add it to the .env file in the project root.');
+    }
+    const conn = await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -48,22 +55,22 @@ const shutdown = async (signal) => {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Function to find available port
 const findAvailablePort = (startPort) => {
+  const portToTry = Number(startPort);
   return new Promise((resolve, reject) => {
     const server = require('http').createServer();
     
-    server.listen(startPort, () => {
+    server.listen(portToTry, () => {
       const port = server.address().port;
       server.close(() => resolve(port));
     });
     
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        // Try next port
-        findAvailablePort(startPort + 1).then(resolve).catch(reject);
+        findAvailablePort(portToTry + 1).then(resolve).catch(reject);
       } else {
         reject(err);
       }

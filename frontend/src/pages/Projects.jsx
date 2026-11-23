@@ -7,6 +7,8 @@ import { buildProjectSections } from '../utils/exportSections';
 import ProjectForm from '../components/forms/ProjectForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Projects() {
   const [showForm, setShowForm] = useState(false);
@@ -31,15 +33,15 @@ function Projects() {
       status: statusFilter || undefined,
       page: currentPage,
       limit: pageSize
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const { data: projectStats } = useQuery('projectStats', projectsAPI.getProjectStats);
 
   const deleteMutation = useMutation(projectsAPI.deleteProject, {
     onSuccess: () => {
-      queryClient.invalidateQueries('projects');
-      queryClient.invalidateQueries('projectStats');
+      syncBooks(queryClient, 'projects');
       toast.success('Project deleted');
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to delete project')
@@ -47,8 +49,7 @@ function Projects() {
 
   const addExpenseMutation = useMutation(({ id, data }) => projectsAPI.addExpense(id, data), {
     onSuccess: () => {
-      queryClient.invalidateQueries('projects');
-      queryClient.invalidateQueries('projectStats');
+      syncBooks(queryClient, 'projects');
       toast.success('Expense recorded');
       setExpenseTarget(null);
       setExpenseForm({ category: 'materials', reason: '', amount: '', date: new Date().toISOString().split('T')[0], vendor: '', notes: '' });
@@ -58,8 +59,7 @@ function Projects() {
 
   const removeExpenseMutation = useMutation(({ id, expenseId }) => projectsAPI.removeExpense(id, expenseId), {
     onSuccess: () => {
-      queryClient.invalidateQueries('projects');
-      queryClient.invalidateQueries('projectStats');
+      syncBooks(queryClient, 'projects');
       toast.success('Expense removed');
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to remove expense')
@@ -67,8 +67,7 @@ function Projects() {
 
   const addIncomeMutation = useMutation(({ id, data }) => projectsAPI.addIncome(id, data), {
     onSuccess: () => {
-      queryClient.invalidateQueries('projects');
-      queryClient.invalidateQueries('projectStats');
+      syncBooks(queryClient, 'projects');
       toast.success('Income recorded');
       setIncomeTarget(null);
       setIncomeForm({ date: new Date().toISOString().split('T')[0], title: '', amount: '', quantity: '', unit: '', customer: '', notes: '' });
@@ -78,8 +77,7 @@ function Projects() {
 
   const removeIncomeMutation = useMutation(({ id, incomeId }) => projectsAPI.removeIncome(id, incomeId), {
     onSuccess: () => {
-      queryClient.invalidateQueries('projects');
-      queryClient.invalidateQueries('projectStats');
+      syncBooks(queryClient, 'projects');
       toast.success('Income removed');
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to remove income')
@@ -99,8 +97,7 @@ function Projects() {
   const handleFormSuccess = () => {
     setShowForm(false);
     setSelectedProject(null);
-    queryClient.invalidateQueries('projects');
-    queryClient.invalidateQueries('projectStats');
+    syncBooks(queryClient, 'projects');
   };
 
   const handleAddExpense = (e) => {
@@ -220,20 +217,19 @@ function Projects() {
         </div>
       )}
 
-      {/* Status filter */}
-      <div className="flex flex-wrap gap-2">
-        {['', 'planning', 'active', 'paused', 'completed', 'cancelled'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-              statusFilter === status ? 'bg-primary-100 text-primary-700' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {status || 'All Status'}
-          </button>
-        ))}
-      </div>
+      <FilterMenu
+        groups={[
+          {
+            label: 'Status',
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: ['', 'planning', 'active', 'paused', 'completed', 'cancelled'].map((status) => ({
+              value: status,
+              label: status || 'All status',
+            })),
+          },
+        ]}
+      />
 
       {/* Projects List */}
       <div className="card">

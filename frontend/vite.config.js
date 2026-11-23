@@ -8,11 +8,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'FinController',
-        short_name: 'FinController',
-        description: 'Financial management app with SMS reminders',
-        theme_color: '#059669',
-        background_color: '#ffffff',
+        name: 'SaveMine',
+        short_name: 'SaveMine',
+        description: 'Private wallet, savings, and business office',
+        theme_color: '#14221c',
+        background_color: '#f4efe6',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',

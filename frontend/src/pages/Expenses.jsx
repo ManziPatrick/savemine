@@ -7,6 +7,8 @@ import { buildExpenseSections } from '../utils/exportSections';
 import ExpenseForm from '../components/forms/ExpenseForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { syncBooks } from '../utils/syncBooks';
+import FilterMenu from '../components/FilterMenu';
 
 function Expenses() {
   const [showForm, setShowForm] = useState(false);
@@ -24,7 +26,8 @@ function Expenses() {
       business: businessFilter === 'business' ? 'true' : businessFilter === 'personal' ? 'false' : undefined,
       page: currentPage,
       limit: pageSize
-    })
+    }),
+    { keepPreviousData: true }
   );
 
   const { data: expenseStats } = useQuery(
@@ -35,8 +38,7 @@ function Expenses() {
   const handleFormSuccess = () => {
     setShowForm(false);
     setCurrentPage(1);
-    queryClient.invalidateQueries('expenses');
-    queryClient.invalidateQueries('expenseStats');
+    syncBooks(queryClient, 'expenses');
   };
 
   const getCategoryIcon = (category) => {
@@ -205,44 +207,34 @@ function Expenses() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex flex-wrap gap-2">
-          {[
-            'food', 'transport', 'housing', 'utilities', 'healthcare', 
-            'education', 'business', 'animal_care', 'agriculture'
-          ].map((category) => (
-            <button
-              key={category}
-              onClick={() => setCategoryFilter(categoryFilter === category ? '' : category)}
-              className={`px-3 py-2 rounded-md text-sm font-medium flex items-center ${
-                categoryFilter === category
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <span className="mr-1">{getCategoryIcon(category)}</span>
-              {getCategoryName(category)}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {['all', 'business', 'personal'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setBusinessFilter(type)}
-              className={`px-4 py-2 rounded-md text-sm font-medium capitalize ${
-                businessFilter === type
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {type === 'all' ? 'All Types' : type}
-            </button>
-          ))}
-        </div>
-      </div>
+      <FilterMenu
+        groups={[
+          {
+            label: 'Category',
+            value: categoryFilter,
+            onChange: (category) => setCategoryFilter(categoryFilter === category ? '' : category),
+            options: [
+              { value: '', label: 'All' },
+              ...[
+                'food', 'transport', 'housing', 'utilities', 'healthcare',
+                'education', 'business', 'animal_care', 'agriculture',
+              ].map((category) => ({
+                value: category,
+                label: getCategoryName(category),
+              })),
+            ],
+          },
+          {
+            label: 'Type',
+            value: businessFilter,
+            onChange: setBusinessFilter,
+            options: ['all', 'business', 'personal'].map((type) => ({
+              value: type,
+              label: type === 'all' ? 'All types' : type,
+            })),
+          },
+        ]}
+      />
 
       {/* Expenses List */}
       <div className="card">

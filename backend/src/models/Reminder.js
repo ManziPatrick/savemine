@@ -24,7 +24,7 @@ const reminderSchema = new mongoose.Schema({
   },
   reminderType: {
     type: String,
-    enum: ['loan_payment', 'general', 'follow_up', 'birthday', 'appointment'],
+    enum: ['loan_payment', 'general', 'follow_up', 'birthday', 'appointment', 'bill'],
     default: 'general',
     required: true
   },
@@ -63,6 +63,16 @@ const reminderSchema = new mongoose.Schema({
     default: 'none'
   },
   recurrenceEndDate: Date,
+  amount: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+  currency: {
+    type: String,
+    default: 'FRW',
+    uppercase: true
+  },
   escalation: {
     enabled: {
       type: Boolean,
@@ -171,6 +181,8 @@ reminderSchema.methods.scheduleNext = function() {
     sendMethod: this.sendMethod,
     recurrence: this.recurrence,
     recurrenceEndDate: this.recurrenceEndDate,
+    amount: this.amount,
+    currency: this.currency,
     escalation: this.escalation,
     tags: this.tags,
     notes: this.notes
