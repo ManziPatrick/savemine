@@ -72,7 +72,7 @@ const validateContact = [
     .isIn(['debtor', 'creditor', 'partner'])
     .withMessage('Type must be debtor, creditor, or partner'),
   body('email')
-    .optional()
+    .optional({ checkFalsy: true })
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),

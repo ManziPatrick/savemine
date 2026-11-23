@@ -11,6 +11,19 @@ const messageLogSchema = new mongoose.Schema({
     ref: 'Reminder',
     index: true
   },
+  dispatchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Dispatch',
+    index: true
+  },
+  contactName: {
+    type: String,
+    trim: true
+  },
+  reason: {
+    type: String,
+    trim: true
+  },
   phone: {
     type: String,
     required: [true, 'Phone number is required'],

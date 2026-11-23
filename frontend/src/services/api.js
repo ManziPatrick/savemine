@@ -267,6 +267,9 @@ export const messagesAPI = {
   testSMS: (phone, message) => api.post('/messages/test-sms', { phone, message }),
   getMessageLogs: (params = {}) => api.get('/messages/logs', { params }),
   getMessageStats: () => api.get('/messages/stats'),
+  listDispatches: () => api.get('/messages/dispatches'),
+  createDispatch: (data) => api.post('/messages/dispatches', data),
+  resendDispatch: (id) => api.post(`/messages/dispatches/${id}/resend`),
 };
 
 export const categoriesAPI = {

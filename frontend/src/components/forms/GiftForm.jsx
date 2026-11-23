@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from 'react-query';
-import { XMarkIcon, GiftIcon } from '@heroicons/react/24/outline';
 import { giftsAPI, contactsAPI } from '../../services/api';
 import { uploadProof } from '../../utils/uploadProof';
+import SlideOver from '../SlideOver';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -128,23 +128,7 @@ function GiftForm({ gift, onClose, onSuccess }) {
   const contactsList = contacts?.data?.data || contacts?.data || [];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {gift ? 'Edit Gift' : 'Add New Gift'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
-
-          {/* Form */}
+    <SlideOver title={gift ? 'Edit gift' : 'Add a gift'} subtitle="Gifts" onClose={onClose}>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Gift Type */}
@@ -331,9 +315,7 @@ function GiftForm({ gift, onClose, onSuccess }) {
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+    </SlideOver>
   );
 }
 

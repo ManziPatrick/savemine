@@ -45,6 +45,7 @@ const groups = [
       { name: 'Projects', href: '/projects', icon: FolderIcon },
       { name: 'Loans', href: '/loans', icon: CurrencyDollarIcon },
       { name: 'Contacts', href: '/contacts', icon: UserGroupIcon },
+      { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
     ],
   },
   {

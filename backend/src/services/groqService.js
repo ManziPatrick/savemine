@@ -1,3 +1,6 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../../../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const axios = require('axios');
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';

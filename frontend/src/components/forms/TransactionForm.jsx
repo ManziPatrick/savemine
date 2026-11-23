@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import SlideOver from '../SlideOver';
 import { transactionsAPI, contactsAPI } from '../../services/api';
 import CategoryPicker from '../CategoryPicker';
 import LoadingSpinner from '../LoadingSpinner';
@@ -88,21 +88,8 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
   const subcategory = watch('subcategory');
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {isEditing ? 'Edit Transaction' : 'Add New Transaction'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <XMarkIcon className="h-6 w-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+    <SlideOver title={isEditing ? 'Edit transaction' : 'Add a transaction'} subtitle="Money" onClose={onClose}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="form-group">
             <label className="label">Type *</label>
             <select
@@ -213,8 +200,7 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </SlideOver>
   );
 }
 

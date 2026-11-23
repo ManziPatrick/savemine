@@ -1189,8 +1189,12 @@ async function getFinancialReport(userId, period = 'month') {
  */
 function describeAiFailure(err) {
   const msg = (err && err.message) || '';
+  const hasKey = Boolean(process.env.GROQ_API_KEY || process.env.APINEX_API_KEY || process.env.HUGGINGFACE_API_KEY);
+  if (msg.includes('not configured') && !hasKey) {
+    return 'The AI assistant is not configured yet. Please add GROQ_API_KEY (or HUGGINGFACE_API_KEY) to the backend .env file.';
+  }
   if (msg.includes('not configured')) {
-    return 'The AI assistant is not configured yet. Please add GROQ_API_KEY or APINEX_API_KEY to the backend .env file.';
+    return 'The assistant has a key but could not reach the AI service. Try again in a moment.';
   }
   // The router combines both providers' errors, e.g.
   // "Request failed with status code 429 (both providers failed: ...; ...)"

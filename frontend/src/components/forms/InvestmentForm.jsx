@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { XMarkIcon, ArrowTrendingUpIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { ClockIcon } from '@heroicons/react/24/outline';
 import { investmentsAPI } from '../../services/api';
+import SlideOver from '../SlideOver';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -160,24 +161,7 @@ function InvestmentForm({ investment, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-              <ArrowTrendingUpIcon className="h-6 w-6 mr-2 text-primary-600" />
-              {investment ? 'Edit Investment' : 'Add New Investment'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
-
-          {/* Form */}
+    <SlideOver title={investment ? 'Edit investment' : 'Add an investment'} subtitle="Investments" onClose={onClose}>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Investment Type and Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -635,9 +619,7 @@ function InvestmentForm({ investment, onClose, onSuccess }) {
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+    </SlideOver>
   );
 }
 

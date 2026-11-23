@@ -580,13 +580,7 @@ function Business() {
 
       {/* Add Income Modal */}
       {incomeTarget && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Record Income for {incomeTarget.name}</h2>
-                <button onClick={() => setIncomeTarget(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
-              </div>
+        <SlideOver title={`Income for ${incomeTarget.name}`} subtitle="Business" onClose={() => setIncomeTarget(null)}>
               <form onSubmit={handleAddIncome} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Amount (FRW) *</label>
@@ -609,20 +603,11 @@ function Business() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
+        </SlideOver>
       )}
 
-      {/* Add Expense Modal */}
       {expenseTarget && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Record Expense for {expenseTarget.name}</h2>
-                <button onClick={() => setExpenseTarget(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
-              </div>
+        <SlideOver title={`Expense for ${expenseTarget.name}`} subtitle="Business" onClose={() => setExpenseTarget(null)}>
               <form onSubmit={handleAddExpense} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Amount (FRW) *</label>
@@ -645,9 +630,7 @@ function Business() {
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
+        </SlideOver>
       )}
     </div>
   );

@@ -23,6 +23,7 @@ import Capture from './pages/Capture';
 import Contracts from './pages/Contracts';
 import Profile from './pages/Profile';
 import Assistant from './pages/Assistant';
+import Messages from './pages/Messages';
 import NotFound from './pages/NotFound';
 
 // Protected Route component
@@ -102,6 +103,7 @@ function App() {
           <Route path="petty-cash" element={<PettyCash />} />
           <Route path="capture" element={<Capture />} />
           <Route path="contracts" element={<Contracts />} />
+          <Route path="messages" element={<Messages />} />
           <Route path="assistant" element={<Assistant />} />
           <Route path="profile" element={<Profile />} />
         </Route>

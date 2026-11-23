@@ -1,4 +1,6 @@
 const messageService = require('../services/messageService.mista');
+const Dispatch = require('../models/Dispatch');
+const { createDispatch, resendDispatch } = require('../services/dispatchService');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 /**
@@ -190,8 +192,47 @@ const getMessageStats = asyncHandler(async (req, res) => {
   });
 });
 
+const listDispatches = asyncHandler(async (req, res) => {
+  const rows = await Dispatch.find({ userId: req.user._id, isActive: true })
+    .sort({ createdAt: -1 })
+    .limit(100)
+    .populate('loanId', 'remainingAmount');
+  const sent = rows.reduce((sum, row) => sum + (row.sentCount || 0), 0);
+  const waiting = rows.reduce((sum, row) => (
+    sum + row.recipients.filter((person) => person.status !== 'sent').length
+  ), 0);
+  res.json({ success: true, data: rows, sent, waiting });
+});
+
+const postDispatch = asyncHandler(async (req, res) => {
+  try {
+    const dispatch = await createDispatch(req.user, req.body);
+    res.status(201).json({ success: true, data: dispatch });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Could not send that message'
+    });
+  }
+});
+
+const postResend = asyncHandler(async (req, res) => {
+  try {
+    const dispatch = await resendDispatch(req.user, req.params.id);
+    res.json({ success: true, data: dispatch });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Could not resend that message'
+    });
+  }
+});
+
 module.exports = {
   testSMS,
   getMessageLogs,
-  getMessageStats
+  getMessageStats,
+  listDispatches,
+  postDispatch,
+  postResend
 };

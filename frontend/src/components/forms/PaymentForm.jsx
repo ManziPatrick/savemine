@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
-import { XMarkIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import SlideOver from '../SlideOver';
 import { loansAPI } from '../../services/api';
 import { uploadProof } from '../../utils/uploadProof';
 import LoadingSpinner from '../LoadingSpinner';
@@ -72,19 +73,7 @@ function PaymentForm({ loan, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Add Payment</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
+    <SlideOver title="Add a payment" subtitle="Loans" onClose={onClose}>
 
           {/* Loan Information */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
@@ -230,9 +219,7 @@ function PaymentForm({ loan, onClose, onSuccess }) {
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+    </SlideOver>
   );
 }
 
