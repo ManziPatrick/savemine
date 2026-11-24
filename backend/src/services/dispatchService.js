@@ -4,6 +4,7 @@ const Dispatch = require('../models/Dispatch');
 const MessageLog = require('../models/MessageLog');
 const smsService = require('./smsService');
 const { normalizePhone } = require('../utils/phone');
+const { parsePhones } = require('./dispatchPhones');
 const { advanceSendDate, repeats } = require('./dispatchSchedule');
 
 const REASONS = ['loan', 'bill', 'gift', 'follow_up', 'general'];
@@ -114,8 +115,17 @@ async function createDispatch(user, body) {
     throw error;
   }
   const people = await peopleFor(user._id, body.contactIds, reason === 'loan' ? body.loanId : null);
+  const typed = parsePhones(body.phones);
+  if (typed.rejected.length) {
+    const error = new Error(`Could not use ${typed.rejected.join(', ')}`);
+    error.statusCode = 400;
+    throw error;
+  }
+  typed.people.forEach((person) => {
+    if (!people.some((existing) => existing.phone === person.phone)) people.push(person);
+  });
   if (!people.length) {
-    const error = new Error('Choose at least one person');
+    const error = new Error('Choose a person or type a number');
     error.statusCode = 400;
     throw error;
   }
@@ -142,6 +152,49 @@ async function createDispatch(user, body) {
   return dispatch;
 }
 
+function plansFrom(body) {
+  if (Array.isArray(body.plans) && body.plans.length) {
+    return body.plans.map((plan) => ({
+      message: plan.message,
+      schedule: SCHEDULES.includes(plan.schedule) ? plan.schedule : (SCHEDULES.includes(body.schedule) ? body.schedule : 'date'),
+      scheduledDate: plan.scheduledDate
+    }));
+  }
+  return [{
+    message: body.message,
+    schedule: body.schedule,
+    scheduledDate: body.scheduledDate
+  }];
+}
+
+async function createPlans(user, body) {
+  const plans = plansFrom(body);
+  plans.forEach((plan) => {
+    if (!String(plan.message || '').trim()) {
+      const error = new Error('Write the message for each day');
+      error.statusCode = 400;
+      throw error;
+    }
+    const schedule = SCHEDULES.includes(plan.schedule) ? plan.schedule : 'now';
+    if (schedule !== 'now' && Number.isNaN(new Date(plan.scheduledDate).getTime())) {
+      const error = new Error('Choose the day');
+      error.statusCode = 400;
+      throw error;
+    }
+  });
+  const created = [];
+  for (const plan of plans) {
+    created.push(await createDispatch(user, {
+      ...body,
+      message: plan.message,
+      schedule: plan.schedule,
+      scheduledDate: plan.scheduledDate,
+      plans: undefined
+    }));
+  }
+  return created;
+}
+
 async function resendDispatch(user, id) {
   const dispatch = await Dispatch.findOne({ _id: id, userId: user._id, isActive: true });
   if (!dispatch) {
@@ -151,6 +204,19 @@ async function resendDispatch(user, id) {
   }
   const waiting = dispatch.recipients.some((person) => person.status !== 'sent');
   return deliver(dispatch, { onlyUnsent: waiting });
+}
+
+async function cancelDispatch(user, id) {
+  const dispatch = await Dispatch.findOne({ _id: id, userId: user._id, isActive: true });
+  if (!dispatch) {
+    const error = new Error('Message not found');
+    error.statusCode = 404;
+    throw error;
+  }
+  dispatch.isActive = false;
+  dispatch.nextSendAt = null;
+  await dispatch.save();
+  return dispatch;
 }
 
 async function sendDueDispatches(now = new Date()) {
@@ -169,4 +235,4 @@ async function sendDueDispatches(now = new Date()) {
   return { checked: due.length };
 }
 
-module.exports = { createDispatch, resendDispatch, sendDueDispatches, deliver };
+module.exports = { createDispatch, createPlans, resendDispatch, cancelDispatch, sendDueDispatches, deliver };

@@ -25,10 +25,26 @@ const blank = {
   reason: 'general',
   loanId: '',
   contactIds: [],
+  phones: [],
+  numberDraft: '',
   message: '',
   schedule: 'now',
   scheduledDate: new Date().toISOString().slice(0, 16),
+  days: [],
 };
+
+function dayStamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-GB', {
+    timeZone: 'Africa/Kigali',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 function Messages() {
   const queryClient = useQueryClient();
@@ -38,7 +54,9 @@ function Messages() {
   const { data, isLoading } = useQuery('dispatches', messagesAPI.listDispatches);
   const { data: contacts } = useQuery(['contacts', 'messages'], () => contactsAPI.getContacts({ limit: 1000 }));
   const { data: loans } = useQuery(['loans', 'messages'], () => loansAPI.getLoans({ limit: 100 }));
-  const rows = data?.data?.data || [];
+  const rows = [...(data?.data?.data || [])].sort((left, right) => (
+    new Date(left.nextSendAt || left.scheduledDate || left.createdAt) - new Date(right.nextSendAt || right.scheduledDate || right.createdAt)
+  ));
   const sent = data?.data?.sent || 0;
   const waiting = data?.data?.waiting || 0;
   const people = contacts?.data?.data || [];
@@ -49,13 +67,26 @@ function Messages() {
   const save = useMutation((payload) => messagesAPI.createDispatch(payload), {
     onSuccess: (response) => {
       queryClient.invalidateQueries('dispatches');
-      const row = response.data?.data;
-      const went = row?.status === 'scheduled' && row?.schedule !== 'now';
-      toast.success(went ? 'Message is waiting for its time' : 'Message sent');
+      const payload = response.data?.data;
+      const rows = Array.isArray(payload) ? payload : [payload].filter(Boolean);
+      const planned = rows.filter((row) => row.schedule !== 'now' && row.status === 'scheduled').length;
+      if (planned && planned < rows.length) toast.success('Sent, and the other days are planned');
+      else if (planned > 1) toast.success('Those days are planned');
+      else if (planned === 1) toast.success('That day is planned');
+      else toast.success('Message sent');
       setOpen(false);
       setForm(blank);
+      setQuery('');
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Could not send that message'),
+  });
+
+  const cancel = useMutation((id) => messagesAPI.cancelDispatch(id), {
+    onSuccess: () => {
+      queryClient.invalidateQueries('dispatches');
+      toast.success('That day was taken off the plan');
+    },
+    onError: (error) => toast.error(error.response?.data?.message || 'Could not cancel'),
   });
 
   const resend = useMutation((id) => messagesAPI.resendDispatch(id), {
@@ -87,23 +118,64 @@ function Messages() {
     }));
   };
 
+  const addNumber = () => {
+    const raw = form.numberDraft.trim();
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length < 9) {
+      toast.error('Type the full number');
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      phones: current.phones.includes(raw) ? current.phones : [...current.phones, raw],
+      numberDraft: '',
+    }));
+  };
+
+  const keepDay = () => {
+    if (!form.message.trim()) {
+      toast.error('Write the message for this day');
+      return;
+    }
+    if (form.schedule === 'now' || !form.scheduledDate) {
+      toast.error('Choose the day first');
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      days: [...current.days, { date: current.scheduledDate, message: current.message.trim(), schedule: current.schedule }],
+      message: '',
+    }));
+  };
+
   const submit = (event) => {
     event.preventDefault();
-    if (!form.message.trim()) {
+    const plans = form.days.map((day) => ({
+      message: day.message,
+      schedule: day.schedule || 'date',
+      scheduledDate: day.date,
+    }));
+    if (form.message.trim()) {
+      plans.push({
+        message: form.message.trim(),
+        schedule: form.schedule,
+        scheduledDate: form.schedule === 'now' ? undefined : form.scheduledDate,
+      });
+    }
+    if (!plans.length) {
       toast.error('Write the message');
       return;
     }
-    if (!form.contactIds.length && !(form.reason === 'loan' && form.loanId)) {
-      toast.error('Choose at least one person');
+    if (!form.contactIds.length && !form.phones.length && !(form.reason === 'loan' && form.loanId)) {
+      toast.error('Choose a person or type a number');
       return;
     }
     save.mutate({
       reason: form.reason,
       loanId: form.loanId || undefined,
       contactIds: form.contactIds,
-      message: form.message.trim(),
-      schedule: form.schedule,
-      scheduledDate: form.schedule === 'now' ? undefined : form.scheduledDate,
+      phones: form.phones,
+      plans,
     });
   };
 
@@ -115,7 +187,7 @@ function Messages() {
         <div>
           <p className="text-sm font-medium text-saffron">Office</p>
           <h1 className="font-display text-4xl text-ink">Messages</h1>
-          <p className="mt-1 text-sm text-ink/60">Send one note, or the same note to several people.</p>
+          <p className="mt-1 text-sm text-ink/60">Send to a saved person or any number, and plan a different note for each day.</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>New message</button>
       </div>
@@ -139,10 +211,20 @@ function Messages() {
             <article key={row._id} className="card">
               <div className="card-body space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium capitalize text-saffron">{row.reason.replace('_', ' ')} · {labelSchedule(row.schedule)}</p>
-                  <button type="button" className="btn btn-secondary" onClick={() => resend.mutate(row._id)} disabled={resend.isLoading}>
-                    Resend
-                  </button>
+                  <p className="text-sm font-medium capitalize text-saffron">
+                    {row.reason.replace('_', ' ')} · {labelSchedule(row.schedule)}
+                    {row.schedule !== 'now' && row.scheduledDate ? ` · ${dayStamp(row.scheduledDate)}` : ''}
+                  </p>
+                  <div className="flex gap-2">
+                    {row.status === 'scheduled' && (
+                      <button type="button" className="btn btn-secondary" onClick={() => cancel.mutate(row._id)} disabled={cancel.isLoading}>
+                        Cancel
+                      </button>
+                    )}
+                    <button type="button" className="btn btn-secondary" onClick={() => resend.mutate(row._id)} disabled={resend.isLoading}>
+                      Resend
+                    </button>
+                  </div>
                 </div>
                 <p className="text-ink">{row.message}</p>
                 <p className="text-sm text-ink/70">
@@ -154,7 +236,7 @@ function Messages() {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {row.recipients.map((person) => (
-                    <span key={`${person.contactId}-${person.phone}`} className="rounded-full bg-paper px-2 py-1 text-xs text-ink">
+                    <span key={`${person.contactId || 'number'}-${person.phone}`} className="rounded-full bg-paper px-2 py-1 text-xs text-ink">
                       {person.name || person.phone} · {person.status === 'sent' ? 'sent' : person.status === 'failed' ? 'not sent' : 'waiting'}
                     </span>
                   ))}
@@ -213,7 +295,7 @@ function Messages() {
                 onChange={(event) => setQuery(event.target.value)}
               />
               <div className="mt-2 max-h-56 space-y-2 overflow-y-auto">
-                {shown.length === 0 && <p className="text-sm text-ink/60">No people match. Add them under Contacts first.</p>}
+                {shown.length === 0 && <p className="text-sm text-ink/60">No saved person matches. Type the number below.</p>}
                 {shown.map((person) => (
                   <label key={person._id} className="flex items-center gap-3 rounded-xl border border-line bg-paper px-3 py-2">
                     <input
@@ -228,7 +310,41 @@ function Messages() {
             </div>
 
             <div>
-              <label className="label" htmlFor="note">Message</label>
+              <label className="label" htmlFor="raw-number">A number that is not saved</label>
+              <div className="flex gap-2">
+                <input
+                  id="raw-number"
+                  className="input"
+                  placeholder="0790706170"
+                  value={form.numberDraft}
+                  onChange={(event) => setForm((current) => ({ ...current, numberDraft: event.target.value }))}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      addNumber();
+                    }
+                  }}
+                />
+                <button type="button" className="btn btn-secondary" onClick={addNumber}>Add</button>
+              </div>
+              {form.phones.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {form.phones.map((phone) => (
+                    <button
+                      key={phone}
+                      type="button"
+                      className="rounded-full bg-paper px-2 py-1 text-xs text-ink"
+                      onClick={() => setForm((current) => ({ ...current, phones: current.phones.filter((item) => item !== phone) }))}
+                    >
+                      {phone} · remove
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="label" htmlFor="note">{form.schedule === 'now' ? 'Message' : 'Message for this day'}</label>
               <textarea id="note" className="input min-h-28" value={form.message} onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))} />
             </div>
 
@@ -247,12 +363,34 @@ function Messages() {
                 ))}
               </div>
               {form.schedule !== 'now' && (
-                <input
-                  type="datetime-local"
-                  className="input mt-2"
-                  value={form.scheduledDate}
-                  onChange={(event) => setForm((current) => ({ ...current, scheduledDate: event.target.value }))}
-                />
+                <div className="mt-2 space-y-2">
+                  <input
+                    type="datetime-local"
+                    className="input"
+                    value={form.scheduledDate}
+                    onChange={(event) => setForm((current) => ({ ...current, scheduledDate: event.target.value }))}
+                  />
+                  <button type="button" className="btn btn-secondary" onClick={keepDay}>Plan this day, then write the next</button>
+                  {form.days.length > 0 && (
+                    <ul className="space-y-2">
+                      {form.days.map((day, index) => (
+                        <li key={`${day.date}-${index}`} className="rounded-xl border border-line bg-paper px-3 py-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium text-ink">{dayStamp(day.date)}</p>
+                            <button
+                              type="button"
+                              className="text-xs text-red-600"
+                              onClick={() => setForm((current) => ({ ...current, days: current.days.filter((_, item) => item !== index) }))}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <p className="text-sm text-ink/70">{day.message}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
             </div>
 

@@ -275,6 +275,7 @@ export const messagesAPI = {
   listDispatches: () => api.get('/messages/dispatches'),
   createDispatch: (data) => api.post('/messages/dispatches', data),
   resendDispatch: (id) => api.post(`/messages/dispatches/${id}/resend`),
+  cancelDispatch: (id) => api.post(`/messages/dispatches/${id}/cancel`),
 };
 
 export const categoriesAPI = {

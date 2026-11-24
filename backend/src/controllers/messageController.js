@@ -1,6 +1,6 @@
 const messageService = require('../services/messageService.mista');
 const Dispatch = require('../models/Dispatch');
-const { createDispatch, resendDispatch } = require('../services/dispatchService');
+const { createPlans, resendDispatch, cancelDispatch } = require('../services/dispatchService');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 /**
@@ -206,12 +206,28 @@ const listDispatches = asyncHandler(async (req, res) => {
 
 const postDispatch = asyncHandler(async (req, res) => {
   try {
-    const dispatch = await createDispatch(req.user, req.body);
-    res.status(201).json({ success: true, data: dispatch });
+    const dispatches = await createPlans(req.user, req.body);
+    res.status(201).json({
+      success: true,
+      data: dispatches.length === 1 ? dispatches[0] : dispatches,
+      count: dispatches.length
+    });
   } catch (error) {
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'Could not send that message'
+    });
+  }
+});
+
+const postCancel = asyncHandler(async (req, res) => {
+  try {
+    const dispatch = await cancelDispatch(req.user, req.params.id);
+    res.json({ success: true, data: dispatch });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Could not cancel that message'
     });
   }
 });
@@ -234,5 +250,6 @@ module.exports = {
   getMessageStats,
   listDispatches,
   postDispatch,
+  postCancel,
   postResend
 };
