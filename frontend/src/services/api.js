@@ -104,6 +104,7 @@ export const transactionsAPI = {
   getTransaction: (id) => api.get(`/transactions/${id}`),
   createTransaction: (transactionData) => api.post('/transactions', transactionData),
   updateTransaction: (id, transactionData) => api.put(`/transactions/${id}`, transactionData),
+  raiseSalary: (id, amount) => api.put(`/transactions/${id}/salary`, { amount }),
   deleteTransaction: (id) => api.delete(`/transactions/${id}`),
   getTransactionStats: (params = {}) => api.get('/transactions/stats', { params }),
   getTransactionsByCategory: (params = {}) => api.get('/transactions/categories', { params }),

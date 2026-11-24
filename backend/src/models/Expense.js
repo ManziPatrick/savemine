@@ -98,7 +98,7 @@ const expenseSchema = new mongoose.Schema({
   source: {
     type: {
       type: String,
-      enum: ['cash', 'savings', 'petty_cash'],
+      enum: ['cash', 'savings', 'petty_cash', 'salary'],
       default: 'cash'
     },
     sourceId: {

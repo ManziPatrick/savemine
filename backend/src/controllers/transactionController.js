@@ -1,7 +1,7 @@
 const Transaction = require('../models/Transaction');
 const Contact = require('../models/Contact');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { placeIncome } = require('../services/incomeSchedule');
+const { placeIncome, addProjectIncome } = require('../services/incomeSchedule');
 const { advanceSendDate, repeats } = require('../services/dispatchSchedule');
 
 function nextIncomeDate(from, frequency) {
@@ -105,7 +105,8 @@ const createTransaction = asyncHandler(async (req, res) => {
     tags,
     repeat,
     depositTo,
-    savingsId
+    savingsId,
+    projectId
   } = req.body;
 
   // Verify contact belongs to user if provided
@@ -127,11 +128,20 @@ const createTransaction = asyncHandler(async (req, res) => {
   const frequency = repeats(repeat) ? repeat : null;
   const purse = type === 'income' && depositTo === 'savings' ? 'savings' : 'wallet';
   let placed = '';
+  let linkedProject = null;
   if (type === 'income') {
     placed = await placeIncome(req.user._id, Number(amount), {
       depositTo: purse,
       savingsId: purse === 'savings' ? savingsId : null
     }, description || category || 'Income');
+    if (projectId) {
+      linkedProject = await addProjectIncome(req.user._id, projectId, {
+        date: when,
+        title: description || category || 'Income',
+        amount: Number(amount),
+        category: category || 'income'
+      });
+    }
   }
 
   const transactionData = {
@@ -144,8 +154,9 @@ const createTransaction = asyncHandler(async (req, res) => {
     date: when,
     description,
     notes: type === 'income'
-      ? `Added to ${placed}${frequency ? `. Repeats ${frequency}` : ''}`
+      ? `Added to ${placed}${linkedProject ? ` from ${linkedProject.name}` : ''}${frequency ? `. Repeats ${frequency}` : ''}`
       : notes,
+    projectId: linkedProject ? linkedProject._id : null,
     contactId,
     tags: tags || [],
     depositTo: type === 'income' ? purse : 'wallet',
@@ -164,6 +175,53 @@ const createTransaction = asyncHandler(async (req, res) => {
     success: true,
     message: 'Transaction created successfully',
     data: { transaction }
+  });
+});
+
+/**
+ * @desc    Raise a salary. The extra is added now, and later months use the new amount.
+ * @route   PUT /transactions/:id/salary
+ * @access  Private
+ */
+const raiseSalary = asyncHandler(async (req, res) => {
+  const next = Number(req.body.amount);
+  const plan = await Transaction.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+    type: 'income'
+  });
+
+  if (!plan) {
+    return res.status(404).json({ success: false, message: 'Salary not found' });
+  }
+  if (!Number.isFinite(next) || next <= Number(plan.amount)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Enter a salary higher than the current one'
+    });
+  }
+
+  const extra = next - Number(plan.amount);
+  const placed = await placeIncome(req.user._id, extra, {
+    depositTo: plan.depositTo === 'savings' ? 'savings' : 'wallet',
+    savingsId: plan.savingsId
+  }, 'Salary increase');
+
+  plan.amount = next;
+  plan.isRecurring = true;
+  plan.recurringPattern = plan.recurringPattern?.frequency
+    ? plan.recurringPattern
+    : { frequency: 'monthly', interval: 1 };
+  if (!plan.nextIncomeAt) {
+    plan.nextIncomeAt = nextIncomeDate(plan.date || new Date(), plan.recurringPattern.frequency || 'monthly');
+  }
+  plan.notes = `Salary raised to ${next}. Added ${extra} to ${placed}.`;
+  await plan.save();
+
+  res.json({
+    success: true,
+    message: 'Salary increased',
+    data: { transaction: plan }
   });
 });
 
@@ -419,6 +477,7 @@ module.exports = {
   getTransactions,
   getTransaction,
   createTransaction,
+  raiseSalary,
   updateTransaction,
   deleteTransaction,
   getTransactionStats,

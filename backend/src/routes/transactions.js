@@ -4,6 +4,7 @@ const {
   getTransactions,
   getTransaction,
   createTransaction,
+  raiseSalary,
   updateTransaction,
   deleteTransaction,
   getTransactionStats,
@@ -277,6 +278,7 @@ router.post('/', authenticateToken, validateTransaction, createTransaction);
  *       401:
  *         description: Unauthorized
  */
+router.put('/:id/salary', authenticateToken, validateObjectId('id'), raiseSalary);
 router.put('/:id', authenticateToken, validateObjectId('id'), updateTransaction);
 
 /**

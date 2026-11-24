@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import SlideOver from '../SlideOver';
-import { transactionsAPI, contactsAPI, savingsAPI } from '../../services/api';
+import { transactionsAPI, contactsAPI, savingsAPI, projectsAPI } from '../../services/api';
 import CategoryPicker from '../CategoryPicker';
+import LinkPicker from '../LinkPicker';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -13,6 +14,8 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
   const [savingsAccounts, setSavingsAccounts] = useState([]);
   const [repeat, setRepeat] = useState('once');
   const [depositTo, setDepositTo] = useState('wallet');
+  const [projects, setProjects] = useState([]);
+  const [projectId, setProjectId] = useState('');
   const isEditing = !!transaction;
 
   const {
@@ -69,6 +72,9 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
     savingsAPI.getSavings({ limit: 100 })
       .then((response) => setSavingsAccounts(response.data?.data || []))
       .catch(() => setSavingsAccounts([]));
+    projectsAPI.getProjects({ limit: 100 })
+      .then((response) => setProjects(response.data?.data || []))
+      .catch(() => setProjects([]));
   }, []);
 
   useEffect(() => {
@@ -83,6 +89,7 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
         payload.repeat = repeat;
         payload.depositTo = depositTo === 'wallet' ? 'wallet' : 'savings';
         payload.savingsId = depositTo === 'wallet' ? undefined : depositTo;
+        if (projectId) payload.projectId = projectId;
       }
       if (isEditing) {
         await transactionsAPI.updateTransaction(transaction._id, data);
@@ -167,6 +174,28 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
                     </button>
                   ))}
                 </div>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-medium text-ink">This income is from</p>
+                <LinkPicker
+                  id="income-project"
+                  items={projects.map((project) => ({ id: project._id, name: project.name }))}
+                  value={projectId}
+                  onChange={setProjectId}
+                  onCreate={async (name) => {
+                    const response = await projectsAPI.createProject({
+                      name,
+                      projectType: 'general',
+                      status: 'active',
+                      currency: 'FRW'
+                    });
+                    const project = response.data.data;
+                    setProjects((prev) => [...prev, project]);
+                    return { id: project._id, name: project.name };
+                  }}
+                  emptyLabel="Salary or general income"
+                  placeholder="Choose a project, or leave this as salary"
+                />
               </div>
             </div>
           )}

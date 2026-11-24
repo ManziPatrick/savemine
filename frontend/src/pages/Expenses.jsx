@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, CurrencyDollarIcon, ChartBarIcon, TagIcon } from '@heroicons/react/24/outline';
-import { expensesAPI } from '../services/api';
+import { expensesAPI, transactionsAPI } from '../services/api';
 import ExportButtons from '../components/ExportButtons';
 import { buildExpenseSections } from '../utils/exportSections';
 import ExpenseForm from '../components/forms/ExpenseForm';
@@ -18,6 +18,8 @@ function Expenses() {
   const [businessFilter, setBusinessFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  const [salaryAmount, setSalaryAmount] = useState('');
+  const [raising, setRaising] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: expenses, isLoading, error } = useQuery(
@@ -33,7 +35,12 @@ function Expenses() {
 
   const { data: expenseStats } = useQuery(
     'expenseStats',
-    () => expensesAPI.getExpenseStats({ period: 'month' })
+    () => expensesAPI.getExpenseStats({ period: 'all' })
+  );
+
+  const { data: salaryIncome } = useQuery(
+    'salaryIncome',
+    () => transactionsAPI.getTransactions({ type: 'income', limit: 100 })
   );
 
   const handleFormSuccess = () => {
@@ -105,8 +112,46 @@ function Expenses() {
   if (isLoading) return <LoadingSpinner size="lg" />;
   if (error) return <div className="text-center text-red-600">Error loading expenses: {error.message}</div>;
 
-  const expensesList = expenses?.data?.data || expenses?.data?.data || [];
+  const expensesList = expenses?.data?.data || [];
   const stats = expenseStats?.data?.data || {};
+  const salaryRows = (salaryIncome?.data?.data || []).filter((row) => /salary/i.test(`${row.category || ''} ${row.description || ''}`));
+  const salaryPlan = salaryRows.find((row) => row.isRecurring) || salaryRows[0] || null;
+  const salaryTotal = salaryRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const spentTotal = Number(stats.overview?.totalAmount || 0);
+  const salaryLeft = salaryTotal - spentTotal;
+
+  const increaseSalary = async () => {
+    const next = Number(salaryAmount);
+    if (!Number.isFinite(next) || next <= 0) {
+      toast.error('Enter the new salary');
+      return;
+    }
+    setRaising(true);
+    try {
+      if (salaryPlan) {
+        await transactionsAPI.raiseSalary(salaryPlan._id, next);
+        toast.success('Salary increased. The extra is added now, and later months use this amount.');
+      } else {
+        await transactionsAPI.createTransaction({
+          type: 'income',
+          amount: next,
+          currency: 'FRW',
+          category: 'Salary',
+          description: 'Monthly salary',
+          date: new Date().toISOString().slice(0, 10),
+          repeat: 'monthly',
+          depositTo: 'wallet'
+        });
+        toast.success('Salary added. It comes again every month.');
+      }
+      setSalaryAmount('');
+      syncBooks(queryClient, 'transactions', 'expenses');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not update the salary');
+    } finally {
+      setRaising(false);
+    }
+  };
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -170,6 +215,32 @@ function Expenses() {
           </div>
         </div>
       )}
+
+      <div className="card">
+        <div className="card-body flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-500">Salary</p>
+            <p className="text-lg font-semibold tabular-nums text-ink" title={exactMoney(salaryTotal)}>{formatCurrency(salaryTotal)}</p>
+            <p className="text-sm text-gray-500">
+              Expenses come off this. Left {formatCurrency(salaryLeft)}
+              {salaryPlan ? ` · monthly ${formatCurrency(salaryPlan.amount)}` : ''}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="number"
+              min="0"
+              className="input w-40"
+              placeholder={salaryPlan ? 'Higher salary' : 'Set salary'}
+              value={salaryAmount}
+              onChange={(event) => setSalaryAmount(event.target.value)}
+            />
+            <button type="button" className="btn btn-primary" onClick={increaseSalary} disabled={raising}>
+              {salaryPlan ? 'Increase salary' : 'Set salary'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Category Breakdown */}
       {stats?.byCategory && stats.byCategory.length > 0 && (

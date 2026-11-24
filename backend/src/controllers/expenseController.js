@@ -3,6 +3,7 @@ const Expense = require('../models/Expense');
 const Project = require('../models/Project');
 const Asset = require('../models/Asset');
 const Savings = require('../models/Savings');
+const { findSalaryPlan } = require('../services/incomeSchedule');
 const PettyCash = require('../models/PettyCash');
 const Transaction = require('../models/Transaction');
 const { asyncHandler } = require('../middleware/errorHandler');
@@ -202,6 +203,61 @@ const createExpense = asyncHandler(async (req, res) => {
             }
           }
         );
+      } else if (sourceType === 'salary') {
+        const plan = await findSalaryPlan(req.user._id);
+        if (!plan) {
+          await Expense.findByIdAndDelete(expense._id);
+          return res.status(400).json({
+            success: false,
+            message: 'Set a salary first, then expenses can come off it'
+          });
+        }
+        if (plan.depositTo === 'savings' && plan.savingsId) {
+          const saving = await Savings.findOne({ _id: plan.savingsId, userId: req.user._id });
+          if (!saving) {
+            await Expense.findByIdAndDelete(expense._id);
+            return res.status(404).json({ success: false, message: 'The salary jar was not found' });
+          }
+          if (amount > saving.amount) {
+            await Expense.findByIdAndDelete(expense._id);
+            return res.status(400).json({
+              success: false,
+              message: `Not enough salary in ${saving.name}. Available: ${saving.amount}`
+            });
+          }
+          await saving.withdrawAmount(amount, `Expense from salary: ${title || 'expense'}`);
+        } else {
+          let pettyCash = await PettyCash.findOne({ userId: req.user._id });
+          if (!pettyCash) pettyCash = await PettyCash.createDefault(req.user._id);
+          if (amount > pettyCash.currentBalance) {
+            await Expense.findByIdAndDelete(expense._id);
+            return res.status(400).json({
+              success: false,
+              message: `Not enough salary in the wallet. Available: ${pettyCash.currentBalance}`
+            });
+          }
+          pettyCash.currentBalance -= amount;
+          pettyCash.lastUpdated = new Date();
+          await pettyCash.save();
+          await PettyCash.updateOne(
+            { userId: req.user._id },
+            {
+              $push: {
+                transactions: {
+                  type: 'expense',
+                  amount,
+                  description: `Expense from salary: ${title}`,
+                  referenceId: expense._id,
+                  referenceType: 'expense',
+                  date: new Date(),
+                  createdBy: req.user._id
+                }
+              }
+            }
+          );
+        }
+        expense.source.sourceName = 'Salary';
+        await expense.save();
       }
     } catch (error) {
       await Expense.findByIdAndDelete(expense._id);
@@ -214,7 +270,9 @@ const createExpense = asyncHandler(async (req, res) => {
 
   const fromName = sourceType === 'savings'
     ? (source.sourceName || 'savings')
-    : 'wallet';
+    : sourceType === 'salary'
+      ? 'salary'
+      : 'wallet';
   await Transaction.create({
     userId: req.user._id,
     type: 'expense',

@@ -99,7 +99,9 @@ function ExpenseForm({ onClose, onSuccess }) {
         tags: formData.tags.filter(tag => tag.trim()),
         source: formData.deductFrom === 'savings' && selectedSaving
           ? { type: 'savings', sourceId: selectedSaving._id, sourceName: selectedSaving.name, amount }
-          : { type: 'petty_cash', sourceName: 'Wallet', amount }
+          : formData.deductFrom === 'salary'
+            ? { type: 'salary', sourceName: 'Salary', amount }
+            : { type: 'petty_cash', sourceName: 'Wallet', amount }
       };
 
       await expensesAPI.createExpense(expenseData);
@@ -287,6 +289,13 @@ function ExpenseForm({ onClose, onSuccess }) {
                     onClick={() => setFormData((prev) => ({ ...prev, deductFrom: 'cash', savingsId: '' }))}
                   >
                     Wallet
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${formData.deductFrom === 'salary' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setFormData((prev) => ({ ...prev, deductFrom: 'salary', savingsId: '' }))}
+                  >
+                    Salary
                   </button>
                   {savingsAccounts.map((saving) => (
                     <button
