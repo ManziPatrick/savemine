@@ -6,6 +6,7 @@ import { savingsAPI } from '../services/api';
 import ExportButtons from '../components/ExportButtons';
 import { buildSavingsSections } from '../utils/exportSections';
 import SavingsForm from '../components/forms/SavingsForm';
+import { useConfirm } from '../components/ConfirmDialog';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { syncBooks } from '../utils/syncBooks';
@@ -19,6 +20,7 @@ function Savings() {
   const [selectedSavingForAction, setSelectedSavingForAction] = useState(null);
   const [filter, setFilter] = useState('all');
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
 
   const { data: savings, isLoading, error } = useQuery(
     ['savings', filter],
@@ -74,9 +76,11 @@ function Savings() {
   };
 
   const handleDelete = async (saving) => {
-    if (window.confirm(`Are you sure you want to delete ${saving.name}?`)) {
-      deleteMutation.mutate(saving._id);
-    }
+    ask({
+      title: `Delete ${saving.name}?`,
+      message: 'This savings jar will be removed.',
+      onConfirm: () => deleteMutation.mutate(saving._id),
+    });
   };
 
   const handleAddAmount = (saving) => {
@@ -157,6 +161,7 @@ function Savings() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-4xl text-ink">Savings</h1>

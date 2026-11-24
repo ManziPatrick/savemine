@@ -5,6 +5,7 @@ import { transactionsAPI, contactsAPI, savingsAPI, projectsAPI } from '../../ser
 import CategoryPicker from '../CategoryPicker';
 import LinkPicker from '../LinkPicker';
 import LoadingSpinner from '../LoadingSpinner';
+import PaySplit, { splitsPayload } from './PaySplit';
 import toast from 'react-hot-toast';
 
 function TransactionForm({ transaction, onClose, onSuccess }) {
@@ -16,6 +17,8 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
   const [depositTo, setDepositTo] = useState('wallet');
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState('');
+  const [splits, setSplits] = useState([{ key: 1, place: 'wallet', amount: '' }]);
+  const [arrived, setArrived] = useState(false);
   const isEditing = !!transaction;
 
   const {
@@ -79,11 +82,19 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
 
   const category = watch('category');
   const subcategory = watch('subcategory');
+  const description = watch('description');
+  const amountValue = watch('amount');
   const type = watch('type');
+  const salary = type === 'income' && /salary/i.test(`${category || ''} ${description || ''}`);
 
   useEffect(() => {
     if (/salary/i.test(category || '')) setRepeat('monthly');
   }, [category]);
+
+  useEffect(() => {
+    if (!salary) return;
+    setSplits((rows) => (rows.length === 1 ? [{ ...rows[0], amount: amountValue }] : rows));
+  }, [salary, amountValue]);
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -91,18 +102,39 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
       const payload = { ...data };
       if (!isEditing && data.type === 'income') {
         payload.repeat = repeat;
-        payload.depositTo = depositTo === 'wallet' ? 'wallet' : 'savings';
-        payload.savingsId = depositTo === 'wallet' ? undefined : depositTo;
+        if (salary) {
+          const rows = splitsPayload(splits);
+          const sum = rows.reduce((total, row) => total + row.amount, 0);
+          if (Math.round(sum) !== Math.round(Number(data.amount))) {
+            toast.error(`The split is ${sum.toLocaleString()}. It needs to equal the pay.`);
+            setLoading(false);
+            return;
+          }
+          payload.splits = rows;
+          payload.depositTo = rows[0]?.place === 'savings' ? 'savings' : 'wallet';
+          payload.savingsId = rows[0]?.savingsId;
+        } else {
+          payload.depositTo = depositTo === 'wallet' ? 'wallet' : 'savings';
+          payload.savingsId = depositTo === 'wallet' ? undefined : depositTo;
+        }
         if (projectId) payload.projectId = projectId;
       }
       if (isEditing) {
         await transactionsAPI.updateTransaction(transaction._id, data);
         toast.success('Transaction updated successfully');
       } else {
-        await transactionsAPI.createTransaction(payload);
-        toast.success(data.type === 'income' && repeat !== 'once'
-          ? 'Income added. The same amount comes again on that schedule.'
-          : 'Transaction created successfully');
+        const response = await transactionsAPI.createTransaction(payload);
+        const created = response.data?.data?.transaction;
+        if (salary && arrived && created?._id) {
+          await transactionsAPI.receiveIncome(created._id);
+          toast.success('Salary received. The wallet and savings are updated.');
+        } else {
+          toast.success(salary
+            ? 'Salary saved. Mark it received when the pay arrives.'
+            : data.type === 'income' && repeat !== 'once'
+              ? 'Income added. The same amount comes again on that schedule.'
+              : 'Transaction created successfully');
+        }
       }
       onSuccess();
       onClose();
@@ -151,8 +183,18 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-sm text-ink/60">Salary and similar income can come every month. The office adds it again on that date.</p>
+                <p className="mt-2 text-sm text-ink/60">Salary can come every month. It updates the wallet and savings when you mark that pay received.</p>
               </div>
+              {salary ? (
+                <div className="space-y-3">
+                  <PaySplit total={amountValue} jars={savingsAccounts} splits={splits} onChange={setSplits} />
+                  <p className="text-sm text-ink/60">The money stays put until you mark this pay received. Then each place updates by its share.</p>
+                  <label className="flex items-center gap-2 text-sm text-ink">
+                    <input type="checkbox" checked={arrived} onChange={(event) => setArrived(event.target.checked)} />
+                    This pay has arrived
+                  </label>
+                </div>
+              ) : (
               <div>
                 <p className="mb-2 text-sm font-medium text-ink">Put the money in</p>
                 <div className="flex flex-wrap gap-2">
@@ -175,6 +217,7 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
                   ))}
                 </div>
               </div>
+              )}
               <div>
                 <p className="mb-2 text-sm font-medium text-ink">This income is from</p>
                 <LinkPicker

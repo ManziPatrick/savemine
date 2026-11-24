@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { remindersAPI } from '../../services/api';
+import { useQuery } from 'react-query';
+import { remindersAPI, savingsAPI } from '../../services/api';
 import { REPEAT_OPTIONS } from '../../utils/billMath';
 import CategoryPicker from '../CategoryPicker';
 import SlideOver from '../SlideOver';
@@ -15,7 +16,10 @@ function BillForm({ onClose, onSuccess }) {
   const [amount, setAmount] = useState('');
   const [due, setDue] = useState(todayInput());
   const [recurrence, setRecurrence] = useState('monthly');
+  const [place, setPlace] = useState('salary');
   const [saving, setSaving] = useState(false);
+  const { data: savingsList } = useQuery(['savings', 'bills'], () => savingsAPI.getSavings({ limit: 100 }));
+  const jars = savingsList?.data?.data || [];
 
   const save = async (event) => {
     event.preventDefault();
@@ -37,6 +41,7 @@ function BillForm({ onClose, onSuccess }) {
       return;
     }
 
+    const account = jars.find((jar) => jar._id === place);
     setSaving(true);
     try {
       await remindersAPI.createReminder({
@@ -44,6 +49,11 @@ function BillForm({ onClose, onSuccess }) {
         category: category.trim(),
         reminderType: 'bill',
         amount: value,
+        source: place === 'salary'
+          ? { type: 'salary', sourceName: 'Salary' }
+          : account
+            ? { type: 'savings', sourceId: account._id, sourceName: account.name }
+            : { type: 'cash', sourceName: 'Wallet' },
         currency: 'FRW',
         recurrence,
         scheduledDate: due,
@@ -102,6 +112,18 @@ function BillForm({ onClose, onSuccess }) {
                 value={due}
                 onChange={(event) => setDue(event.target.value)}
               />
+            </div>
+          </div>
+          <div>
+            <p className="label">Charge this bill from</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={`btn ${place === 'salary' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setPlace('salary')}>Salary</button>
+              <button type="button" className={`btn ${place === 'wallet' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setPlace('wallet')}>Wallet</button>
+              {jars.map((jar) => (
+                <button key={jar._id} type="button" className={`btn ${place === jar._id ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setPlace(jar._id)}>
+                  {jar.name}
+                </button>
+              ))}
             </div>
           </div>
           <div>

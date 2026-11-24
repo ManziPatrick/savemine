@@ -172,6 +172,11 @@ const createReminder = asyncHandler(async (req, res) => {
     recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : null,
     amount: Number(amount) > 0 ? Number(amount) : 0,
     currency: currency || 'FRW',
+    source: req.body.source && req.body.source.type ? {
+      type: req.body.source.type,
+      sourceId: req.body.source.sourceId || null,
+      sourceName: req.body.source.sourceName || ''
+    } : { type: 'salary', sourceId: null, sourceName: 'Salary' },
     escalation: escalation || { enabled: true, levels: [] },
     tags: tags || [],
     notes: notes || description || ''
@@ -717,6 +722,17 @@ const sendBulkReminders = asyncHandler(async (req, res) => {
   });
 });
 
+const { payScheduledBill } = require('../services/billPay');
+
+const payReminder = asyncHandler(async (req, res) => {
+  const reminder = await payScheduledBill(req.user._id, req.params.id);
+  res.json({
+    success: true,
+    message: 'Bill paid. The charged place is updated, and the next date follows the schedule.',
+    data: reminder
+  });
+});
+
 module.exports = {
   getReminders,
   getReminder,
@@ -724,6 +740,7 @@ module.exports = {
   updateReminder,
   deleteReminder,
   sendReminderNow,
+  payReminder,
   sendBulkReminders,
   getReminderStats,
   getDueReminders,

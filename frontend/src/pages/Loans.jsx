@@ -6,6 +6,7 @@ import { loansAPI } from '../services/api';
 import ExportButtons from '../components/ExportButtons';
 import { buildLoanSections } from '../utils/exportSections';
 import LoanForm from '../components/forms/LoanForm';
+import { useConfirm } from '../components/ConfirmDialog';
 import PaymentForm from '../components/forms/PaymentForm';
 import ImportLoansForm from '../components/forms/ImportLoansForm';
 import SMSTest from '../components/SMSTest';
@@ -25,6 +26,7 @@ function Loans() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -79,9 +81,11 @@ function Loans() {
   };
 
   const handleDelete = async (loan) => {
-    if (window.confirm(`Are you sure you want to delete the loan to ${loan.contactId?.name}?`)) {
-      deleteMutation.mutate(loan._id);
-    }
+    ask({
+      title: `Delete the loan to ${loan.contactId?.name || 'this person'}?`,
+      message: 'This loan will be removed.',
+      onConfirm: () => deleteMutation.mutate(loan._id),
+    });
   };
 
   const handleFormSuccess = () => {
@@ -167,6 +171,7 @@ function Loans() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

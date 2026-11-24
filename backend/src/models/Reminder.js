@@ -74,6 +74,27 @@ const reminderSchema = new mongoose.Schema({
     min: 0,
     default: 0
   },
+  lastPaidAt: Date,
+  paidCount: {
+    type: Number,
+    default: 0
+  },
+  source: {
+    type: {
+      type: String,
+      enum: ['cash', 'savings', 'petty_cash', 'salary'],
+      default: 'salary'
+    },
+    sourceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Savings',
+      default: null
+    },
+    sourceName: {
+      type: String,
+      default: ''
+    }
+  },
   currency: {
     type: String,
     default: 'FRW',

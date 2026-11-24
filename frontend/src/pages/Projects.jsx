@@ -14,11 +14,13 @@ import { categoryLabel, expenseChoices, groupBook, incomeChoices, linesFromBooks
 import CategoryPicker from '../components/CategoryPicker';
 import LinkPicker from '../components/LinkPicker';
 import SlideOver from '../components/SlideOver';
+import { useConfirm } from '../components/ConfirmDialog';
 import { exactMoney, formatMoney } from '../utils/money';
 import MoneyConnections from '../components/MoneyConnections';
 import SharePlan from '../components/SharePlan';
 import { fileExpenseCategory } from '../utils/fileExpense';
 import { farmFromForm, farmSummary } from '../utils/farmMeasure';
+import { chargeLabel } from '../utils/chargeFrom';
 import { repeatsMonthly, stageHint, stageKind, stagesFor, showsFarmMeasure } from '../utils/projectStages';
 import FarmMeasure from '../components/forms/FarmMeasure';
 import { uploadProof } from '../utils/uploadProof';
@@ -34,6 +36,7 @@ function Projects() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
 
   // Expense/Income modal states
   const [expenseTarget, setExpenseTarget] = useState(null);
@@ -120,9 +123,12 @@ function Projects() {
   };
 
   const handleDelete = (project) => {
-    if (window.confirm(`Delete "${project.name}" and all its expenses/incomes?`)) {
-      deleteMutation.mutate(project._id);
-    }
+    ask({
+      title: `Delete ${project.name}?`,
+      message: 'The project and the expenses and income recorded on it will be removed.',
+      confirmLabel: 'Delete',
+      onConfirm: () => deleteMutation.mutate(project._id),
+    });
   };
 
   const handleFormSuccess = () => {
@@ -243,16 +249,22 @@ function Projects() {
     }
   };
 
-  const deleteOfficeExpense = async (expense) => {
+  const deleteOfficeExpense = (expense) => {
     const name = expense.subcategory || expense.title || 'this expense';
-    if (!window.confirm(`Delete ${name} and put the money back where it came from?`)) return;
-    try {
-      await expensesAPI.deleteExpense(expense._id);
-      syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet', 'business');
-      toast.success('Expense removed and the money put back');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not delete that expense');
-    }
+    ask({
+      title: `Delete ${name}?`,
+      message: 'The money goes back where it came from.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        try {
+          await expensesAPI.deleteExpense(expense._id);
+          syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet', 'business');
+          toast.success('Expense removed and the money put back');
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Could not delete that expense');
+        }
+      },
+    });
   };
 
   const saveLevel = async (project, value) => {
@@ -324,6 +336,7 @@ function Projects() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -611,7 +624,7 @@ function Projects() {
                                         ))}
                                       </select>
                                     ) : (
-                                      <span className="text-ink/70">{expense.source?.sourceName || 'Choose when editing'}</span>
+                                      <span className="text-ink/70">{chargeLabel(expense)}</span>
                                     )}
                                   </td>
                                   <td className="px-2 py-1.5 text-right">

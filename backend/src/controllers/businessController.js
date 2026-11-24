@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Business = require('../models/Business');
 const Project = require('../models/Project');
+const Expense = require('../models/Expense');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { purseTake } = require('../services/purse');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
@@ -30,10 +31,43 @@ const getBusinesses = asyncHandler(async (req, res) => {
     .sort(sort)
     .skip(skip)
     .limit(limit);
+  const projects = await Project.find({
+    userId: req.user._id,
+    businessId: { $in: businesses.map((business) => business._id) },
+    isActive: { $ne: false }
+  }).select('_id businessId');
+  const projectBusiness = new Map(projects.map((project) => [String(project._id), String(project.businessId)]));
+  const spent = await Expense.find({
+    userId: req.user._id,
+    isActive: true,
+    $or: [
+      { projectId: { $in: projects.map((project) => project._id) } },
+      { category: 'agriculture' }
+    ]
+  }).select('projectId category amount');
+  const invested = {};
+  spent.forEach((expense) => {
+    const fromProject = projectBusiness.get(String(expense.projectId || ''));
+    const farmBusiness = !fromProject && expense.category === 'agriculture'
+      ? businesses.find((business) => business.businessType === 'agriculture')
+      : null;
+    const businessId = fromProject || (farmBusiness ? String(farmBusiness._id) : '');
+    if (!businessId) return;
+    invested[businessId] = (invested[businessId] || 0) + Number(expense.amount || 0);
+  });
+  const rows = businesses.map((business) => {
+    const plain = business.toObject();
+    const proposed = Number(plain.initialInvestment || 0);
+    const used = invested[String(business._id)] || 0;
+    plain.invested = used;
+    plain.investmentGap = used - proposed;
+    plain.investmentStanding = used === proposed ? 'level' : used > proposed ? 'above' : 'below';
+    return plain;
+  });
 
   const total = await Business.countDocuments(filter);
 
-  res.json(createPaginatedResponse(businesses, page, limit, total));
+  res.json(createPaginatedResponse(rows, page, limit, total));
 });
 
 /**

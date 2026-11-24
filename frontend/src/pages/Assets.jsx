@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, PencilIcon, TrashIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
 import { assetsAPI } from '../services/api';
 import AssetForm from '../components/forms/AssetForm';
+import { useConfirm } from '../components/ConfirmDialog';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { syncBooks } from '../utils/syncBooks';
@@ -14,6 +15,7 @@ function Assets() {
   const [filter, setFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('');
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
 
   const { data: assets, isLoading, error } = useQuery(
     ['assets', filter, categoryFilter],
@@ -41,9 +43,11 @@ function Assets() {
   };
 
   const handleDelete = async (asset) => {
-    if (window.confirm(`Are you sure you want to delete ${asset.name}?`)) {
-      deleteMutation.mutate(asset._id);
-    }
+    ask({
+      title: `Delete ${asset.name}?`,
+      message: 'This asset will be removed.',
+      onConfirm: () => deleteMutation.mutate(asset._id),
+    });
   };
 
   const handleFormSuccess = () => {
@@ -69,6 +73,7 @@ function Assets() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Assets</h1>

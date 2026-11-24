@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, PencilIcon, TrashIcon, GiftIcon, HeartIcon, HandThumbUpIcon } from '@heroicons/react/24/outline';
 import { giftsAPI, contactsAPI } from '../services/api';
 import GiftForm from '../components/forms/GiftForm';
+import { useConfirm } from '../components/ConfirmDialog';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { syncBooks } from '../utils/syncBooks';
@@ -17,6 +18,7 @@ function Gifts() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
 
   const { data: gifts, isLoading, error } = useQuery(
     ['gifts', filter, giftTypeFilter, occasionFilter, currentPage, pageSize],
@@ -50,9 +52,11 @@ function Gifts() {
   };
 
   const handleDelete = async (gift) => {
-    if (window.confirm(`Are you sure you want to delete "${gift.title}"?`)) {
-      deleteMutation.mutate(gift._id);
-    }
+    ask({
+      title: `Delete ${gift.title}?`,
+      message: 'This gift will be removed.',
+      onConfirm: () => deleteMutation.mutate(gift._id),
+    });
   };
 
   const handleFormSuccess = () => {
@@ -124,6 +128,7 @@ function Gifts() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

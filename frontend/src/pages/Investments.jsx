@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, ArrowTrendingUpIcon, ClockIcon, ExclamationTriangleIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { investmentsAPI } from '../services/api';
 import InvestmentForm from '../components/forms/InvestmentForm';
+import { useConfirm } from '../components/ConfirmDialog';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { syncBooks } from '../utils/syncBooks';
@@ -17,6 +18,7 @@ function Investments() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
 
   const { data: investments, isLoading, error } = useQuery(
     ['investments', filter, investmentTypeFilter, riskFilter, currentPage, pageSize],
@@ -50,9 +52,11 @@ function Investments() {
   };
 
   const handleDelete = async (investment) => {
-    if (window.confirm(`Are you sure you want to delete "${investment.name}"?`)) {
-      deleteMutation.mutate(investment._id);
-    }
+    ask({
+      title: `Delete ${investment.name}?`,
+      message: 'This investment will be removed.',
+      onConfirm: () => deleteMutation.mutate(investment._id),
+    });
   };
 
   const handleFormSuccess = () => {
@@ -139,6 +143,7 @@ function Investments() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

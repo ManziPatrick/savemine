@@ -3,15 +3,18 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PencilIcon, PlusIcon, TrashIcon, CurrencyDollarIcon, ChartBarIcon, TagIcon } from '@heroicons/react/24/outline';
 import { expensesAPI, savingsAPI, transactionsAPI } from '../services/api';
 import SlideOver from '../components/SlideOver';
+import { useConfirm } from '../components/ConfirmDialog';
 import ExportButtons from '../components/ExportButtons';
 import { buildExpenseSections } from '../utils/exportSections';
 import ExpenseForm from '../components/forms/ExpenseForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { syncBooks } from '../utils/syncBooks';
+import { salaryWaiting } from '../utils/salaryWaiting';
 import FilterMenu from '../components/FilterMenu';
 import { exactMoney, formatMoney } from '../utils/money';
 import { farmSummary } from '../utils/farmMeasure';
+import { chargeLabel } from '../utils/chargeFrom';
 
 function Expenses() {
   const [showForm, setShowForm] = useState(false);
@@ -26,6 +29,7 @@ function Expenses() {
   const [salaryAmount, setSalaryAmount] = useState('');
   const [raising, setRaising] = useState(false);
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
 
   const { data: expenses, isLoading, error } = useQuery(
     ['expenses', filter, categoryFilter, businessFilter, currentPage, pageSize],
@@ -123,7 +127,10 @@ function Expenses() {
   const stats = expenseStats?.data?.data || {};
   const salaryRows = (salaryIncome?.data?.data || []).filter((row) => /salary/i.test(`${row.category || ''} ${row.description || ''}`));
   const salaryPlan = salaryRows.find((row) => row.isRecurring) || salaryRows[0] || null;
-  const salaryTotal = salaryRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const salaryIsWaiting = salaryPlan ? salaryWaiting(salaryPlan) : false;
+  const salaryTotal = salaryRows
+    .filter((row) => !salaryWaiting(row))
+    .reduce((sum, row) => sum + Number(row.amount || 0), 0);
   const spentTotal = Number(stats.overview?.totalAmount || 0);
   const salaryLeft = salaryTotal - spentTotal;
 
@@ -137,7 +144,7 @@ function Expenses() {
     try {
       if (salaryPlan) {
         await transactionsAPI.raiseSalary(salaryPlan._id, next);
-        toast.success('Salary increased. The extra is added now, and later months use this amount.');
+        toast.success('Salary updated. Mark it received when this month’s pay arrives.');
       } else {
         await transactionsAPI.createTransaction({
           type: 'income',
@@ -161,6 +168,7 @@ function Expenses() {
   };
   return (
     <div className="space-y-6">
+      {dialog}
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -227,10 +235,13 @@ function Expenses() {
         <div className="card-body flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm text-gray-500">Salary</p>
-            <p className="text-lg font-semibold tabular-nums text-ink" title={exactMoney(salaryTotal)}>{formatCurrency(salaryTotal)}</p>
+            <p className="text-lg font-semibold tabular-nums text-ink" title={exactMoney(salaryIsWaiting ? 0 : salaryTotal)}>
+              {salaryIsWaiting ? 'Pending' : formatCurrency(salaryTotal)}
+            </p>
             <p className="text-sm text-gray-500">
-              Expenses come off this. Left {formatCurrency(salaryLeft)}
-              {salaryPlan ? ` · monthly ${formatCurrency(salaryPlan.amount)}` : ''}
+              {salaryIsWaiting
+                ? `Monthly ${formatCurrency(salaryPlan.amount)} is still waiting this month, so it is not counted.`
+                : `Expenses come off this. Left ${formatCurrency(salaryLeft)}${salaryPlan ? ` · monthly ${formatCurrency(salaryPlan.amount)}` : ''}`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -329,7 +340,7 @@ function Expenses() {
                       <th className="table-header-cell">Amount</th>
                       <th className="table-header-cell">Type</th>
                       <th className="table-header-cell">Date</th>
-                      <th className="table-header-cell">Payment Method</th>
+                      <th className="table-header-cell">Charged from</th>
                       <th className="table-header-cell">Actions</th>
                     </tr>
                   </thead>
@@ -393,7 +404,7 @@ function Expenses() {
                         </td>
                         <td className="table-cell">
                           <span className="badge badge-outline">
-                            {expense.paymentMethod.replace('_', ' ')}
+                            {chargeLabel(expense)}
                           </span>
                         </td>
                         <td className="table-cell">
@@ -407,7 +418,9 @@ function Expenses() {
                                 setEditForm({
                                   title: expense.title || '',
                                   amount: expense.amount ?? '',
-                                  savingsId: expense.source?.type === 'savings' ? (expense.source.sourceId || '') : '',
+                                  savingsId: expense.source?.type === 'salary'
+                                    ? 'salary'
+                                    : expense.source?.type === 'savings' ? (expense.source.sourceId || '') : '',
                                 });
                               }}
                             >
@@ -417,16 +430,20 @@ function Expenses() {
                               type="button"
                               className="text-red-600"
                               title="Delete"
-                              onClick={async () => {
-                                if (!window.confirm(`Delete ${expense.title} and put the money back?`)) return;
-                                try {
-                                  await expensesAPI.deleteExpense(expense._id);
-                                  syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet');
-                                  toast.success('Expense removed and the money put back');
-                                } catch (error) {
-                                  toast.error(error.response?.data?.message || 'Could not delete that expense');
-                                }
-                              }}
+                              onClick={() => ask({
+                                title: `Delete ${expense.title}?`,
+                                message: 'The money goes back where it came from.',
+                                confirmLabel: 'Delete',
+                                onConfirm: async () => {
+                                  try {
+                                    await expensesAPI.deleteExpense(expense._id);
+                                    syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet');
+                                    toast.success('Expense removed and the money put back');
+                                  } catch (error) {
+                                    toast.error(error.response?.data?.message || 'Could not delete that expense');
+                                  }
+                                },
+                              })}
                             >
                               <TrashIcon className="h-4 w-4" />
                             </button>
@@ -491,9 +508,11 @@ function Expenses() {
                   amount: Number(editForm.amount),
                   category: editExpense.category,
                   subcategory: editExpense.subcategory,
-                  source: account
-                    ? { type: 'savings', sourceId: account._id, sourceName: account.name }
-                    : { type: 'cash', sourceName: 'Wallet' },
+                  source: editForm.savingsId === 'salary'
+                    ? { type: 'salary', sourceName: 'Salary' }
+                    : account
+                      ? { type: 'savings', sourceId: account._id, sourceName: account.name }
+                      : { type: 'cash', sourceName: 'Wallet' },
                 });
                 syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet');
                 toast.success('Expense updated');
@@ -513,6 +532,7 @@ function Expenses() {
               <p className="mb-1 text-sm font-medium text-gray-700">Take the money from</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" className={`btn ${editForm.savingsId ? 'btn-secondary' : 'btn-primary'}`} onClick={() => setEditForm((prev) => ({ ...prev, savingsId: '' }))}>Wallet</button>
+                <button type="button" className={`btn ${editForm.savingsId === 'salary' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEditForm((prev) => ({ ...prev, savingsId: 'salary' }))}>Salary</button>
                 {(savingsList?.data?.data || []).map((saving) => (
                   <button key={saving._id} type="button" className={`btn ${editForm.savingsId === saving._id ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEditForm((prev) => ({ ...prev, savingsId: saving._id }))}>
                     {saving.name}

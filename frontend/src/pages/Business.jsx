@@ -5,6 +5,7 @@ import { PlusIcon, PencilIcon, TrashIcon, BuildingOfficeIcon, ChartBarIcon, Arro
 import { businessesAPI, projectsAPI, savingsAPI } from '../services/api';
 import BusinessForm from '../components/forms/BusinessForm';
 import SlideOver from '../components/SlideOver';
+import { useConfirm } from '../components/ConfirmDialog';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { formatMoney } from '../utils/money';
 import toast from 'react-hot-toast';
@@ -29,6 +30,7 @@ function Business() {
   const [chosenProjects, setChosenProjects] = useState([]);
   const [savingProjects, setSavingProjects] = useState(false);
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
 
   const { data: businesses, isLoading, error } = useQuery(
     ['businesses', filter, businessTypeFilter, statusFilter, currentPage, pageSize],
@@ -63,10 +65,12 @@ function Business() {
     setShowForm(true);
   };
 
-  const handleDelete = async (business) => {
-    if (window.confirm(`Are you sure you want to delete "${business.name}"?`)) {
-      deleteMutation.mutate(business._id);
-    }
+  const handleDelete = (business) => {
+    ask({
+      title: `Delete ${business.name}?`,
+      message: 'This business will be removed from your office.',
+      onConfirm: () => deleteMutation.mutate(business._id),
+    });
   };
 
   const handleFormSuccess = () => {
@@ -151,9 +155,11 @@ function Business() {
         id: expenseTarget._id,
         data: {
           amount: parseFloat(expenseForm.amount),
-          source: account
-            ? { type: 'savings', sourceId: account._id, sourceName: account.name }
-            : { type: 'cash', sourceName: 'Wallet' },
+          source: expenseForm.savingsId === 'salary'
+            ? { type: 'salary', sourceName: 'Salary' }
+            : account
+              ? { type: 'savings', sourceId: account._id, sourceName: account.name }
+              : { type: 'cash', sourceName: 'Wallet' },
         },
       },
       { onSettled: () => setSavingExpense(false) }
@@ -232,6 +238,7 @@ function Business() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -374,6 +381,7 @@ function Business() {
                       <th className="table-header-cell">Status</th>
                       <th className="table-header-cell">Revenue</th>
                       <th className="table-header-cell">Profit</th>
+                      <th className="table-header-cell">Investment</th>
                       <th className="table-header-cell">ROI</th>
                       <th className="table-header-cell">Started</th>
                       <th className="table-header-cell">Actions</th>
@@ -431,6 +439,14 @@ function Business() {
                             </div>
                             <div className="text-sm text-gray-500">
                               Monthly: {formatCurrency(business.monthlyRevenue - business.monthlyExpenses)}
+                            </div>
+                          </td>
+                          <td className="table-cell">
+                            <div className={`font-medium ${business.investmentStanding === 'above' ? 'text-red-600' : 'text-green-600'}`}>
+                              {business.investmentStanding === 'above' ? 'Above' : business.investmentStanding === 'level' ? 'Level' : 'Below'}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {formatCurrency(business.invested || 0)} of {formatCurrency(business.initialInvestment || 0)}
                             </div>
                           </td>
                           <td className="table-cell">
@@ -607,6 +623,7 @@ function Business() {
                   <p className="mb-1 text-sm font-medium text-gray-700">Take the money from</p>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" className={`btn ${expenseForm.savingsId ? 'btn-secondary' : 'btn-primary'}`} onClick={() => setExpenseForm((prev) => ({ ...prev, savingsId: '' }))}>Wallet</button>
+                    <button type="button" className={`btn ${expenseForm.savingsId === 'salary' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setExpenseForm((prev) => ({ ...prev, savingsId: 'salary' }))}>Salary</button>
                     {(savingsList?.data?.data || []).map((saving) => (
                       <button
                         key={saving._id}

@@ -8,6 +8,13 @@ function isSalary(row) {
   return /salary/i.test(`${row?.category || ''} ${row?.description || ''}`);
 }
 
+function salaryWaiting(row, now = new Date()) {
+  if (!isSalary(row)) return false;
+  if (!row.lastReceivedAt) return true;
+  if (row.nextIncomeAt && new Date(row.nextIncomeAt) <= now) return true;
+  return false;
+}
+
 async function findSalaryPlan(userId) {
   const plans = await Transaction.find({
     userId,
@@ -67,6 +74,7 @@ async function postDueIncomes(now = new Date()) {
     const frequency = plan.recurringPattern?.frequency;
     if (!repeats(frequency)) continue;
     let guard = 0;
+    if (isSalary(plan)) continue;
     while (plan.nextIncomeAt && plan.nextIncomeAt <= now && guard < 12) {
       const when = new Date(plan.nextIncomeAt);
       const label = plan.description || plan.category || 'Income';
@@ -104,4 +112,135 @@ async function postDueIncomes(now = new Date()) {
   return { posted };
 }
 
-module.exports = { placeIncome, postDueIncomes, findSalaryPlan, addProjectIncome, isSalary };
+function nextOpenDate(from, frequency) {
+  let next = advanceSendDate(from, frequency);
+  const now = new Date();
+  let guard = 0;
+  while (next && next <= now && guard < 24) {
+    next = advanceSendDate(next, frequency);
+    guard += 1;
+  }
+  return next;
+}
+
+function primaryPurse(splits) {
+  const main = [...splits].sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+  if (main?.place === 'savings' && main.savingsId) {
+    return { depositTo: 'savings', savingsId: main.savingsId };
+  }
+  return { depositTo: 'wallet', savingsId: null };
+}
+
+async function normalizeSplits(userId, raw, total) {
+  const rows = Array.isArray(raw) ? raw : [];
+  if (rows.length === 0) {
+    const error = new Error('Split the pay across the wallet and your savings');
+    error.statusCode = 400;
+    throw error;
+  }
+  const jars = await Savings.find({ userId, isActive: { $ne: false } });
+  const byId = new Map(jars.map((jar) => [String(jar._id), jar]));
+  const splits = rows.map((row) => {
+    const amount = Number(row.amount);
+    if (!(amount > 0)) {
+      const error = new Error('Each part of the pay needs an amount');
+      error.statusCode = 400;
+      throw error;
+    }
+    const savingsId = row.savingsId || null;
+    if (row.place === 'wallet' || !savingsId) {
+      return { place: 'wallet', savingsId: null, name: 'Wallet', amount };
+    }
+    const jar = byId.get(String(savingsId));
+    if (!jar) {
+      const error = new Error('Choose a savings jar for each part of the pay');
+      error.statusCode = 400;
+      throw error;
+    }
+    return { place: 'savings', savingsId: jar._id, name: jar.name, amount };
+  });
+  const sum = splits.reduce((totalSoFar, row) => totalSoFar + row.amount, 0);
+  if (Math.round(sum) !== Math.round(Number(total))) {
+    const error = new Error(`The split is ${sum}. It needs to equal the pay of ${total}.`);
+    error.statusCode = 400;
+    throw error;
+  }
+  return splits;
+}
+
+async function receivePlan(plan) {
+  if (plan.type !== 'income') {
+    const error = new Error('Only income can be marked received');
+    error.statusCode = 400;
+    throw error;
+  }
+  const now = new Date();
+  if (plan.lastReceivedAt && plan.nextIncomeAt && plan.nextIncomeAt > now) {
+    const error = new Error('This pay is already received. The next one follows the schedule.');
+    error.statusCode = 400;
+    throw error;
+  }
+  const splits = plan.splits?.length
+    ? plan.splits
+    : [{
+      place: plan.depositTo === 'savings' && plan.savingsId ? 'savings' : 'wallet',
+      savingsId: plan.depositTo === 'savings' ? plan.savingsId : null,
+      name: plan.depositTo === 'savings' ? 'Savings' : 'Wallet',
+      amount: plan.amount
+    }];
+  const sum = splits.reduce((total, row) => total + Number(row.amount || 0), 0);
+  if (Math.round(sum) !== Math.round(Number(plan.amount))) {
+    const error = new Error(`The split is ${sum}. It needs to equal the pay of ${plan.amount}.`);
+    error.statusCode = 400;
+    throw error;
+  }
+  const label = plan.description || plan.category || 'Income';
+  for (const split of splits) {
+    await placeIncome(plan.userId, Number(split.amount), {
+      depositTo: split.place === 'savings' ? 'savings' : 'wallet',
+      savingsId: split.savingsId
+    }, `${label}: ${split.name || 'Wallet'}`);
+  }
+  if (plan.projectId) {
+    await addProjectIncome(plan.userId, plan.projectId, {
+      date: now,
+      title: label,
+      amount: plan.amount,
+      category: plan.category
+    });
+  }
+  const purse = primaryPurse(splits);
+  plan.splits = splits;
+  plan.depositTo = purse.depositTo;
+  plan.savingsId = purse.savingsId;
+  plan.lastReceivedAt = now;
+  plan.notes = `Received ${whereText(splits)}`.slice(0, 500);
+  const frequency = plan.recurringPattern?.frequency;
+  if (plan.isRecurring && repeats(frequency)) {
+    if (!plan.nextIncomeAt || plan.nextIncomeAt <= now) {
+      plan.nextIncomeAt = nextOpenDate(plan.nextIncomeAt || plan.date || now, frequency);
+    }
+    plan.status = 'pending';
+  } else {
+    plan.status = 'completed';
+    plan.nextIncomeAt = null;
+  }
+  await plan.save();
+  return plan;
+}
+
+function whereText(splits) {
+  return splits.map((split) => `${Number(split.amount).toLocaleString()} in ${split.name || 'Wallet'}`).join(', ');
+}
+
+module.exports = {
+  placeIncome,
+  postDueIncomes,
+  findSalaryPlan,
+  addProjectIncome,
+  isSalary,
+  salaryWaiting,
+  normalizeSplits,
+  primaryPurse,
+  receivePlan
+};

@@ -61,6 +61,18 @@ async function shiftInitialInvestment(userId, projectId, spentDelta) {
   );
 }
 
+async function nameSalarySource(userId, source) {
+  if (!source || source.type !== 'salary') return source;
+  const plan = await findSalaryPlan(userId);
+  if (plan && plan.depositTo === 'savings' && plan.savingsId) {
+    const saving = await Savings.findOne({ _id: plan.savingsId, userId });
+    if (saving) {
+      return { type: 'salary', sourceId: saving._id, sourceName: saving.name, amount: source.amount };
+    }
+  }
+  return { ...source, type: 'salary', sourceName: source.sourceName || 'Salary' };
+}
+
 function readFarm(farm) {
   if (!farm || typeof farm !== 'object') return undefined;
   const out = {};
@@ -258,7 +270,10 @@ const createExpense = asyncHandler(async (req, res) => {
             }
           );
         }
-        expense.source.sourceName = 'Salary';
+        const named = await nameSalarySource(req.user._id, expense.source);
+        expense.source.type = 'salary';
+        expense.source.sourceId = named.sourceId || null;
+        expense.source.sourceName = named.sourceName || 'Salary';
         await expense.save();
       }
     } catch (error) {
@@ -462,10 +477,11 @@ const updateExpense = asyncHandler(async (req, res) => {
   if (req.body.expenseDate) expense.expenseDate = new Date(req.body.expenseDate);
   if (req.body.farm) expense.farm = readFarm(req.body.farm) || expense.farm;
   expense.amount = nextAmount;
+  const namedSource = await nameSalarySource(req.user._id, nextSource);
   expense.source = {
-    type: nextSource.type || 'cash',
-    sourceId: nextSource.sourceId || null,
-    sourceName: nextSource.sourceName || '',
+    type: namedSource.type || 'cash',
+    sourceId: namedSource.sourceId || null,
+    sourceName: namedSource.sourceName || '',
     amount: nextAmount
   };
   if (String(req.body.repeat || '') === 'monthly') {

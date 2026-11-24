@@ -7,6 +7,7 @@ const {
   updateReminder,
   deleteReminder,
   sendReminderNow,
+  payReminder,
   sendBulkReminders,
   getDueReminders,
   getOverdueReminders,
@@ -324,6 +325,7 @@ router.delete('/:id', authenticateToken, validateObjectId('id'), deleteReminder)
  *         description: Failed to send reminder
  */
 router.post('/:id/send-now', authenticateToken, validateObjectId('id'), sendReminderNow);
+router.post('/:id/pay', authenticateToken, validateObjectId('id'), payReminder);
 
 module.exports = router;
 

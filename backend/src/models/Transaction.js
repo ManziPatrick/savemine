@@ -80,6 +80,29 @@ const transactionSchema = new mongoose.Schema({
     ref: 'Savings',
     default: null
   },
+  splits: [{
+    place: {
+      type: String,
+      enum: ['wallet', 'savings'],
+      required: true
+    },
+    savingsId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Savings',
+      default: null
+    },
+    name: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    amount: {
+      type: Number,
+      required: true,
+      min: 0
+    }
+  }],
+  lastReceivedAt: Date,
   nextIncomeAt: Date,
   isRecurring: {
     type: Boolean,

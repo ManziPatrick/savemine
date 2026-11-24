@@ -1,7 +1,7 @@
 const Transaction = require('../models/Transaction');
 const Contact = require('../models/Contact');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { placeIncome, addProjectIncome } = require('../services/incomeSchedule');
+const { placeIncome, addProjectIncome, isSalary, normalizeSplits, primaryPurse, receivePlan } = require('../services/incomeSchedule');
 const { advanceSendDate, repeats } = require('../services/dispatchSchedule');
 
 function nextIncomeDate(from, frequency) {
@@ -126,10 +126,21 @@ const createTransaction = asyncHandler(async (req, res) => {
 
   const when = date ? new Date(date) : new Date();
   const frequency = repeats(repeat) ? repeat : null;
+  const salary = type === 'income' && isSalary({ category, description });
   const purse = type === 'income' && depositTo === 'savings' ? 'savings' : 'wallet';
   let placed = '';
   let linkedProject = null;
-  if (type === 'income') {
+  let splits = [];
+  if (salary) {
+    const requested = Array.isArray(req.body.splits) && req.body.splits.length
+      ? req.body.splits
+      : [{
+        place: purse,
+        savingsId: purse === 'savings' ? savingsId : null,
+        amount: Number(amount)
+      }];
+    splits = await normalizeSplits(req.user._id, requested, amount);
+  } else if (type === 'income') {
     placed = await placeIncome(req.user._id, Number(amount), {
       depositTo: purse,
       savingsId: purse === 'savings' ? savingsId : null
@@ -143,6 +154,7 @@ const createTransaction = asyncHandler(async (req, res) => {
       });
     }
   }
+  const salaryPurse = splits.length ? primaryPurse(splits) : null;
 
   const transactionData = {
     userId: req.user._id,
@@ -153,17 +165,21 @@ const createTransaction = asyncHandler(async (req, res) => {
     subcategory,
     date: when,
     description,
-    notes: type === 'income'
-      ? `Added to ${placed}${linkedProject ? ` from ${linkedProject.name}` : ''}${frequency ? `. Repeats ${frequency}` : ''}`
-      : notes,
-    projectId: linkedProject ? linkedProject._id : null,
+    notes: salary
+      ? 'Waiting to be marked received. The wallet and savings update then.'
+      : type === 'income'
+        ? `Added to ${placed}${linkedProject ? ` from ${linkedProject.name}` : ''}${frequency ? `. Repeats ${frequency}` : ''}`
+        : notes,
+    projectId: linkedProject ? linkedProject._id : (projectId || null),
     contactId,
     tags: tags || [],
-    depositTo: type === 'income' ? purse : 'wallet',
-    savingsId: purse === 'savings' ? savingsId : null,
+    depositTo: salaryPurse ? salaryPurse.depositTo : (type === 'income' ? purse : 'wallet'),
+    savingsId: salaryPurse ? salaryPurse.savingsId : (purse === 'savings' ? savingsId : null),
+    splits,
     isRecurring: Boolean(frequency),
     recurringPattern: frequency ? { frequency, interval: 1 } : null,
-    nextIncomeAt: frequency ? nextIncomeDate(when, frequency) : null
+    nextIncomeAt: frequency ? nextIncomeDate(when, frequency) : null,
+    status: salary ? 'pending' : 'completed'
   };
 
   const transaction = await Transaction.create(transactionData);
@@ -201,21 +217,24 @@ const raiseSalary = asyncHandler(async (req, res) => {
     });
   }
 
-  const extra = next - Number(plan.amount);
-  const placed = await placeIncome(req.user._id, extra, {
-    depositTo: plan.depositTo === 'savings' ? 'savings' : 'wallet',
-    savingsId: plan.savingsId
-  }, 'Salary increase');
-
   plan.amount = next;
   plan.isRecurring = true;
   plan.recurringPattern = plan.recurringPattern?.frequency
     ? plan.recurringPattern
     : { frequency: 'monthly', interval: 1 };
+  if (!plan.splits?.length || plan.splits.length === 1) {
+    plan.splits = [{
+      place: plan.depositTo === 'savings' && plan.savingsId ? 'savings' : 'wallet',
+      savingsId: plan.depositTo === 'savings' ? plan.savingsId : null,
+      name: plan.depositTo === 'savings' ? (plan.splits?.[0]?.name || 'Savings') : 'Wallet',
+      amount: next
+    }];
+  }
   if (!plan.nextIncomeAt) {
     plan.nextIncomeAt = nextIncomeDate(plan.date || new Date(), plan.recurringPattern.frequency || 'monthly');
   }
-  plan.notes = `Salary raised to ${next}. Added ${extra} to ${placed}.`;
+  plan.status = 'pending';
+  plan.notes = `Salary is ${next}. Mark it received and the split updates the wallet and savings.`;
   await plan.save();
 
   res.json({
@@ -340,8 +359,25 @@ const deleteTransaction = asyncHandler(async (req, res) => {
 const getTransactionStats = asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.query;
   const dateFilter = createDateRangeFilter(req.query, 'date');
-  
-  const matchStage = { userId: req.user._id, ...dateFilter };
+
+  const matchStage = {
+    userId: req.user._id,
+    ...dateFilter,
+    $nor: [{
+      $and: [
+        { type: 'income' },
+        { $or: [
+          { category: { $regex: 'salary', $options: 'i' } },
+          { description: { $regex: 'salary', $options: 'i' } }
+        ] },
+        { $or: [
+          { lastReceivedAt: null },
+          { lastReceivedAt: { $exists: false } },
+          { nextIncomeAt: { $ne: null, $lte: new Date() } }
+        ] }
+      ]
+    }]
+  };
 
   const stats = await Transaction.aggregate([
     { $match: matchStage },
@@ -473,11 +509,59 @@ const uploadAttachment = asyncHandler(async (req, res) => {
   });
 });
 
+const saveSplits = asyncHandler(async (req, res) => {
+  const plan = await Transaction.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+    type: 'income'
+  });
+  if (!plan) {
+    return res.status(404).json({ success: false, message: 'Income not found' });
+  }
+  const splits = await normalizeSplits(req.user._id, req.body.splits, plan.amount);
+  const purse = primaryPurse(splits);
+  plan.splits = splits;
+  plan.depositTo = purse.depositTo;
+  plan.savingsId = purse.savingsId;
+  await plan.save();
+  res.json({
+    success: true,
+    message: 'Split saved',
+    data: { transaction: plan }
+  });
+});
+
+const receiveIncome = asyncHandler(async (req, res) => {
+  const plan = await Transaction.findOne({
+    _id: req.params.id,
+    userId: req.user._id,
+    type: 'income'
+  });
+  if (!plan) {
+    return res.status(404).json({ success: false, message: 'Income not found' });
+  }
+  if (Array.isArray(req.body.splits) && req.body.splits.length) {
+    const splits = await normalizeSplits(req.user._id, req.body.splits, plan.amount);
+    const purse = primaryPurse(splits);
+    plan.splits = splits;
+    plan.depositTo = purse.depositTo;
+    plan.savingsId = purse.savingsId;
+  }
+  const saved = await receivePlan(plan);
+  res.json({
+    success: true,
+    message: 'Pay received. The wallet and savings are updated.',
+    data: { transaction: saved }
+  });
+});
+
 module.exports = {
   getTransactions,
   getTransaction,
   createTransaction,
   raiseSalary,
+  saveSplits,
+  receiveIncome,
   updateTransaction,
   deleteTransaction,
   getTransactionStats,

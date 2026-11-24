@@ -4,9 +4,11 @@ import { useSearchParams } from 'react-router-dom';
 import { PlusIcon, PencilIcon, TrashIcon, BellIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { remindersAPI } from '../services/api';
 import ReminderForm from '../components/forms/ReminderForm';
+import { useConfirm } from '../components/ConfirmDialog';
 import BillForm from '../components/forms/BillForm';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { repeatLabel, summarizeBills } from '../utils/billMath';
+import { chargeLabel } from '../utils/chargeFrom';
 import toast from 'react-hot-toast';
 import { syncBooks } from '../utils/syncBooks';
 import FilterMenu from '../components/FilterMenu';
@@ -18,6 +20,7 @@ function Reminders() {
   const [filter, setFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -65,15 +68,41 @@ function Reminders() {
   };
 
   const handleDelete = async (reminder) => {
-    if (window.confirm(`Are you sure you want to delete this reminder?`)) {
-      deleteMutation.mutate(reminder._id);
+    ask({
+      title: 'Delete this reminder?',
+      message: 'It will no longer be sent.',
+      onConfirm: () => deleteMutation.mutate(reminder._id),
+    });
+  };
+
+  const payMutation = useMutation(remindersAPI.payReminder, {
+    onSuccess: () => {
+      syncBooks(queryClient, 'bills', 'expenses');
+      toast.success('Bill paid. The charged place is updated.');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Could not mark this bill paid');
     }
+  });
+
+  const handlePay = (reminder) => {
+    ask({
+      title: `Mark ${reminder.title} paid?`,
+      message: `${Number(reminder.amount).toLocaleString()} FRW leaves ${chargeLabel(reminder)}. The next date follows the schedule.`,
+      confirmLabel: 'Paid',
+      tone: 'primary',
+      onConfirm: () => payMutation.mutate(reminder._id),
+    });
   };
 
   const handleSendNow = async (reminder) => {
-    if (window.confirm(`Send this reminder now?`)) {
-      sendNowMutation.mutate(reminder._id);
-    }
+    ask({
+      title: 'Send this reminder now?',
+      message: 'It goes out to the person on this reminder.',
+      confirmLabel: 'Send',
+      tone: 'primary',
+      onConfirm: () => sendNowMutation.mutate(reminder._id),
+    });
   };
 
   const handleFormSuccess = () => {
@@ -99,12 +128,13 @@ function Reminders() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-saffron">Bills</p>
           <h1 className="font-display text-3xl text-ink sm:text-4xl">Reminders</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Set a bill to repeat every day, week, month, or year. The wallet adds them up for you.
+            Mark a bill paid when you pay it. The money leaves the place you chose, and the next date follows the schedule.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 self-start">
@@ -183,16 +213,23 @@ function Reminders() {
                   <p className="truncate font-medium text-ink">{reminder.title}</p>
                   {reminder.category && <p className="text-xs text-ink/50">{reminder.category}</p>}
                   <p className="mt-1 text-sm text-ink/60">
-                    {when ? new Date(when).toLocaleDateString() : 'No date'} · {repeatLabel(reminder.recurrence)}
+                    {when ? new Date(when).toLocaleDateString() : 'No date'} · {repeatLabel(reminder.recurrence)} · {chargeLabel(reminder)}
                   </p>
                 </div>
                 {Number(reminder.amount) > 0 && (
                   <p className="shrink-0 text-sm font-semibold">{Number(reminder.amount).toLocaleString()} FRW</p>
                 )}
               </div>
-              <button type="button" onClick={() => handleDelete(reminder)} className="mt-3 text-xs font-medium text-red-700">
-                Remove
-              </button>
+              <div className="mt-3 flex gap-3">
+                {Number(reminder.amount) > 0 && (
+                  <button type="button" onClick={() => handlePay(reminder)} className="text-xs font-medium text-green-700">
+                    Paid{reminder.lastPaidAt ? ` · last ${new Date(reminder.lastPaidAt).toLocaleDateString()}` : ''}
+                  </button>
+                )}
+                <button type="button" onClick={() => handleDelete(reminder)} className="text-xs font-medium text-red-700">
+                  Remove
+                </button>
+              </div>
             </div>
           );
         })}
@@ -208,6 +245,7 @@ function Reminders() {
                     <th className="table-header-cell">Title</th>
                     <th className="table-header-cell">Type</th>
                     <th className="table-header-cell">Send At</th>
+                    <th className="table-header-cell">Charged from</th>
                     <th className="table-header-cell">Channels</th>
                     <th className="table-header-cell">Status</th>
                     <th className="table-header-cell">Actions</th>
@@ -245,6 +283,7 @@ function Reminders() {
                           </div>
                         </div>
                       </td>
+                      <td className="table-cell">{chargeLabel(reminder)}</td>
                       <td className="table-cell">
                         <div className="flex space-x-1">
                           {(reminder.channels || [reminder.sendMethod].filter(Boolean)).map((channel) => (
@@ -266,6 +305,15 @@ function Reminders() {
                       </td>
                       <td className="table-cell">
                         <div className="flex space-x-2">
+                          {Number(reminder.amount) > 0 && (
+                            <button
+                              onClick={() => handlePay(reminder)}
+                              className="text-sm font-medium text-green-700"
+                              disabled={payMutation.isLoading}
+                            >
+                              Paid
+                            </button>
+                          )}
                           {reminder.status === 'scheduled' && (
                             <button
                               onClick={() => handleSendNow(reminder)}

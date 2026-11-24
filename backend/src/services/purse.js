@@ -1,6 +1,6 @@
 const Savings = require('../models/Savings');
 const PettyCash = require('../models/PettyCash');
-const { findSalaryPlan } = require('./incomeSchedule');
+const { findSalaryPlan, salaryWaiting } = require('./incomeSchedule');
 
 function fail(message, statusCode) {
   const error = new Error(message);
@@ -30,8 +30,7 @@ async function purseTake(userId, source, amount, label, allowShortfall = false) 
   }
   if (kind === 'salary') {
     const plan = await findSalaryPlan(userId);
-    if (!plan) throw fail('Set a salary first, then expenses can come off it', 400);
-    if (plan.depositTo === 'savings' && plan.savingsId) {
+    if (plan && !salaryWaiting(plan) && plan.depositTo === 'savings' && plan.savingsId) {
       const saving = await Savings.findOne({ _id: plan.savingsId, userId });
       if (!saving) throw fail('The salary jar was not found', 404);
       if (!allowShortfall && amount > saving.amount) throw fail(`Not enough salary in ${saving.name}. Available: ${saving.amount}`, 400);
@@ -55,7 +54,7 @@ async function purseReturn(userId, source, amount, label) {
   }
   if (kind === 'salary') {
     const plan = await findSalaryPlan(userId);
-    if (plan && plan.depositTo === 'savings' && plan.savingsId) {
+    if (plan && !salaryWaiting(plan) && plan.depositTo === 'savings' && plan.savingsId) {
       const saving = await Savings.findOne({ _id: plan.savingsId, userId });
       if (saving) {
         await saving.addAmount(amount, label);

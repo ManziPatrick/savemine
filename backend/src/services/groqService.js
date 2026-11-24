@@ -4,7 +4,7 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const axios = require('axios');
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+const DEFAULT_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const MISSING_KEY_MESSAGE = 'GROQ_API_KEY is not configured. Set it in the backend .env file.';
 
 /**

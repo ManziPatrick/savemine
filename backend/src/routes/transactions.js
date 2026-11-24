@@ -5,6 +5,8 @@ const {
   getTransaction,
   createTransaction,
   raiseSalary,
+  saveSplits,
+  receiveIncome,
   updateTransaction,
   deleteTransaction,
   getTransactionStats,
@@ -279,6 +281,8 @@ router.post('/', authenticateToken, validateTransaction, createTransaction);
  *         description: Unauthorized
  */
 router.put('/:id/salary', authenticateToken, validateObjectId('id'), raiseSalary);
+router.put('/:id/splits', authenticateToken, validateObjectId('id'), saveSplits);
+router.post('/:id/receive', authenticateToken, validateObjectId('id'), receiveIncome);
 router.put('/:id', authenticateToken, validateObjectId('id'), updateTransaction);
 
 /**

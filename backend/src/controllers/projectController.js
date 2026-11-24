@@ -4,7 +4,7 @@ const Business = require('../models/Business');
 const Transaction = require('../models/Transaction');
 const PettyCash = require('../models/PettyCash');
 const Savings = require('../models/Savings');
-const { placeIncome, isSalary } = require('../services/incomeSchedule');
+const { placeIncome, isSalary, salaryWaiting } = require('../services/incomeSchedule');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -521,12 +521,12 @@ const getMoneyMap = asyncHandler(async (req, res) => {
   const [projects, expenses, incomes, wallet, savings] = await Promise.all([
     Project.find({ userId, isActive: true }),
     Expense.find({ userId, isActive: true }).select('title category subcategory amount projectId'),
-    Transaction.find({ userId, type: 'income', status: { $ne: 'cancelled' } }).select('amount category description'),
+    Transaction.find({ userId, type: 'income', status: { $ne: 'cancelled' } }).select('amount category description lastReceivedAt nextIncomeAt'),
     PettyCash.findOne({ userId, isActive: { $ne: false } }),
     Savings.find({ userId, isActive: { $ne: false } }).select('amount')
   ]);
 
-  const salary = incomes.filter(isSalary).reduce((sum, row) => sum + (row.amount || 0), 0);
+  const salary = incomes.filter((row) => isSalary(row) && !salaryWaiting(row)).reduce((sum, row) => sum + (row.amount || 0), 0);
   const otherIncome = incomes.filter((row) => !isSalary(row)).reduce((sum, row) => sum + (row.amount || 0), 0);
   const uses = {
     school: 0, house: 0, internet: 0, food: 0, transport: 0, investment: 0, other: 0

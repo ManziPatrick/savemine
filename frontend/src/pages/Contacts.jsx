@@ -6,6 +6,7 @@ import { contactsAPI } from '../services/api';
 import ExportButtons from '../components/ExportButtons';
 import { buildContactSections } from '../utils/exportSections';
 import ContactForm from '../components/forms/ContactForm';
+import { useConfirm } from '../components/ConfirmDialog';
 import ImportContactsForm from '../components/forms/ImportContactsForm';
 import BulkSMSForm from '../components/forms/BulkSMSForm';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -23,6 +24,7 @@ function Contacts() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const queryClient = useQueryClient();
+  const { ask, dialog } = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -61,9 +63,11 @@ function Contacts() {
   };
 
   const handleDelete = async (contact) => {
-    if (window.confirm(`Are you sure you want to delete ${contact.name}?`)) {
-      deleteMutation.mutate(contact._id);
-    }
+    ask({
+      title: `Delete ${contact.name}?`,
+      message: 'This person will be removed from your contacts.',
+      onConfirm: () => deleteMutation.mutate(contact._id),
+    });
   };
 
   const handleFormSuccess = () => {
@@ -109,6 +113,7 @@ function Contacts() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Contacts</h1>
