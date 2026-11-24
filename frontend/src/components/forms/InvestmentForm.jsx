@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { ClockIcon } from '@heroicons/react/24/outline';
-import { investmentsAPI } from '../../services/api';
+import { investmentsAPI, savingsAPI } from '../../services/api';
+import { formatMoney } from '../../utils/money';
 import SlideOver from '../SlideOver';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
 
 function InvestmentForm({ investment, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
+  const [savings, setSavings] = useState([]);
+  const [sourceChoice, setSourceChoice] = useState('wallet');
   const [formData, setFormData] = useState({
     investmentType: 'savings',
     name: '',
@@ -32,6 +35,19 @@ function InvestmentForm({ investment, onClose, onSuccess }) {
     tags: [],
     notes: ''
   });
+
+  useEffect(() => {
+    if (investment) return undefined;
+    let cancelled = false;
+    savingsAPI.getSavings({ limit: 100 })
+      .then((response) => {
+        if (!cancelled) setSavings(response.data?.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setSavings([]);
+      });
+    return () => { cancelled = true; };
+  }, [investment]);
 
   useEffect(() => {
     if (investment) {
@@ -90,6 +106,18 @@ function InvestmentForm({ investment, onClose, onSuccess }) {
         await investmentsAPI.updateInvestment(investment._id, investmentData);
         toast.success('Investment updated successfully');
       } else {
+        const amount = investmentData.initialAmount;
+        if (amount > 0 && sourceChoice === 'wallet') {
+          investmentData.source = { type: 'wallet', sourceName: 'Wallet' };
+        } else if (amount > 0) {
+          const jar = savings.find((row) => row._id === sourceChoice);
+          if (!jar) {
+            toast.error('Choose the savings jar this money comes from');
+            setLoading(false);
+            return;
+          }
+          investmentData.source = { type: 'savings', sourceId: jar._id, sourceName: jar.name };
+        }
         await investmentsAPI.createInvestment(investmentData);
         toast.success('Investment added successfully');
       }
@@ -205,6 +233,31 @@ function InvestmentForm({ investment, onClose, onSuccess }) {
                 />
               </div>
             </div>
+
+            {!investment && (
+              <div>
+                <p className="mb-2 text-sm font-medium text-gray-700">Take the money from</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSourceChoice('wallet')}
+                    className={`rounded-full border px-3 py-2 text-sm ${sourceChoice === 'wallet' ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-gray-300 text-gray-700'}`}
+                  >
+                    Wallet
+                  </button>
+                  {savings.map((jar) => (
+                    <button
+                      key={jar._id}
+                      type="button"
+                      onClick={() => setSourceChoice(jar._id)}
+                      className={`rounded-full border px-3 py-2 text-sm ${sourceChoice === jar._id ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-gray-300 text-gray-700'}`}
+                    >
+                      {jar.name} · {formatMoney(jar.amount, jar.currency)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Description */}
             <div>

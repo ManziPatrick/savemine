@@ -399,7 +399,7 @@ function Projects() {
                       </div>
                       <div>
                         <div className="text-xs text-gray-500">Expenses Recorded</div>
-                        <div className="text-sm font-medium text-gray-900">{project.expenses.length + linked.length}</div>
+                        <div className="text-sm font-medium text-gray-900">{(project.expenses || []).length + linked.length}</div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500">ROI</div>
@@ -408,6 +408,23 @@ function Projects() {
                         </div>
                       </div>
                     </div>
+
+                    {((project.expenses || []).length + linked.length) > 0 && (
+                      <ul className="space-y-1 px-4 pb-3">
+                        {(project.expenses || []).map((expense) => (
+                          <li key={expense._id} className="flex justify-between gap-2 text-sm text-ink">
+                            <span className="truncate">{expense.reason || expense.category || 'Expense'}</span>
+                            <span className="tabular-nums">{formatCurrency(expense.amount)}</span>
+                          </li>
+                        ))}
+                        {linked.map((expense) => (
+                          <li key={expense._id} className="flex justify-between gap-2 text-sm text-ink">
+                            <span className="truncate">{expense.title || expense.subcategory || expense.category || 'Expense'}</span>
+                            <span className="tabular-nums">{formatCurrency(expense.amount)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
 
                     {/* Quick actions */}
                     <div className="flex flex-wrap gap-2 px-4 pb-3">
@@ -425,9 +442,9 @@ function Projects() {
                         {/* Expenses */}
                         <div>
                           <h4 className="text-sm font-medium text-gray-700 mb-2">💸 Money Spent (Expenses)</h4>
-                          {(project.expenses.length + linked.length) > 0 ? (
+                          {((project.expenses || []).length + linked.length) > 0 ? (
                             <div className="space-y-2">
-                              {project.expenses.map((expense) => (
+                              {(project.expenses || []).map((expense) => (
                                 <div key={expense._id} className="flex items-start justify-between p-2 bg-gray-50 rounded">
                                   <div>
                                     <div className="text-sm font-medium text-gray-900">

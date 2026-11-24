@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 const Investment = require('../models/Investment');
+const Savings = require('../models/Savings');
+const PettyCash = require('../models/PettyCash');
+const Transaction = require('../models/Transaction');
+const Expense = require('../models/Expense');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -92,7 +96,8 @@ const createInvestment = asyncHandler(async (req, res) => {
     accountNumber,
     broker,
     tags,
-    notes
+    notes,
+    source
   } = req.body;
 
   const investmentData = {
@@ -119,10 +124,84 @@ const createInvestment = asyncHandler(async (req, res) => {
     accountNumber: accountNumber || '',
     broker: broker || '',
     tags: tags || [],
-    notes: notes || ''
+    notes: notes || '',
+    source: {
+      type: source?.type === 'savings' ? 'savings' : 'wallet',
+      sourceId: source?.type === 'savings' ? source.sourceId : null,
+      sourceName: source?.sourceName || (source?.type === 'savings' ? 'Savings' : 'Wallet')
+    }
   };
 
-  const investment = await Investment.create(investmentData);
+  const investment = new Investment(investmentData);
+  await investment.validate();
+
+  const amount = Number(initialAmount) || 0;
+  if (amount > 0) {
+    if (investmentData.source.type === 'savings') {
+      if (!investmentData.source.sourceId) {
+        return res.status(400).json({ success: false, message: 'Choose a savings jar for this investment' });
+      }
+      const saving = await Savings.findOne({ _id: investmentData.source.sourceId, userId: req.user._id });
+      if (!saving) {
+        return res.status(400).json({ success: false, message: 'Choose a savings jar for this investment' });
+      }
+      if (amount > saving.amount) {
+        return res.status(400).json({
+          success: false,
+          message: `Not enough in ${saving.name}. Available: ${saving.amount}`
+        });
+      }
+      await saving.withdrawAmount(amount, `Investment: ${name}`);
+      investment.source.sourceName = saving.name;
+      investment.markModified('source');
+    } else {
+      let wallet = await PettyCash.findOne({ userId: req.user._id });
+      if (!wallet) wallet = await PettyCash.createDefault(req.user._id);
+      if (amount > wallet.currentBalance) {
+        return res.status(400).json({
+          success: false,
+          message: `Not enough in the wallet. Available: ${wallet.currentBalance}`
+        });
+      }
+      await wallet.addTransaction('expense', amount, `Investment: ${name}`);
+      investment.source.sourceName = 'Wallet';
+      investment.markModified('source');
+    }
+  }
+
+  await investment.save();
+  if (amount > 0) {
+    const fromName = investment.source.sourceName || 'Wallet';
+    const expense = await Expense.create({
+      userId: req.user._id,
+      category: 'investment',
+      subcategory: investment.investmentType,
+      title: String(name || 'Investment').slice(0, 200),
+      amount,
+      currency: investment.currency || 'FRW',
+      expenseDate: investment.startDate,
+      paymentMethod: 'cash',
+      notes: `Taken from ${fromName}`,
+      source: {
+        type: investment.source.type === 'savings' ? 'savings' : 'petty_cash',
+        sourceId: investment.source.sourceId,
+        sourceName: fromName,
+        amount
+      }
+    });
+    await Transaction.create({
+      userId: req.user._id,
+      type: 'expense',
+      amount,
+      currency: investment.currency || 'FRW',
+      category: 'investment',
+      date: investment.startDate,
+      description: String(name || 'Investment').slice(0, 200),
+      notes: `Taken from ${fromName}`,
+      expenseId: expense._id,
+      status: 'completed'
+    });
+  }
 
   res.status(201).json({
     success: true,

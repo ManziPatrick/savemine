@@ -311,6 +311,11 @@ function Investments() {
                                   📍 {investment.location}
                                 </div>
                               )}
+                              {investment.source?.sourceName && (
+                                <div className="text-sm text-gray-500">
+                                  From {investment.source.sourceName}
+                                </div>
+                              )}
                             </div>
                           </td>
                           <td className="table-cell">

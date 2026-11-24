@@ -136,6 +136,21 @@ const investmentSchema = new mongoose.Schema({
     trim: true
   },
   tags: [String],
+  source: {
+    type: {
+      type: String,
+      enum: ['wallet', 'savings']
+    },
+    sourceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Savings',
+      default: null
+    },
+    sourceName: {
+      type: String,
+      default: ''
+    }
+  },
   notes: String,
   documents: [String], // URLs to investment documents
   isActive: {

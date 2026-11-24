@@ -261,6 +261,9 @@ const getExpenseStats = asyncHandler(async (req, res) => {
     case 'year':
       startDate = new Date(now.getFullYear(), 0, 1);
       break;
+    case 'all':
+      startDate = new Date(0);
+      break;
     default:
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   }

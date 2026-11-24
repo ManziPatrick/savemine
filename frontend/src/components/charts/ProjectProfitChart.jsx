@@ -21,14 +21,18 @@ function ProjectProfitChart({ projects = [] }) {
     );
   }
 
-  const sorted = [...projects].sort((a, b) => (b.profit || 0) - (a.profit || 0));
+  const profitOf = (project) => {
+    const spent = project.officeSpent ?? project.totalExpenses ?? 0;
+    return (project.totalIncome || 0) - spent;
+  };
+  const sorted = [...projects].sort((a, b) => profitOf(b) - profitOf(a));
   const top = sorted.slice(0, 6);
-  const maxAbs = Math.max(...top.map((p) => Math.abs(p.profit || 0)), 1);
+  const maxAbs = Math.max(...top.map((p) => Math.abs(profitOf(p))), 1);
 
   return (
     <div className="space-y-4">
       {top.map((project) => {
-        const profit = project.profit || 0;
+        const profit = profitOf(project);
         const isPositive = profit >= 0;
         const pct = Math.max(2, Math.min(100, (Math.abs(profit) / maxAbs) * 100));
         return (

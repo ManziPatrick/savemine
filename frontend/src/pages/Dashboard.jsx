@@ -87,7 +87,7 @@ function Dashboard() {
 
   const { data: expenseStats, isLoading: expensesLoading } = useQuery(
     'expenseStats',
-    () => expensesAPI.getExpenseStats({ period: 'month' })
+    () => expensesAPI.getExpenseStats({ period: 'all' })
   );
 
   const { data: businessStats, isLoading: businessLoading } = useQuery(
@@ -333,7 +333,23 @@ function Dashboard() {
             <h4 className="text-sm font-medium text-gray-700 mb-2">Recent projects</h4>
             {projectsList.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {projectsList.slice(0, 5).map((project) => (
+                {projectsList.slice(0, 5).map((project) => {
+                  const spent = project.officeSpent ?? project.totalExpenses ?? 0;
+                  const income = project.totalIncome || 0;
+                  const profit = income - spent;
+                  const lines = [
+                    ...(project.expenses || []).map((expense) => ({
+                      id: expense._id,
+                      name: expense.reason || expense.category || 'Expense',
+                      amount: expense.amount
+                    })),
+                    ...(project.linkedExpenses || []).map((expense) => ({
+                      id: expense._id,
+                      name: expense.title || expense.subcategory || expense.category || 'Expense',
+                      amount: expense.amount
+                    }))
+                  ];
+                  return (
                   <Link
                     key={project._id}
                     to="/projects"
@@ -341,16 +357,27 @@ function Dashboard() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-900 truncate">📁 {project.name}</span>
-                      <span className={`text-sm font-bold ${(project.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(project.profit)}
+                      <span className={`text-sm font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(profit)}
                       </span>
                     </div>
                     <div className="mt-1 text-xs text-gray-500">
                       {project.projectType && project.projectType !== 'general' ? `${project.projectType} · ` : ''}
-                      {formatCurrency(project.totalExpenses)} spent · {formatCurrency(project.totalIncome)} income
+                      {formatCurrency(spent)} spent · {formatCurrency(income)} income
                     </div>
+                    {lines.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {lines.slice(0, 3).map((line) => (
+                          <li key={line.id} className="flex justify-between gap-2 text-xs text-ink">
+                            <span className="truncate">{line.name}</span>
+                            <span className="tabular-nums">{formatCurrency(line.amount)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </Link>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -397,7 +424,7 @@ function Dashboard() {
           <div className="card-header">
             <h3 className="text-lg font-medium text-gray-900">Category Breakdown</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Where your money went this month
+              Where your money went
             </p>
           </div>
           <div className="card-body">

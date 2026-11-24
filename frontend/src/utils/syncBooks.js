@@ -9,7 +9,7 @@ export const bookLinks = {
   gifts: ['gifts', 'giftStats'],
   business: ['businesses', 'businessStats', 'projects', 'allProjects', 'projectStats'],
   projects: ['projects', 'allProjects', 'projectStats', 'expenses', 'expenseStats', 'businesses', 'businessStats'],
-  investments: ['investments', 'investmentStats'],
+  investments: ['investments', 'investmentStats', 'transactions', 'transactionStats', 'recentTransactions', 'savings', 'savingsStats', 'pettyCash', 'pettyCashStats', 'expenses', 'expenseStats'],
   assets: ['assets', 'assetAssignmentStats', 'projects', 'allProjects'],
   contracts: ['contracts'],
 };
