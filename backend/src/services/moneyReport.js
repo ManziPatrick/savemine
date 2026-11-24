@@ -71,6 +71,7 @@ function collect(books, start, end) {
     }
   });
   (books.transactions || []).forEach((transaction) => {
+    if (transaction.expenseId) return;
     if (!inWindow(transaction.date, start, end)) return;
     addAmount(bucket, transaction.category, transaction.type === 'income' ? 'in' : 'out', transaction.amount);
   });

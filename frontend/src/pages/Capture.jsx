@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import ProofCapture from '../components/ProofCapture';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { businessesAPI, documentsAPI, pettyCashAPI, savingsAPI } from '../services/api';
+import { businessesAPI, documentsAPI, pettyCashAPI, savingsAPI, transactionsAPI } from '../services/api';
 import { SAVINGS_LOCATIONS, validateCapture } from '../utils/captureRecord';
 import { syncBooks } from '../utils/syncBooks';
 
@@ -92,6 +92,14 @@ function Capture() {
         } else {
           await pettyCashAPI.makeWithdrawal({ ...payload, purpose: form.title });
         }
+        await transactionsAPI.createTransaction({
+          type: form.direction === 'in' ? 'income' : 'expense',
+          amount: Number(form.amount),
+          category: form.direction === 'in' ? 'income' : 'other',
+          description: form.title.trim(),
+          date: new Date().toISOString(),
+          notes: form.direction === 'in' ? 'Added to the wallet' : 'Taken from the wallet'
+        });
         await documentsAPI.uploadDocument(file, {
           title: form.title.trim(),
           relatedEntity: 'pettycash',
@@ -99,7 +107,7 @@ function Capture() {
           description: form.notes,
           notes: form.notes,
         });
-        syncBooks(queryClient, 'wallet');
+        syncBooks(queryClient, 'wallet', 'transactions');
         toast.success('Wallet updated');
         navigate('/petty-cash');
       } else {

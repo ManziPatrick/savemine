@@ -5,7 +5,7 @@ export const bookLinks = {
   loans: ['loans', 'loanStats', 'overdueLoans'],
   contacts: ['contacts', 'loans', 'loanStats', 'overdueLoans'],
   transactions: ['transactions', 'transactionStats', 'recentTransactions'],
-  expenses: ['expenses', 'expenseStats', 'projects', 'allProjects', 'projectStats'],
+  expenses: ['expenses', 'expenseStats', 'transactions', 'transactionStats', 'recentTransactions', 'projects', 'allProjects', 'projectStats', 'wallet', 'pettyCash', 'pettyCashStats', 'savings', 'savingsStats'],
   gifts: ['gifts', 'giftStats'],
   business: ['businesses', 'businessStats', 'projects', 'allProjects', 'projectStats'],
   projects: ['projects', 'allProjects', 'projectStats', 'expenses', 'expenseStats', 'businesses', 'businessStats'],

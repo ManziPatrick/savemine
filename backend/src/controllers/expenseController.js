@@ -4,6 +4,7 @@ const Project = require('../models/Project');
 const Asset = require('../models/Asset');
 const Savings = require('../models/Savings');
 const PettyCash = require('../models/PettyCash');
+const Transaction = require('../models/Transaction');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -133,11 +134,11 @@ const createExpense = asyncHandler(async (req, res) => {
 
   const expense = await Expense.create(expenseData);
 
-  // If source is specified, reduce the amount from the selected source
-  // Cash doesn't need reduction as it's not tracked
-  if (source && source.type && source.type !== 'cash' && source.sourceId && amount > 0) {
+  // Cash and the wallet are the same daily purse. Savings is a named jar.
+  const sourceType = source?.type === 'cash' ? 'petty_cash' : source?.type;
+  if (sourceType && amount > 0) {
     try {
-      if (source.type === 'savings') {
+      if (sourceType === 'savings' && source.sourceId) {
         // Reduce amount from savings
         const saving = await Savings.findOne({
           _id: source.sourceId,
@@ -161,18 +162,14 @@ const createExpense = asyncHandler(async (req, res) => {
         }
 
         await saving.withdrawAmount(amount, `Expense: ${title || 'expense'}`);
-      } else if (source.type === 'petty_cash') {
+      } else if (sourceType === 'petty_cash') {
         // Reduce amount from petty cash
-        const pettyCash = await PettyCash.findOne({
+        let pettyCash = await PettyCash.findOne({
           userId: req.user._id
         });
 
         if (!pettyCash) {
-          await Expense.findByIdAndDelete(expense._id);
-          return res.status(404).json({
-            success: false,
-            message: 'Petty cash account not found'
-          });
+          pettyCash = await PettyCash.createDefault(req.user._id);
         }
 
         if (amount > pettyCash.currentBalance) {
@@ -214,6 +211,23 @@ const createExpense = asyncHandler(async (req, res) => {
       });
     }
   }
+
+  const fromName = sourceType === 'savings'
+    ? (source.sourceName || 'savings')
+    : 'wallet';
+  await Transaction.create({
+    userId: req.user._id,
+    type: 'expense',
+    amount,
+    currency: expense.currency || 'FRW',
+    category: String(category || 'other').slice(0, 50),
+    subcategory: String(subcategory || '').slice(0, 50),
+    date: expense.expenseDate,
+    description: String(title || 'Expense').slice(0, 200),
+    notes: `Taken from ${fromName}`,
+    expenseId: expense._id,
+    status: 'completed'
+  });
 
   res.status(201).json({
     success: true,

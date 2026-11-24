@@ -11,7 +11,7 @@ const PERIODS = ['week', 'month', 'year'];
 async function loadBooks(userId) {
   const [expenses, transactions, projects] = await Promise.all([
     Expense.find({ userId, isActive: true }).select('category amount expenseDate').lean(),
-    Transaction.find({ userId }).select('type category amount date').lean(),
+    Transaction.find({ userId }).select('type category amount date expenseId').lean(),
     Project.find({ userId, isActive: true }).select('expenses incomes').lean(),
   ]);
   return { expenses, transactions, projects };
