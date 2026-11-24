@@ -1,6 +1,19 @@
 const Transaction = require('../models/Transaction');
 const Contact = require('../models/Contact');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { placeIncome } = require('../services/incomeSchedule');
+const { advanceSendDate, repeats } = require('../services/dispatchSchedule');
+
+function nextIncomeDate(from, frequency) {
+  let next = advanceSendDate(from, frequency);
+  const now = new Date();
+  let guard = 0;
+  while (next && next <= now && guard < 24) {
+    next = advanceSendDate(next, frequency);
+    guard += 1;
+  }
+  return next;
+}
 const { getPaginationParams, getSortParams, createPaginatedResponse, createDateRangeFilter } = require('../utils/pagination');
 
 /**
@@ -90,8 +103,9 @@ const createTransaction = asyncHandler(async (req, res) => {
     notes,
     contactId,
     tags,
-    isRecurring,
-    recurringPattern
+    repeat,
+    depositTo,
+    savingsId
   } = req.body;
 
   // Verify contact belongs to user if provided
@@ -109,6 +123,17 @@ const createTransaction = asyncHandler(async (req, res) => {
     }
   }
 
+  const when = date ? new Date(date) : new Date();
+  const frequency = repeats(repeat) ? repeat : null;
+  const purse = type === 'income' && depositTo === 'savings' ? 'savings' : 'wallet';
+  let placed = '';
+  if (type === 'income') {
+    placed = await placeIncome(req.user._id, Number(amount), {
+      depositTo: purse,
+      savingsId: purse === 'savings' ? savingsId : null
+    }, description || category || 'Income');
+  }
+
   const transactionData = {
     userId: req.user._id,
     type,
@@ -116,13 +141,18 @@ const createTransaction = asyncHandler(async (req, res) => {
     currency: currency || 'FRW',
     category,
     subcategory,
-    date: date || new Date(),
+    date: when,
     description,
-    notes,
+    notes: type === 'income'
+      ? `Added to ${placed}${frequency ? `. Repeats ${frequency}` : ''}`
+      : notes,
     contactId,
     tags: tags || [],
-    isRecurring: isRecurring || false,
-    recurringPattern: recurringPattern || null
+    depositTo: type === 'income' ? purse : 'wallet',
+    savingsId: purse === 'savings' ? savingsId : null,
+    isRecurring: Boolean(frequency),
+    recurringPattern: frequency ? { frequency, interval: 1 } : null,
+    nextIncomeAt: frequency ? nextIncomeDate(when, frequency) : null
   };
 
   const transaction = await Transaction.create(transactionData);

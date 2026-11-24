@@ -86,6 +86,7 @@ if (process.env.VERCEL !== '1') {
       await connectDB();
       require('./services/reportSchedule').startReportSchedule();
       require('./services/dispatchRunner').startDispatchSchedule();
+      require('./services/incomeRunner').startIncomeSchedule();
 
       // Find available port
       const availablePort = await findAvailablePort(PORT);

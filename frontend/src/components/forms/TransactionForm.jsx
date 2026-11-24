@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import SlideOver from '../SlideOver';
-import { transactionsAPI, contactsAPI } from '../../services/api';
+import { transactionsAPI, contactsAPI, savingsAPI } from '../../services/api';
 import CategoryPicker from '../CategoryPicker';
 import LoadingSpinner from '../LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -10,6 +10,9 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [savingsAccounts, setSavingsAccounts] = useState([]);
+  const [repeat, setRepeat] = useState('once');
+  const [depositTo, setDepositTo] = useState('wallet');
   const isEditing = !!transaction;
 
   const {
@@ -63,17 +66,32 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
     };
 
     fetchContacts();
+    savingsAPI.getSavings({ limit: 100 })
+      .then((response) => setSavingsAccounts(response.data?.data || []))
+      .catch(() => setSavingsAccounts([]));
   }, []);
+
+  useEffect(() => {
+    if (/salary/i.test(category || '')) setRepeat('monthly');
+  }, [category]);
 
   const onSubmit = async (data) => {
     setLoading(true);
     try {
+      const payload = { ...data };
+      if (!isEditing && data.type === 'income') {
+        payload.repeat = repeat;
+        payload.depositTo = depositTo === 'wallet' ? 'wallet' : 'savings';
+        payload.savingsId = depositTo === 'wallet' ? undefined : depositTo;
+      }
       if (isEditing) {
         await transactionsAPI.updateTransaction(transaction._id, data);
         toast.success('Transaction updated successfully');
       } else {
-        await transactionsAPI.createTransaction(data);
-        toast.success('Transaction created successfully');
+        await transactionsAPI.createTransaction(payload);
+        toast.success(data.type === 'income' && repeat !== 'once'
+          ? 'Income added. The same amount comes again on that schedule.'
+          : 'Transaction created successfully');
       }
       onSuccess();
       onClose();
@@ -86,6 +104,7 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
 
   const category = watch('category');
   const subcategory = watch('subcategory');
+  const type = watch('type');
 
   return (
     <SlideOver title={isEditing ? 'Edit transaction' : 'Add a transaction'} subtitle="Money" onClose={onClose}>
@@ -103,6 +122,54 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
               <p className="error-message">{errors.type.message}</p>
             )}
           </div>
+
+          {type === 'income' && (
+            <div className="space-y-3">
+              <div>
+                <p className="mb-2 text-sm font-medium text-ink">How often</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    ['once', 'Once'],
+                    ['monthly', 'Every month'],
+                    ['weekly', 'Every week'],
+                    ['yearly', 'Every year']
+                  ].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`btn ${repeat === id ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setRepeat(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-sm text-ink/60">Salary and similar income can come every month. The office adds it again on that date.</p>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-medium text-ink">Put the money in</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className={`btn ${depositTo === 'wallet' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setDepositTo('wallet')}
+                  >
+                    Wallet
+                  </button>
+                  {savingsAccounts.map((saving) => (
+                    <button
+                      key={saving._id}
+                      type="button"
+                      className={`btn ${depositTo === saving._id ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setDepositTo(saving._id)}
+                    >
+                      {saving.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="form-row">
             <div className="form-group">

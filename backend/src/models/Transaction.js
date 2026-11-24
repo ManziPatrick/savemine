@@ -65,6 +65,17 @@ const transactionSchema = new mongoose.Schema({
     trim: true,
     maxlength: [20, 'Tag cannot exceed 20 characters']
   }],
+  depositTo: {
+    type: String,
+    enum: ['wallet', 'savings'],
+    default: 'wallet'
+  },
+  savingsId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Savings',
+    default: null
+  },
+  nextIncomeAt: Date,
   isRecurring: {
     type: Boolean,
     default: false
