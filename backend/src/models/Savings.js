@@ -46,7 +46,6 @@ const savingsSchema = new mongoose.Schema({
   amount: {
     type: Number,
     required: [true, 'Amount is required'],
-    min: [0, 'Amount must be positive'],
     default: 0
   },
   currency: {
@@ -145,8 +144,8 @@ savingsSchema.methods.addAmount = function(amount, notes = '') {
 };
 
 // Method to withdraw amount (records a withdrawal movement)
-savingsSchema.methods.withdrawAmount = function(amount, notes = '') {
-  if (amount > this.amount) {
+savingsSchema.methods.withdrawAmount = function(amount, notes = '', allowShortfall = false) {
+  if (!allowShortfall && amount > this.amount) {
     throw new Error('Insufficient funds');
   }
   this.amount -= amount;

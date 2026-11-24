@@ -46,6 +46,8 @@ function Projects() {
   const [analysisCategory, setAnalysisCategory] = useState('');
   const [savingExpense, setSavingExpense] = useState(false);
   const [savingIncome, setSavingIncome] = useState(false);
+  const [rowEdit, setRowEdit] = useState(null);
+  const [savingRow, setSavingRow] = useState(false);
 
   useEffect(() => {
     if (openProject) setExpandedProject(openProject);
@@ -195,24 +197,50 @@ function Projects() {
     setExpenseTarget(project);
   };
 
-  const openEditExpense = (project, expense) => {
-    setExpenseReceipt(null);
-    setEditingExpenseId(expense._id);
-    setExpenseForm({
-      ...blankExpense(project),
-      category: expense.subcategory || expense.title || expense.category || '',
-      reason: expense.title || '',
+  const startRowEdit = (expense) => {
+    const fromSavings = expense.source?.type === 'savings' && expense.source.sourceId;
+    const fromWallet = expense.source?.type === 'cash' || expense.source?.type === 'petty_cash';
+    setRowEdit({
+      id: expense._id,
       amount: expense.amount ?? '',
-      date: expense.expenseDate ? new Date(expense.expenseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      savingsId: expense.source?.type === 'savings' ? (expense.source.sourceId || '') : '',
-      repeat: expense.recurringPattern === 'monthly' ? 'monthly' : 'once',
-      kilograms: expense.farm?.kilograms || '',
-      farmSize: expense.farm?.size || '',
-      farmSizeUnit: expense.farm?.sizeUnit || '',
-      farmDays: expense.farm?.days || '',
-      farmLevel: expense.farm?.level || '',
+      place: fromSavings ? String(expense.source.sourceId) : (fromWallet ? 'wallet' : ''),
     });
-    setExpenseTarget(project);
+  };
+
+  const saveRowEdit = async (expense) => {
+    const amount = Number(rowEdit?.amount);
+    if (!(amount >= 0)) {
+      toast.error('Enter the amount');
+      return;
+    }
+    if (!rowEdit?.place) {
+      toast.error('Choose the wallet or a savings jar');
+      return;
+    }
+    const account = (savingsList?.data?.data || []).find((saving) => saving._id === rowEdit.place);
+    if (rowEdit.place !== 'wallet' && !account) {
+      toast.error('Choose the wallet or a savings jar');
+      return;
+    }
+    setSavingRow(true);
+    try {
+      await expensesAPI.updateExpense(expense._id, {
+        title: expense.title || expense.subcategory || 'Expense',
+        amount,
+        category: expense.category,
+        subcategory: expense.subcategory || '',
+        source: rowEdit.place === 'wallet'
+          ? { type: 'cash', sourceName: 'Wallet' }
+          : { type: 'savings', sourceId: account._id, sourceName: account.name },
+      });
+      syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet', 'business');
+      toast.success('Saved. The jar and the initial investment moved with it');
+      setRowEdit(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not save that expense');
+    } finally {
+      setSavingRow(false);
+    }
   };
 
   const deleteOfficeExpense = async (expense) => {
@@ -220,7 +248,7 @@ function Projects() {
     if (!window.confirm(`Delete ${name} and put the money back where it came from?`)) return;
     try {
       await expensesAPI.deleteExpense(expense._id);
-      syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet');
+      syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet', 'business');
       toast.success('Expense removed and the money put back');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Could not delete that expense');
@@ -513,33 +541,116 @@ function Projects() {
                     </div>
 
                     {((project.expenses || []).length + linked.length) > 0 && (
-                      <ul className="space-y-1 px-4 pb-3">
-                        {(project.expenses || []).map((expense) => (
-                          <li key={expense._id} className="flex justify-between gap-2 text-sm text-ink">
-                            <span className="truncate">{expense.reason || expense.category || 'Expense'}</span>
-                            <span className="tabular-nums">{formatCurrency(expense.amount)}</span>
-                          </li>
-                        ))}
-                        {linked.map((expense) => (
-                          <li key={expense._id} className="flex items-center justify-between gap-2 text-sm text-ink">
-                            <span className="truncate">
-                              {expense.subcategory || expense.title || expense.category || 'Expense'}
-                              {farmSummary(expense.farm) ? ` · ${farmSummary(expense.farm)}` : ''}
-                              {expense.isRecurring && expense.recurringPattern === 'monthly' ? ' · Every month' : ''}
-                              {expense.source?.sourceName ? ` · ${expense.source.sourceName}` : ''}
-                            </span>
-                            <span className="flex items-center gap-2">
-                              <span className="tabular-nums">{formatCurrency(expense.amount)}</span>
-                              <button type="button" className="text-primary-700" title="Edit" onClick={() => openEditExpense(project, expense)}>
-                                <PencilIcon className="h-4 w-4" />
-                              </button>
-                              <button type="button" className="text-red-600" title="Delete" onClick={() => deleteOfficeExpense(expense)}>
-                                <TrashIcon className="h-4 w-4" />
-                              </button>
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="mx-4 mb-3 overflow-hidden rounded-lg border border-line">
+                        <table className="w-full text-sm">
+                          <thead className="bg-paper text-left text-[11px] uppercase tracking-wide text-ink/50">
+                            <tr>
+                              <th className="px-3 py-2 font-medium">Stage</th>
+                              <th className="px-3 py-2 text-right font-medium">Amount</th>
+                              <th className="px-3 py-2 font-medium">Taken from</th>
+                              <th className="w-24 px-2 py-2" />
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-line bg-paper-card">
+                            {(project.expenses || []).map((expense) => (
+                              <tr key={expense._id}>
+                                <td className="px-3 py-1.5 text-ink">{expense.reason || expense.category || 'Expense'}</td>
+                                <td className="px-3 py-1.5 text-right tabular-nums text-ink">{formatCurrency(expense.amount)}</td>
+                                <td className="px-3 py-1.5 text-ink/50">On the project</td>
+                                <td className="px-2 py-1.5 text-right">
+                                  <button
+                                    type="button"
+                                    title="Delete"
+                                    className="rounded p-1 text-red-600 hover:bg-red-50"
+                                    onClick={() => removeExpenseMutation.mutate({ id: project._id, expenseId: expense._id })}
+                                  >
+                                    <TrashIcon className="h-4 w-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            {linked.map((expense) => {
+                              const editing = rowEdit?.id === expense._id;
+                              const stage = expense.subcategory || expense.title || expense.category || 'Expense';
+                              const detail = [
+                                farmSummary(expense.farm),
+                                expense.isRecurring && expense.recurringPattern === 'monthly' ? 'Every month' : '',
+                              ].filter(Boolean).join(' · ');
+                              return (
+                                <tr key={expense._id} className={editing ? 'bg-primary-50/60' : ''}>
+                                  <td className="px-3 py-1.5 text-ink">
+                                    <div className="truncate">{stage}</div>
+                                    {detail ? <div className="truncate text-xs text-ink/50">{detail}</div> : null}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right">
+                                    {editing ? (
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        className="input w-28 py-1 text-right"
+                                        value={rowEdit.amount}
+                                        onChange={(event) => setRowEdit((current) => ({ ...current, amount: event.target.value }))}
+                                      />
+                                    ) : (
+                                      <span className="tabular-nums text-ink">{formatCurrency(expense.amount)}</span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-1.5">
+                                    {editing ? (
+                                      <select
+                                        className="input w-full py-1"
+                                        value={rowEdit.place}
+                                        onChange={(event) => setRowEdit((current) => ({ ...current, place: event.target.value }))}
+                                      >
+                                        <option value="">Choose</option>
+                                        <option value="wallet">Wallet</option>
+                                        {(savingsList?.data?.data || []).map((saving) => (
+                                          <option key={saving._id} value={saving._id}>
+                                            {saving.name} · {formatCurrency(saving.amount)}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <span className="text-ink/70">{expense.source?.sourceName || 'Choose when editing'}</span>
+                                    )}
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right">
+                                    {editing ? (
+                                      <div className="flex justify-end gap-1">
+                                        <button type="button" className="btn btn-primary btn-sm" disabled={savingRow} onClick={() => saveRowEdit(expense)}>
+                                          Save
+                                        </button>
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRowEdit(null)}>
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex justify-end">
+                                        <button
+                                          type="button"
+                                          title="Edit"
+                                          className="rounded p-1 text-primary-700 hover:bg-primary-50"
+                                          onClick={() => startRowEdit(expense)}
+                                        >
+                                          <PencilIcon className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          title="Delete"
+                                          className="rounded p-1 text-red-600 hover:bg-red-50"
+                                          onClick={() => deleteOfficeExpense(expense)}
+                                        >
+                                          <TrashIcon className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
 
                     <ConfirmPayment project={project} onDone={() => syncBooks(queryClient, 'projects')} />
@@ -595,7 +706,7 @@ function Projects() {
                                     <div className="text-xs text-gray-400">{formatDate(expense.expenseDate)} • Same expense as the office book</div>
                                   </div>
                                   <div className="flex gap-2">
-                                    <button type="button" className="text-primary-700" title="Edit" onClick={() => openEditExpense(project, expense)}>
+                                    <button type="button" className="text-primary-700" title="Edit" onClick={() => startRowEdit(expense)}>
                                       <PencilIcon className="h-4 w-4" />
                                     </button>
                                     <button type="button" className="text-red-600" title="Delete" onClick={() => deleteOfficeExpense(expense)}>

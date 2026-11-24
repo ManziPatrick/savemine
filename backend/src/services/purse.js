@@ -19,14 +19,13 @@ function purseKind(source) {
   return source.type;
 }
 
-async function purseTake(userId, source, amount, label) {
+async function purseTake(userId, source, amount, label, allowShortfall = false) {
   if (!(amount > 0)) return;
   const kind = purseKind(source);
   if (kind === 'savings') {
     const saving = await Savings.findOne({ _id: source.sourceId, userId });
     if (!saving) throw fail('Savings account not found', 404);
-    if (amount > saving.amount) throw fail(`Not enough in ${saving.name}. Available: ${saving.amount}`, 400);
-    await saving.withdrawAmount(amount, label);
+    await saving.withdrawAmount(amount, label, allowShortfall);
     return;
   }
   if (kind === 'salary') {
@@ -35,13 +34,13 @@ async function purseTake(userId, source, amount, label) {
     if (plan.depositTo === 'savings' && plan.savingsId) {
       const saving = await Savings.findOne({ _id: plan.savingsId, userId });
       if (!saving) throw fail('The salary jar was not found', 404);
-      if (amount > saving.amount) throw fail(`Not enough salary in ${saving.name}. Available: ${saving.amount}`, 400);
-      await saving.withdrawAmount(amount, label);
+      if (!allowShortfall && amount > saving.amount) throw fail(`Not enough salary in ${saving.name}. Available: ${saving.amount}`, 400);
+      await saving.withdrawAmount(amount, label, allowShortfall);
       return;
     }
   }
   const wallet = await walletOf(userId);
-  if (amount > wallet.currentBalance) throw fail(`Not enough in the wallet. Available: ${wallet.currentBalance}`, 400);
+  if (!allowShortfall && amount > wallet.currentBalance) throw fail(`Not enough in the wallet. Available: ${wallet.currentBalance}`, 400);
   await wallet.addTransaction('expense', amount, label);
 }
 

@@ -67,8 +67,7 @@ const businessSchema = new mongoose.Schema({
   // Financial tracking
   initialInvestment: {
     type: Number,
-    default: 0,
-    min: 0
+    default: 0
   },
   monthlyRevenue: {
     type: Number,

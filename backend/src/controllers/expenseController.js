@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Expense = require('../models/Expense');
+const Business = require('../models/Business');
 const Project = require('../models/Project');
 const Asset = require('../models/Asset');
 const Savings = require('../models/Savings');
@@ -49,6 +50,16 @@ const getExpenses = asyncHandler(async (req, res) => {
 
   res.json(createPaginatedResponse(expenses, page, limit, total));
 });
+
+async function shiftInitialInvestment(userId, projectId, spentDelta) {
+  if (!projectId || !spentDelta) return;
+  const project = await Project.findOne({ _id: projectId, userId }).select('businessId');
+  if (!project || !project.businessId) return;
+  await Business.updateOne(
+    { _id: project.businessId, userId },
+    { $inc: { initialInvestment: -spentDelta } }
+  );
+}
 
 function readFarm(farm) {
   if (!farm || typeof farm !== 'object') return undefined;
@@ -175,15 +186,7 @@ const createExpense = asyncHandler(async (req, res) => {
           });
         }
 
-        if (amount > saving.amount) {
-          await Expense.findByIdAndDelete(expense._id);
-          return res.status(400).json({
-            success: false,
-            message: `Insufficient funds in savings account. Available: ${saving.currency} ${saving.amount}`
-          });
-        }
-
-        await saving.withdrawAmount(amount, `Expense: ${title || 'expense'}`);
+        await saving.withdrawAmount(amount, `Expense: ${title || 'expense'}`, true);
       } else if (sourceType === 'petty_cash') {
         // Reduce amount from petty cash
         let pettyCash = await PettyCash.findOne({
@@ -194,15 +197,7 @@ const createExpense = asyncHandler(async (req, res) => {
           pettyCash = await PettyCash.createDefault(req.user._id);
         }
 
-        if (amount > pettyCash.currentBalance) {
-          await Expense.findByIdAndDelete(expense._id);
-          return res.status(400).json({
-            success: false,
-            message: `Insufficient funds in petty cash. Available: ${pettyCash.currency} ${pettyCash.currentBalance}`
-          });
-        }
-
-        // Record withdrawal in petty cash
+        // Record withdrawal in petty cash. A short jar is allowed.
         pettyCash.currentBalance -= amount;
         pettyCash.lastUpdated = new Date();
         await pettyCash.save();
@@ -239,24 +234,10 @@ const createExpense = asyncHandler(async (req, res) => {
             await Expense.findByIdAndDelete(expense._id);
             return res.status(404).json({ success: false, message: 'The salary jar was not found' });
           }
-          if (amount > saving.amount) {
-            await Expense.findByIdAndDelete(expense._id);
-            return res.status(400).json({
-              success: false,
-              message: `Not enough salary in ${saving.name}. Available: ${saving.amount}`
-            });
-          }
-          await saving.withdrawAmount(amount, `Expense from salary: ${title || 'expense'}`);
+          await saving.withdrawAmount(amount, `Expense from salary: ${title || 'expense'}`, true);
         } else {
           let pettyCash = await PettyCash.findOne({ userId: req.user._id });
           if (!pettyCash) pettyCash = await PettyCash.createDefault(req.user._id);
-          if (amount > pettyCash.currentBalance) {
-            await Expense.findByIdAndDelete(expense._id);
-            return res.status(400).json({
-              success: false,
-              message: `Not enough salary in the wallet. Available: ${pettyCash.currentBalance}`
-            });
-          }
           pettyCash.currentBalance -= amount;
           pettyCash.lastUpdated = new Date();
           await pettyCash.save();
@@ -315,6 +296,7 @@ const createExpense = asyncHandler(async (req, res) => {
     projectId: expense.projectId || null,
     status: 'completed'
   });
+  await shiftInitialInvestment(req.user._id, expense.projectId, Number(amount) || 0);
 
   res.status(201).json({
     success: true,
@@ -458,12 +440,12 @@ const updateExpense = asyncHandler(async (req, res) => {
   try {
     if (samePurse) {
       const diff = nextAmount - expense.amount;
-      if (diff > 0) await purseTake(req.user._id, nextSource, diff, `Expense change: ${title}`);
+      if (diff > 0) await purseTake(req.user._id, nextSource, diff, `Expense change: ${title}`, true);
       if (diff < 0) await purseReturn(req.user._id, expense.source, -diff, `Expense change: ${title}`);
     } else {
       await purseReturn(req.user._id, expense.source, expense.amount, `Expense moved: ${title}`);
       try {
-        await purseTake(req.user._id, nextSource, nextAmount, `Expense: ${title}`);
+        await purseTake(req.user._id, nextSource, nextAmount, `Expense: ${title}`, true);
       } catch (error) {
         await purseTake(req.user._id, expense.source, expense.amount, `Expense restored: ${title}`);
         throw error;
@@ -473,6 +455,7 @@ const updateExpense = asyncHandler(async (req, res) => {
     return res.status(error.statusCode || 400).json({ success: false, message: error.message || 'Could not move that money' });
   }
 
+  const previousAmount = Number(expense.amount || 0);
   if (req.body.title) expense.title = title;
   if (req.body.category) expense.category = req.body.category;
   if (req.body.subcategory != null) expense.subcategory = req.body.subcategory;
@@ -495,6 +478,7 @@ const updateExpense = asyncHandler(async (req, res) => {
     expense.nextExpenseAt = null;
   }
   await expense.save();
+  await shiftInitialInvestment(req.user._id, expense.projectId, nextAmount - previousAmount);
   await Transaction.updateMany(
     { userId: req.user._id, expenseId: expense._id },
     {
@@ -524,6 +508,7 @@ const deleteExpense = asyncHandler(async (req, res) => {
   expense.isRecurring = false;
   expense.nextExpenseAt = null;
   await expense.save();
+  await shiftInitialInvestment(req.user._id, expense.projectId, -Number(expense.amount || 0));
   await Transaction.deleteMany({ userId: req.user._id, expenseId: expense._id });
   res.json({ success: true, message: 'Expense removed and the money put back' });
 });

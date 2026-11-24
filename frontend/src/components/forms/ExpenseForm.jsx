@@ -84,13 +84,6 @@ function ExpenseForm({ onClose, onSuccess }) {
     setLoading(true);
     try {
       const amount = parseFloat(formData.amount);
-
-      if (formData.deductFrom === 'savings' && amount > selectedSaving.amount) {
-        toast.error(`Insufficient funds in savings: ${selectedSaving.currency} ${selectedSaving.amount.toLocaleString()}`);
-        setLoading(false);
-        return;
-      }
-
       const { deductFrom, savingsId, projectId, assetId, category, kilograms, farmSize, farmSizeUnit, farmDays, farmLevel, ...rest } = formData;
       const filed = fileExpenseCategory(category, formData.subcategory);
       const title = formData.title.trim() || formData.subcategory || category || 'Expense';
