@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Business = require('../models/Business');
 const Project = require('../models/Project');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { purseTake } = require('../services/purse');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
 /**
@@ -213,7 +214,7 @@ const addMonthlyIncome = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const addMonthlyExpense = asyncHandler(async (req, res) => {
-  const { amount } = req.body;
+  const { amount, source } = req.body;
 
   if (!amount || amount <= 0) {
     return res.status(400).json({
@@ -235,6 +236,12 @@ const addMonthlyExpense = asyncHandler(async (req, res) => {
     });
   }
 
+  const purse = source && source.type ? source : { type: 'cash', sourceName: 'Wallet' };
+  try {
+    await purseTake(req.user._id, purse, Number(amount), `Business expense: ${business.name}`);
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({ success: false, message: error.message || 'Could not take that money' });
+  }
   business.monthlyExpenses = (business.monthlyExpenses || 0) + Number(amount);
   business.totalExpenses = (business.totalExpenses || 0) + Number(amount);
   await business.save();

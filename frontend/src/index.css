@@ -230,7 +230,11 @@
   }
   
   .table-cell {
-    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+    @apply px-3 py-2 text-sm text-gray-900 align-middle;
+  }
+
+  .table-compact .table-header-cell {
+    @apply px-3 py-2;
   }
   
   .mobile-menu {

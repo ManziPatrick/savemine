@@ -5,6 +5,7 @@ const Asset = require('../models/Asset');
 const Savings = require('../models/Savings');
 const { findSalaryPlan } = require('../services/incomeSchedule');
 const { advanceSendDate } = require('../services/dispatchSchedule');
+const { purseTake, purseReturn } = require('../services/purse');
 const PettyCash = require('../models/PettyCash');
 const Transaction = require('../models/Transaction');
 const { asyncHandler } = require('../middleware/errorHandler');
@@ -441,8 +442,96 @@ const getExpenseStats = asyncHandler(async (req, res) => {
   });
 });
 
+const updateExpense = asyncHandler(async (req, res) => {
+  const expense = await Expense.findOne({ _id: req.params.id, userId: req.user._id, isActive: true });
+  if (!expense) {
+    return res.status(404).json({ success: false, message: 'Expense not found' });
+  }
+  const nextAmount = req.body.amount != null ? Number(req.body.amount) : expense.amount;
+  if (!(nextAmount >= 0)) {
+    return res.status(400).json({ success: false, message: 'Enter the amount' });
+  }
+  const nextSource = req.body.source && req.body.source.type ? req.body.source : (expense.source || { type: 'cash' });
+  const samePurse = String(nextSource.type || 'cash') === String(expense.source?.type || 'cash')
+    && String(nextSource.sourceId || '') === String(expense.source?.sourceId || '');
+  const title = String(req.body.title || expense.title || 'Expense');
+  try {
+    if (samePurse) {
+      const diff = nextAmount - expense.amount;
+      if (diff > 0) await purseTake(req.user._id, nextSource, diff, `Expense change: ${title}`);
+      if (diff < 0) await purseReturn(req.user._id, expense.source, -diff, `Expense change: ${title}`);
+    } else {
+      await purseReturn(req.user._id, expense.source, expense.amount, `Expense moved: ${title}`);
+      try {
+        await purseTake(req.user._id, nextSource, nextAmount, `Expense: ${title}`);
+      } catch (error) {
+        await purseTake(req.user._id, expense.source, expense.amount, `Expense restored: ${title}`);
+        throw error;
+      }
+    }
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({ success: false, message: error.message || 'Could not move that money' });
+  }
+
+  if (req.body.title) expense.title = title;
+  if (req.body.category) expense.category = req.body.category;
+  if (req.body.subcategory != null) expense.subcategory = req.body.subcategory;
+  if (req.body.expenseDate) expense.expenseDate = new Date(req.body.expenseDate);
+  if (req.body.farm) expense.farm = readFarm(req.body.farm) || expense.farm;
+  expense.amount = nextAmount;
+  expense.source = {
+    type: nextSource.type || 'cash',
+    sourceId: nextSource.sourceId || null,
+    sourceName: nextSource.sourceName || '',
+    amount: nextAmount
+  };
+  if (String(req.body.repeat || '') === 'monthly') {
+    expense.isRecurring = true;
+    expense.recurringPattern = 'monthly';
+    expense.nextExpenseAt = expense.nextExpenseAt || advanceSendDate(expense.expenseDate, 'monthly');
+  } else if (req.body.repeat === 'once') {
+    expense.isRecurring = false;
+    expense.recurringPattern = 'none';
+    expense.nextExpenseAt = null;
+  }
+  await expense.save();
+  await Transaction.updateMany(
+    { userId: req.user._id, expenseId: expense._id },
+    {
+      $set: {
+        amount: nextAmount,
+        description: title.slice(0, 200),
+        category: String(expense.category || 'other').slice(0, 50),
+        subcategory: String(expense.subcategory || '').slice(0, 50),
+        date: expense.expenseDate
+      }
+    }
+  );
+  res.json({ success: true, data: expense });
+});
+
+const deleteExpense = asyncHandler(async (req, res) => {
+  const expense = await Expense.findOne({ _id: req.params.id, userId: req.user._id, isActive: true });
+  if (!expense) {
+    return res.status(404).json({ success: false, message: 'Expense not found' });
+  }
+  try {
+    await purseReturn(req.user._id, expense.source || { type: 'cash' }, expense.amount, `Expense removed: ${expense.title}`);
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({ success: false, message: error.message || 'Could not return that money' });
+  }
+  expense.isActive = false;
+  expense.isRecurring = false;
+  expense.nextExpenseAt = null;
+  await expense.save();
+  await Transaction.deleteMany({ userId: req.user._id, expenseId: expense._id });
+  res.json({ success: true, message: 'Expense removed and the money put back' });
+});
+
 module.exports = {
   getExpenses,
   createExpense,
+  updateExpense,
+  deleteExpense,
   getExpenseStats
 };

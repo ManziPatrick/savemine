@@ -37,6 +37,7 @@ function Projects() {
 
   // Expense/Income modal states
   const [expenseTarget, setExpenseTarget] = useState(null);
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [incomeTarget, setIncomeTarget] = useState(null);
   const [expenseForm, setExpenseForm] = useState({ category: 'School fees', reason: '', amount: '', date: new Date().toISOString().split('T')[0], assetId: '', savingsId: '', kilograms: '', farmSize: '', farmSizeUnit: '', farmDays: '', farmLevel: '', repeat: 'once' });
   const [expenseReceipt, setExpenseReceipt] = useState(null);
@@ -139,29 +140,101 @@ function Projects() {
     try {
       const title = expenseForm.reason.trim() || expenseForm.category || 'Expense';
       const receipt = await uploadProof(expenseReceipt, { title, relatedEntity: 'project' });
-      addExpenseMutation.mutate(
-        {
-          title,
-          ...fileExpenseCategory(expenseForm.category, ''),
-          amount: parseFloat(expenseForm.amount),
-          expenseDate: expenseForm.date,
-          receipt,
-          projectId: expenseTarget._id,
-          assetId: expenseForm.assetId || undefined,
-          currency: 'FRW',
-          repeat: expenseForm.repeat === 'monthly' ? 'monthly' : undefined,
-          farm: showsFarmMeasure(expenseForm.category, expenseTarget.projectType, expenseTarget.name)
-            ? farmFromForm(expenseForm)
-            : undefined,
-          source: account
-            ? { type: 'savings', sourceId: account._id, sourceName: account.name, amount: parseFloat(expenseForm.amount) }
-            : { type: 'cash' },
-        },
-        { onSettled: () => setSavingExpense(false) }
-      );
+      const payload = {
+        title,
+        ...fileExpenseCategory(expenseForm.category, ''),
+        amount: parseFloat(expenseForm.amount),
+        expenseDate: expenseForm.date,
+        receipt,
+        projectId: expenseTarget._id,
+        assetId: expenseForm.assetId || undefined,
+        currency: 'FRW',
+        repeat: expenseForm.repeat === 'monthly' ? 'monthly' : 'once',
+        farm: showsFarmMeasure(expenseForm.category, expenseTarget.projectType, expenseTarget.name)
+          ? farmFromForm(expenseForm)
+          : undefined,
+        source: account
+          ? { type: 'savings', sourceId: account._id, sourceName: account.name, amount: parseFloat(expenseForm.amount) }
+          : { type: 'cash', sourceName: 'Wallet' },
+      };
+      if (editingExpenseId) {
+        await expensesAPI.updateExpense(editingExpenseId, payload);
+        syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet');
+        toast.success('Expense updated');
+        setExpenseTarget(null);
+        setEditingExpenseId(null);
+        setSavingExpense(false);
+        return;
+      }
+      addExpenseMutation.mutate(payload, { onSettled: () => setSavingExpense(false) });
     } catch (error) {
       setSavingExpense(false);
       toast.error(error.response?.data?.message || 'Could not save that expense');
+    }
+  };
+
+  const blankExpense = (project) => ({
+    category: stagesFor(project.projectType, project.name).length ? '' : 'School fees',
+    reason: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    assetId: '',
+    savingsId: '',
+    kilograms: '',
+    farmSize: '',
+    farmSizeUnit: '',
+    farmDays: '',
+    farmLevel: '',
+    repeat: 'once',
+  });
+
+  const openAddExpense = (project) => {
+    setExpenseReceipt(null);
+    setEditingExpenseId(null);
+    setExpenseForm(blankExpense(project));
+    setExpenseTarget(project);
+  };
+
+  const openEditExpense = (project, expense) => {
+    setExpenseReceipt(null);
+    setEditingExpenseId(expense._id);
+    setExpenseForm({
+      ...blankExpense(project),
+      category: expense.subcategory || expense.title || expense.category || '',
+      reason: expense.title || '',
+      amount: expense.amount ?? '',
+      date: expense.expenseDate ? new Date(expense.expenseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      savingsId: expense.source?.type === 'savings' ? (expense.source.sourceId || '') : '',
+      repeat: expense.recurringPattern === 'monthly' ? 'monthly' : 'once',
+      kilograms: expense.farm?.kilograms || '',
+      farmSize: expense.farm?.size || '',
+      farmSizeUnit: expense.farm?.sizeUnit || '',
+      farmDays: expense.farm?.days || '',
+      farmLevel: expense.farm?.level || '',
+    });
+    setExpenseTarget(project);
+  };
+
+  const deleteOfficeExpense = async (expense) => {
+    const name = expense.subcategory || expense.title || 'this expense';
+    if (!window.confirm(`Delete ${name} and put the money back where it came from?`)) return;
+    try {
+      await expensesAPI.deleteExpense(expense._id);
+      syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet');
+      toast.success('Expense removed and the money put back');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not delete that expense');
+    }
+  };
+
+  const saveLevel = async (project, value) => {
+    const level = Math.max(1, Number(value) || 1);
+    if (level === Number(project.level || 1)) return;
+    try {
+      await projectsAPI.updateProject(project._id, { level });
+      syncBooks(queryClient, 'projects');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not change the level');
     }
   };
 
@@ -362,16 +435,29 @@ function Projects() {
                 const roi = spent ? ((profit / spent) * 100).toFixed(2) : '0.00';
                 const status = getStatusBadge(project.status);
                 return (
-                  <div key={project._id} className="border border-gray-200 rounded-lg overflow-hidden">
-                    {/* Project header row */}
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 bg-gray-50">
+                  <div key={project._id} className="pt-2">
+                    <div className="ml-3 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-t-lg border border-b-0 border-line bg-paper px-3 py-1.5">
+                      <span className="text-lg" aria-hidden="true">📁</span>
+                      <span className="truncate text-sm font-medium text-ink">{project.name}</span>
+                      <label className="flex items-center gap-1 text-xs text-ink/60">
+                        Level
+                        <input
+                          type="number"
+                          min="1"
+                          className="w-14 rounded border border-line bg-paper-card px-1 py-0.5 text-sm text-ink"
+                          defaultValue={project.level || 1}
+                          key={`${project._id}-${project.level || 1}`}
+                          onBlur={(event) => saveLevel(project, event.target.value)}
+                        />
+                      </label>
+                    </div>
+                    <div className="-mt-px overflow-hidden rounded-xl rounded-tl-none border border-line bg-paper-card">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 bg-paper">
                       <div className="flex items-center space-x-3">
-                        <span className="text-3xl">📁</span>
                         <div>
                           <div className="font-medium text-gray-900">{project.name}</div>
                           <div className="text-sm text-gray-500">
-                            {`Level ${project.level || 1}`}
-                            {project.payWhen ? ` • ${{ before: 'Paid before', halfway: 'Paid halfway', after: 'Paid after', other: 'Other payment' }[project.payWhen]}` : ''}
+                            {project.payWhen ? `${{ before: 'Paid before', halfway: 'Paid halfway', after: 'Paid after', other: 'Other payment' }[project.payWhen]}` : ''}
                             {project.agreedAmount > 0 ? ` • ${project.receivedPercent || 0}% received • ${formatCurrency(project.behindAmount || 0)} behind` : ''}
                             {project.supportsName ? ` • Supports ${project.supportsName}` : ''}
                             {' • '}
@@ -435,13 +521,22 @@ function Projects() {
                           </li>
                         ))}
                         {linked.map((expense) => (
-                          <li key={expense._id} className="flex justify-between gap-2 text-sm text-ink">
+                          <li key={expense._id} className="flex items-center justify-between gap-2 text-sm text-ink">
                             <span className="truncate">
                               {expense.subcategory || expense.title || expense.category || 'Expense'}
                               {farmSummary(expense.farm) ? ` · ${farmSummary(expense.farm)}` : ''}
                               {expense.isRecurring && expense.recurringPattern === 'monthly' ? ' · Every month' : ''}
+                              {expense.source?.sourceName ? ` · ${expense.source.sourceName}` : ''}
                             </span>
-                            <span className="tabular-nums">{formatCurrency(expense.amount)}</span>
+                            <span className="flex items-center gap-2">
+                              <span className="tabular-nums">{formatCurrency(expense.amount)}</span>
+                              <button type="button" className="text-primary-700" title="Edit" onClick={() => openEditExpense(project, expense)}>
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                              <button type="button" className="text-red-600" title="Delete" onClick={() => deleteOfficeExpense(expense)}>
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -451,24 +546,7 @@ function Projects() {
 
                     {/* Quick actions */}
                     <div className="flex flex-wrap gap-2 px-4 pb-3">
-                      <button onClick={() => {
-                        setExpenseReceipt(null);
-                        setExpenseForm({
-                          category: stagesFor(project.projectType, project.name).length ? '' : 'School fees',
-                          reason: '',
-                          amount: '',
-                          date: new Date().toISOString().split('T')[0],
-                          assetId: '',
-                          savingsId: '',
-                          kilograms: '',
-                          farmSize: '',
-                          farmSizeUnit: '',
-                          farmDays: '',
-                          farmLevel: '',
-                          repeat: 'once',
-                        });
-                        setExpenseTarget(project);
-                      }} className="btn btn-secondary btn-sm">
+                      <button onClick={() => openAddExpense(project)} className="btn btn-secondary btn-sm">
                         <PlusCircleIcon className="h-4 w-4 mr-1" /> Add Expense
                       </button>
                       <button onClick={() => { setIncomeTarget(project); }} className="btn btn-secondary btn-sm">
@@ -515,6 +593,14 @@ function Projects() {
                                       {expense.vendor && ` • ${expense.vendor}`}
                                     </div>
                                     <div className="text-xs text-gray-400">{formatDate(expense.expenseDate)} • Same expense as the office book</div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button type="button" className="text-primary-700" title="Edit" onClick={() => openEditExpense(project, expense)}>
+                                      <PencilIcon className="h-4 w-4" />
+                                    </button>
+                                    <button type="button" className="text-red-600" title="Delete" onClick={() => deleteOfficeExpense(expense)}>
+                                      <TrashIcon className="h-4 w-4" />
+                                    </button>
                                   </div>
                                 </div>
                               ))}
@@ -569,6 +655,7 @@ function Projects() {
                         </div>
                       </div>
                     )}
+                    </div>
                   </div>
                 );
               })}
@@ -628,7 +715,7 @@ function Projects() {
 
       {/* Add Expense Modal */}
       {expenseTarget && (
-        <SlideOver title={`Expense for ${expenseTarget.name}`} subtitle="Same expense across the office" onClose={() => setExpenseTarget(null)}>
+        <SlideOver title={editingExpenseId ? `Edit expense on ${expenseTarget.name}` : `Expense for ${expenseTarget.name}`} subtitle="Choose the wallet or a savings jar" onClose={() => { setExpenseTarget(null); setEditingExpenseId(null); }}>
               <form onSubmit={handleAddExpense} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{stageKind(expenseTarget.projectType, expenseTarget.name) ? 'Stage' : 'Category'}</label>
@@ -672,7 +759,7 @@ function Projects() {
                       className={`btn ${expenseForm.savingsId ? 'btn-secondary' : 'btn-primary'}`}
                       onClick={() => setExpenseForm((prev) => ({ ...prev, savingsId: '' }))}
                     >
-                      Cash
+                      Wallet
                     </button>
                     {(savingsList?.data?.data || []).map((saving) => (
                       <button
@@ -738,9 +825,9 @@ function Projects() {
                   {expenseReceipt && <p className="mt-1 text-sm text-ink/60">{expenseReceipt.name}</p>}
                 </div>
                 <div className="flex justify-end space-x-3 pt-2">
-                  <button type="button" onClick={() => setExpenseTarget(null)} className="btn btn-secondary">Cancel</button>
+                  <button type="button" onClick={() => { setExpenseTarget(null); setEditingExpenseId(null); }} className="btn btn-secondary">Cancel</button>
                   <button type="submit" className="btn btn-primary" disabled={savingExpense}>
-                    {savingExpense ? 'Saving...' : 'Save Expense'}
+                    {savingExpense ? 'Saving...' : editingExpenseId ? 'Save changes' : 'Save Expense'}
                   </button>
                 </div>
               </form>

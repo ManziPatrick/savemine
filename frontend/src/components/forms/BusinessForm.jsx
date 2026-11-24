@@ -120,9 +120,10 @@ function BusinessForm({ business, knownProjects = [], onClose, onSuccess }) {
 
     setLoading(true);
     try {
+      const businessFields = { ...formData };
+      delete businessFields.initialInvestment;
       const businessData = {
-        ...formData,
-        initialInvestment: parseFloat(formData.initialInvestment) || 0,
+        ...businessFields,
         monthlyRevenue: parseFloat(formData.monthlyRevenue) || 0,
         monthlyExpenses: parseFloat(formData.monthlyExpenses) || 0,
         animals: formData.animals.map(animal => ({
@@ -443,23 +444,8 @@ function BusinessForm({ business, knownProjects = [], onClose, onSuccess }) {
             {/* Financial Information */}
             <div className="border-t pt-4">
               <h3 className="text-sm font-medium text-gray-700 mb-3">Financial Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="initialInvestment" className="block text-sm font-medium text-gray-700 mb-2">
-                    Initial Investment (FRW)
-                  </label>
-                  <input
-                    type="number"
-                    id="initialInvestment"
-                    name="initialInvestment"
-                    value={formData.initialInvestment}
-                    onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="0"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
+              <p className="mb-3 text-sm text-ink/60">Money spent on this business is recorded as an expense and taken from the wallet or a savings jar.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="monthlyRevenue" className="block text-sm font-medium text-gray-700 mb-2">
                     Monthly Revenue (FRW)

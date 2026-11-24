@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { PlusIcon, PencilIcon, TrashIcon, BuildingOfficeIcon, ChartBarIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon, UserGroupIcon } from '@heroicons/react/24/outline';
-import { businessesAPI, projectsAPI } from '../services/api';
+import { businessesAPI, projectsAPI, savingsAPI } from '../services/api';
 import BusinessForm from '../components/forms/BusinessForm';
 import SlideOver from '../components/SlideOver';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -18,11 +18,11 @@ function Business() {
   const [businessTypeFilter, setBusinessTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(8);
   const [incomeTarget, setIncomeTarget] = useState(null);
   const [expenseTarget, setExpenseTarget] = useState(null);
   const [incomeForm, setIncomeForm] = useState({ amount: '' });
-  const [expenseForm, setExpenseForm] = useState({ amount: '' });
+  const [expenseForm, setExpenseForm] = useState({ amount: '', savingsId: '' });
   const [savingIncome, setSavingIncome] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
   const [projectTarget, setProjectTarget] = useState(null);
@@ -42,6 +42,7 @@ function Business() {
   );
 
   const { data: businessProjects } = useQuery(['projects', 'for-business'], () => projectsAPI.getProjects({ limit: 100 }));
+  const { data: savingsList } = useQuery(['savings', 'business'], () => savingsAPI.getSavings({ limit: 100 }));
   const { data: businessStats } = useQuery(
     'businessStats',
     businessesAPI.getBusinessStats
@@ -87,10 +88,10 @@ function Business() {
 
   const addExpenseMutation = useMutation(({ id, data }) => businessesAPI.addMonthlyExpense(id, data), {
     onSuccess: () => {
-      syncBooks(queryClient, 'business');
+      syncBooks(queryClient, 'business', 'wallet', 'savings');
       toast.success('Expense recorded successfully');
       setExpenseTarget(null);
-      setExpenseForm({ amount: '' });
+      setExpenseForm({ amount: '', savingsId: '' });
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to record expense')
   });
@@ -144,8 +145,17 @@ function Business() {
       return;
     }
     setSavingExpense(true);
+    const account = (savingsList?.data?.data || []).find((saving) => saving._id === expenseForm.savingsId);
     addExpenseMutation.mutate(
-      { id: expenseTarget._id, data: { ...expenseForm, amount: parseFloat(expenseForm.amount) } },
+      {
+        id: expenseTarget._id,
+        data: {
+          amount: parseFloat(expenseForm.amount),
+          source: account
+            ? { type: 'savings', sourceId: account._id, sourceName: account.name }
+            : { type: 'cash', sourceName: 'Wallet' },
+        },
+      },
       { onSettled: () => setSavingExpense(false) }
     );
   };
@@ -356,7 +366,7 @@ function Business() {
           {businessesList.length > 0 ? (
             <>
               <div className="overflow-x-auto">
-                <table className="table">
+                <table className="table table-compact">
                   <thead className="table-header">
                     <tr>
                       <th className="table-header-cell">Type</th>
@@ -372,7 +382,8 @@ function Business() {
                   <tbody className="table-body">
                     {businessesList.map((business) => {
                       const profit = business.totalRevenue - business.totalExpenses;
-                      const roi = business.initialInvestment > 0 ? ((profit / business.initialInvestment) * 100).toFixed(1) : 0;
+                      const base = business.totalExpenses > 0 ? business.totalExpenses : 0;
+                      const roi = base > 0 ? ((profit / base) * 100).toFixed(1) : null;
                       const status = getStatusBadge(business.status);
                       
                       return (
@@ -390,13 +401,9 @@ function Business() {
                               <div className="font-medium text-gray-900">
                                 {business.name}
                               </div>
-                              {business.description && (
-                                <div className="text-sm text-gray-500">
-                                  {business.description}
-                                </div>
-                              )}
-                              <div className="text-sm text-gray-500">
+                              <div className="truncate text-xs text-gray-500">
                                 {business.locationMode === 'online' ? 'Online' : (business.location || 'No place yet')}
+                                {business.description ? ` · ${business.description}` : ''}
                               </div>
                               <BusinessProjects
                                 business={business}
@@ -427,8 +434,8 @@ function Business() {
                             </div>
                           </td>
                           <td className="table-cell">
-                            <div className={`font-medium ${roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {roi}%
+                            <div className={`font-medium ${Number(roi) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {roi == null ? '—' : `${roi}%`}
                             </div>
                           </td>
                           <td className="table-cell">
@@ -475,36 +482,22 @@ function Business() {
                 </table>
               </div>
 
-              {/* Pagination */}
-              {businesses?.data?.pagination?.totalPages > 1 && (
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mt-6">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">
-                      Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, businesses?.data?.pagination?.totalItems || 0)} of {businesses?.data?.pagination?.totalItems || 0} businesses
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      Previous
-                    </button>
-                    <span className="text-sm text-gray-500">
-                      Page {currentPage} of {businesses?.data?.pagination?.totalPages || 1}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === (businesses?.data?.pagination?.totalPages || 1)}
-                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      Next
-                    </button>
-                  </div>
+              <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-xs text-ink/60">
+                  {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, businesses?.data?.pagination?.totalItems || businessesList.length)} of {businesses?.data?.pagination?.totalItems || businessesList.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-ink/60">
+                    Rows
+                    <select className="ml-1 rounded border border-line bg-paper-card px-1 py-0.5" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setCurrentPage(1); }}>
+                      {[8, 20, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>Previous</button>
+                  <span className="text-xs text-ink/70">{currentPage} / {businesses?.data?.pagination?.totalPages || 1}</span>
+                  <button type="button" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= (businesses?.data?.pagination?.totalPages || 1)}>Next</button>
                 </div>
-              )}
+              </div>
             </>
           ) : (
             <div className="text-center py-8">
@@ -611,6 +604,22 @@ function Business() {
         <SlideOver title={`Expense for ${expenseTarget.name}`} subtitle="Business" onClose={() => setExpenseTarget(null)}>
               <form onSubmit={handleAddExpense} className="space-y-4">
                 <div>
+                  <p className="mb-1 text-sm font-medium text-gray-700">Take the money from</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className={`btn ${expenseForm.savingsId ? 'btn-secondary' : 'btn-primary'}`} onClick={() => setExpenseForm((prev) => ({ ...prev, savingsId: '' }))}>Wallet</button>
+                    {(savingsList?.data?.data || []).map((saving) => (
+                      <button
+                        key={saving._id}
+                        type="button"
+                        className={`btn ${expenseForm.savingsId === saving._id ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setExpenseForm((prev) => ({ ...prev, savingsId: saving._id }))}
+                      >
+                        {saving.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Amount (FRW) *</label>
                   <input
                     type="number"
@@ -622,7 +631,7 @@ function Business() {
                     autoFocus
                     required
                   />
-                  <p className="mt-1 text-xs text-gray-400">Adds to this business's monthly and total expenses.</p>
+                  <p className="mt-1 text-xs text-gray-400">Taken from the wallet or the savings jar you choose.</p>
                 </div>
                 <div className="flex justify-end space-x-3 pt-2">
                   <button type="button" onClick={() => setExpenseTarget(null)} className="btn btn-secondary">Cancel</button>
@@ -642,7 +651,7 @@ function BusinessProjects({ business, projects, onChoose }) {
   const moneyIn = mine.reduce((sum, project) => sum + (project.totalIncome || 0), 0);
   const moneyOut = mine.reduce((sum, project) => sum + (project.officeSpent ?? project.totalExpenses ?? 0), 0);
   return (
-    <div className="mt-2 space-y-1">
+    <div className="mt-1 space-y-0.5">
       <div className="flex flex-wrap items-center gap-2">
         {mine.map((project) => (
           <Link
@@ -658,7 +667,7 @@ function BusinessProjects({ business, projects, onChoose }) {
         </button>
       </div>
       {mine.length > 0 && (
-        <p className="text-sm text-ink/70" title={`In ${exactTitle(moneyIn)} · Out ${exactTitle(moneyOut)}`}>
+        <p className="text-xs text-ink/60" title={`In ${exactTitle(moneyIn)} · Out ${exactTitle(moneyOut)}`}>
           Together · In {formatMoney(moneyIn)} · Out {formatMoney(moneyOut)} · Left {formatMoney(moneyIn - moneyOut)}
         </p>
       )}

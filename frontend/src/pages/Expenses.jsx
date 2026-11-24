@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { PlusIcon, CurrencyDollarIcon, ChartBarIcon, TagIcon } from '@heroicons/react/24/outline';
-import { expensesAPI, transactionsAPI } from '../services/api';
+import { PencilIcon, PlusIcon, TrashIcon, CurrencyDollarIcon, ChartBarIcon, TagIcon } from '@heroicons/react/24/outline';
+import { expensesAPI, savingsAPI, transactionsAPI } from '../services/api';
+import SlideOver from '../components/SlideOver';
 import ExportButtons from '../components/ExportButtons';
 import { buildExpenseSections } from '../utils/exportSections';
 import ExpenseForm from '../components/forms/ExpenseForm';
@@ -18,7 +19,10 @@ function Expenses() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [businessFilter, setBusinessFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(10);
+  const [editExpense, setEditExpense] = useState(null);
+  const [editForm, setEditForm] = useState({ title: '', amount: '', savingsId: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
   const [salaryAmount, setSalaryAmount] = useState('');
   const [raising, setRaising] = useState(false);
   const queryClient = useQueryClient();
@@ -38,6 +42,8 @@ function Expenses() {
     'expenseStats',
     () => expensesAPI.getExpenseStats({ period: 'all' })
   );
+
+  const { data: savingsList } = useQuery(['savings', 'expenses'], () => savingsAPI.getSavings({ limit: 100 }));
 
   const { data: salaryIncome } = useQuery(
     'salaryIncome',
@@ -315,7 +321,7 @@ function Expenses() {
           {expensesList.length > 0 ? (
             <>
               <div className="overflow-x-auto">
-                <table className="table">
+                <table className="table table-compact">
                   <thead className="table-header">
                     <tr>
                       <th className="table-header-cell">Category</th>
@@ -324,6 +330,7 @@ function Expenses() {
                       <th className="table-header-cell">Type</th>
                       <th className="table-header-cell">Date</th>
                       <th className="table-header-cell">Payment Method</th>
+                      <th className="table-header-cell">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="table-body">
@@ -389,42 +396,64 @@ function Expenses() {
                             {expense.paymentMethod.replace('_', ' ')}
                           </span>
                         </td>
+                        <td className="table-cell">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className="text-primary-700"
+                              title="Edit"
+                              onClick={() => {
+                                setEditExpense(expense);
+                                setEditForm({
+                                  title: expense.title || '',
+                                  amount: expense.amount ?? '',
+                                  savingsId: expense.source?.type === 'savings' ? (expense.source.sourceId || '') : '',
+                                });
+                              }}
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              className="text-red-600"
+                              title="Delete"
+                              onClick={async () => {
+                                if (!window.confirm(`Delete ${expense.title} and put the money back?`)) return;
+                                try {
+                                  await expensesAPI.deleteExpense(expense._id);
+                                  syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet');
+                                  toast.success('Expense removed and the money put back');
+                                } catch (error) {
+                                  toast.error(error.response?.data?.message || 'Could not delete that expense');
+                                }
+                              }}
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              {/* Pagination */}
-              {expenses?.data?.pagination?.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">
-                      Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, expenses?.data?.pagination?.totalItems || 0)} of {expenses?.data?.pagination?.totalItems || 0} expenses
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setCurrentPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      Previous
-                    </button>
-                    <span className="text-sm text-gray-500">
-                      Page {currentPage} of {expenses?.data?.pagination?.totalPages || 1}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(currentPage + 1)}
-                      disabled={currentPage === (expenses?.data?.pagination?.totalPages || 1)}
-                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      Next
-                    </button>
-                  </div>
+              <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-xs text-ink/60">
+                  {expensesList.length ? `${((currentPage - 1) * pageSize) + 1}–${Math.min(currentPage * pageSize, expenses?.data?.pagination?.totalItems || expensesList.length)} of ${expenses?.data?.pagination?.totalItems || expensesList.length}` : '0'}
+                </span>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-ink/60">
+                    Rows
+                    <select className="ml-1 rounded border border-line bg-paper-card px-1 py-0.5" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setCurrentPage(1); }}>
+                      {[10, 20, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Previous</button>
+                  <span className="text-xs text-ink/70">{currentPage} / {expenses?.data?.pagination?.totalPages || 1}</span>
+                  <button type="button" className="rounded border border-line px-2 py-1 text-xs disabled:opacity-40" disabled={currentPage >= (expenses?.data?.pagination?.totalPages || 1)} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
                 </div>
-              )}
+              </div>
             </>
           ) : (
             <div className="text-center py-8">
@@ -448,6 +477,61 @@ function Expenses() {
       </div>
 
       {/* Expense Form */}
+      {editExpense && (
+        <SlideOver title={`Edit ${editExpense.title}`} subtitle="The difference is taken from, or returned to, the place you choose" onClose={() => setEditExpense(null)}>
+          <form
+            className="space-y-4"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              const account = (savingsList?.data?.data || []).find((saving) => saving._id === editForm.savingsId);
+              setSavingEdit(true);
+              try {
+                await expensesAPI.updateExpense(editExpense._id, {
+                  title: editForm.title || editExpense.title,
+                  amount: Number(editForm.amount),
+                  category: editExpense.category,
+                  subcategory: editExpense.subcategory,
+                  source: account
+                    ? { type: 'savings', sourceId: account._id, sourceName: account.name }
+                    : { type: 'cash', sourceName: 'Wallet' },
+                });
+                syncBooks(queryClient, 'expenses', 'projects', 'savings', 'wallet');
+                toast.success('Expense updated');
+                setEditExpense(null);
+              } catch (error) {
+                toast.error(error.response?.data?.message || 'Could not update that expense');
+              } finally {
+                setSavingEdit(false);
+              }
+            }}
+          >
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Title</label>
+              <input className="input" value={editForm.title} onChange={(event) => setEditForm((prev) => ({ ...prev, title: event.target.value }))} />
+            </div>
+            <div>
+              <p className="mb-1 text-sm font-medium text-gray-700">Take the money from</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={`btn ${editForm.savingsId ? 'btn-secondary' : 'btn-primary'}`} onClick={() => setEditForm((prev) => ({ ...prev, savingsId: '' }))}>Wallet</button>
+                {(savingsList?.data?.data || []).map((saving) => (
+                  <button key={saving._id} type="button" className={`btn ${editForm.savingsId === saving._id ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setEditForm((prev) => ({ ...prev, savingsId: saving._id }))}>
+                    {saving.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Amount (FRW)</label>
+              <input type="number" min="0" className="input" required value={editForm.amount} onChange={(event) => setEditForm((prev) => ({ ...prev, amount: event.target.value }))} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditExpense(null)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={savingEdit}>{savingEdit ? 'Saving...' : 'Save changes'}</button>
+            </div>
+          </form>
+        </SlideOver>
+      )}
+
       {showForm && (
         <ExpenseForm
           onClose={() => setShowForm(false)}

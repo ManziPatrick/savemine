@@ -195,6 +195,8 @@ export const giftsAPI = {
 export const expensesAPI = {
   getExpenses: (params = {}) => api.get('/expenses', { params }),
   createExpense: (expenseData) => api.post('/expenses', expenseData),
+  updateExpense: (id, expenseData) => api.put(`/expenses/${id}`, expenseData),
+  deleteExpense: (id) => api.delete(`/expenses/${id}`),
   getExpenseStats: (params = {}) => api.get('/expenses/stats', { params }),
 };
 

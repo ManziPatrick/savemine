@@ -41,7 +41,7 @@ const getProjects = asyncHandler(async (req, res) => {
       userId: req.user._id,
       isActive: true,
       projectId: { $in: ids }
-    }).select('projectId title amount expenseDate category subcategory vendor farm isRecurring recurringPattern').lean()
+    }).select('projectId title amount expenseDate category subcategory vendor farm isRecurring recurringPattern source').lean()
     : [];
   const byProject = {};
   linked.forEach((row) => {
