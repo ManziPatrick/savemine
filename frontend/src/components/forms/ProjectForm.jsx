@@ -8,6 +8,7 @@ import LinkPicker from '../LinkPicker';
 import SlideOver from '../SlideOver';
 import { categoryLabel } from '../../utils/bookGroups';
 import { fileExpenseCategory } from '../../utils/fileExpense';
+import { stageKind, stagesFor } from '../../utils/projectStages';
 import { formatMoney } from '../../utils/money';
 
 function ProjectForm({ project, onClose, onSuccess }) {
@@ -90,6 +91,9 @@ function ProjectForm({ project, onClose, onSuccess }) {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'projectType' && stagesFor(value, formData.name).length) {
+      setNewExpense((prev) => ({ ...prev, category: '' }));
+    }
   };
 
   const addExpense = () => {
@@ -173,7 +177,25 @@ function ProjectForm({ project, onClose, onSuccess }) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Project Type</label>
-                <input type="text" name="projectType" value={formData.projectType} onChange={handleInputChange} className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500" placeholder="e.g., construction, business, farming..." />
+                <select name="projectType" value={formData.projectType} onChange={handleInputChange} className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                  {!['general', 'coding', 'farming', 'agriculture', 'rearing', 'construction', 'business'].includes(formData.projectType) && (
+                    <option value={formData.projectType}>{formData.projectType}</option>
+                  )}
+                  <option value="general">General</option>
+                  <option value="coding">Coding</option>
+                  <option value="farming">Farming</option>
+                  <option value="agriculture">Agriculture</option>
+                  <option value="rearing">Rearing animals</option>
+                  <option value="construction">Construction</option>
+                  <option value="business">Business</option>
+                </select>
+                {stagesFor(formData.projectType, formData.name).length > 0 && (
+                  <div className="mt-2 flex max-h-24 flex-wrap gap-1 overflow-y-auto">
+                    {stagesFor(formData.projectType, formData.name).map((stage) => (
+                      <span key={stage} className="rounded-full bg-paper px-2 py-0.5 text-xs text-ink">{stage}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -351,8 +373,13 @@ function ProjectForm({ project, onClose, onSuccess }) {
               <div className="bg-gray-50 p-4 rounded-lg mb-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                    <CategoryPicker value={newExpense.category} onChange={(name) => setNewExpense((prev) => ({ ...prev, category: name }))} />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{stageKind(formData.projectType, formData.name) ? 'Stage' : 'Category'}</label>
+                    <CategoryPicker
+                      value={newExpense.category}
+                      preferred={stagesFor(formData.projectType, formData.name)}
+                      placeholder={stageKind(formData.projectType, formData.name) ? 'Search a stage' : 'Search school fees, home...'}
+                      onChange={(name) => setNewExpense((prev) => ({ ...prev, category: name }))}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Amount (FRW)</label>

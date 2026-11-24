@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { categoriesAPI } from '../services/api';
 
-function CategoryPicker({ id, value, onChange, placeholder = 'Search school fees, home...' }) {
+function CategoryPicker({ id, value, onChange, placeholder = 'Search school fees, home...', preferred = [] }) {
   const queryClient = useQueryClient();
   const box = useRef(null);
   const [open, setOpen] = useState(false);
@@ -11,7 +11,16 @@ function CategoryPicker({ id, value, onChange, placeholder = 'Search school fees
   const { data } = useQuery('categories', () => categoriesAPI.list());
   const names = data?.data?.data || [];
   const needle = query.trim().toLowerCase();
-  const matches = names.filter((name) => name.toLowerCase().includes(needle));
+  const preferredNames = preferred.filter(Boolean);
+  const preferredKeys = new Set(preferredNames.map((name) => name.toLowerCase()));
+  const source = !needle && preferredNames.length ? preferredNames : names;
+  const matches = source
+    .filter((name) => name.toLowerCase().includes(needle))
+    .sort((left, right) => {
+      const leftFirst = preferredKeys.has(left.toLowerCase()) ? 0 : 1;
+      const rightFirst = preferredKeys.has(right.toLowerCase()) ? 0 : 1;
+      return leftFirst - rightFirst;
+    });
   const exact = names.some((name) => name.toLowerCase() === needle);
 
   useEffect(() => {

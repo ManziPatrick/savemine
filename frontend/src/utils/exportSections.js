@@ -2,6 +2,7 @@
  * Section builders — convert each module's raw API data into export sections
  * of the shape: [{ title, columns: [{ key, header }], rows: [object] }]
  */
+import { farmSummary } from './farmMeasure';
 
 const formatDate = (date) => {
   if (!date) return '';
@@ -163,6 +164,22 @@ export const buildProjectSections = (projects = []) => [{
     profit: fmtMoney(p.profit),
     startDate: formatDate(p.startDate),
   })),
+}, {
+  title: 'Business plan usage',
+  columns: [
+    { key: 'project', header: 'Project' },
+    { key: 'stage', header: 'Stage' },
+    { key: 'usage', header: 'Usage' },
+    { key: 'price', header: 'Price' },
+    { key: 'date', header: 'Date' },
+  ],
+  rows: projects.flatMap((project) => (project.linkedExpenses || []).map((expense) => ({
+    project: project.name || '',
+    stage: expense.subcategory || expense.title || expense.category || '',
+    usage: farmSummary(expense.farm),
+    price: fmtMoney(expense.amount),
+    date: formatDate(expense.expenseDate),
+  }))),
 }];
 
 // ---- Businesses ----

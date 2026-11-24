@@ -45,6 +45,13 @@ const expenseSchema = new mongoose.Schema({
     default: 1,
     min: 1
   },
+  farm: {
+    kilograms: { type: Number, min: 0 },
+    size: { type: Number, min: 0 },
+    sizeUnit: { type: String, trim: true, default: '' },
+    days: { type: Number, min: 0 },
+    level: { type: String, trim: true, default: '' }
+  },
   unitPrice: {
     type: Number,
     min: 0
@@ -81,6 +88,10 @@ const expenseSchema = new mongoose.Schema({
     default: 'none'
   },
   recurringEndDate: Date,
+  nextExpenseAt: {
+    type: Date,
+    default: null
+  },
   isBusinessExpense: {
     type: Boolean,
     default: false

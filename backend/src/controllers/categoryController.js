@@ -1,4 +1,5 @@
 const Category = require('../models/Category');
+const { ALL_STAGES } = require('../data/projectStages');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 const DEFAULTS = [
@@ -31,12 +32,23 @@ async function ensureDefaults(userId) {
   })));
 }
 
+async function ensureFarmStages(userId) {
+  const wanted = ALL_STAGES.map((name) => ({ name, key: categoryKey(name) }));
+  const existing = await Category.find({ userId, key: { $in: wanted.map((item) => item.key) } }).select('key').lean();
+  const have = new Set(existing.map((item) => item.key));
+  const missing = wanted.filter((item) => !have.has(item.key));
+  if (missing.length) {
+    await Category.insertMany(missing.map((item) => ({ userId, name: item.name, key: item.key })));
+  }
+}
+
 const listCategories = asyncHandler(async (req, res) => {
   await ensureDefaults(req.user._id);
+  await ensureFarmStages(req.user._id);
   const query = categoryKey(req.query.q);
   const filter = { userId: req.user._id };
   if (query) filter.key = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  const categories = await Category.find(filter).sort({ name: 1 }).limit(100).select('name').lean();
+  const categories = await Category.find(filter).sort({ name: 1 }).limit(200).select('name').lean();
   res.json({ success: true, data: categories.map((item) => item.name) });
 });
 

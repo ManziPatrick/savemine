@@ -5,6 +5,9 @@ import LinkPicker from '../LinkPicker';
 import SlideOver from '../SlideOver';
 import LoadingSpinner from '../LoadingSpinner';
 import { fileExpenseCategory } from '../../utils/fileExpense';
+import { farmFromForm } from '../../utils/farmMeasure';
+import { stagesFor, showsFarmMeasure } from '../../utils/projectStages';
+import FarmMeasure from './FarmMeasure';
 import { uploadProof } from '../../utils/uploadProof';
 import toast from 'react-hot-toast';
 
@@ -32,7 +35,12 @@ function ExpenseForm({ onClose, onSuccess }) {
     deductFrom: 'cash',
     savingsId: '',
     projectId: '',
-    assetId: ''
+    assetId: '',
+    kilograms: '',
+    farmSize: '',
+    farmSizeUnit: '',
+    farmDays: '',
+    farmLevel: ''
   });
 
   const [receiptFile, setReceiptFile] = useState(null);
@@ -83,7 +91,7 @@ function ExpenseForm({ onClose, onSuccess }) {
         return;
       }
 
-      const { deductFrom, savingsId, projectId, assetId, category, ...rest } = formData;
+      const { deductFrom, savingsId, projectId, assetId, category, kilograms, farmSize, farmSizeUnit, farmDays, farmLevel, ...rest } = formData;
       const filed = fileExpenseCategory(category, formData.subcategory);
       const title = formData.title.trim() || formData.subcategory || category || 'Expense';
       const receipt = await uploadProof(receiptFile, { title, relatedEntity: 'expense' });
@@ -97,6 +105,10 @@ function ExpenseForm({ onClose, onSuccess }) {
         assetId: assetId || undefined,
         unitPrice: formData.unitPrice ? parseFloat(formData.unitPrice) : null,
         tags: formData.tags.filter(tag => tag.trim()),
+        farm: showsFarmMeasure(category, projects.find((project) => project._id === projectId)?.projectType, projects.find((project) => project._id === projectId)?.name)
+          || showsFarmMeasure(formData.subcategory, projects.find((project) => project._id === projectId)?.projectType, projects.find((project) => project._id === projectId)?.name)
+          ? farmFromForm(formData)
+          : undefined,
         source: formData.deductFrom === 'savings' && selectedSaving
           ? { type: 'savings', sourceId: selectedSaving._id, sourceName: selectedSaving.name, amount }
           : formData.deductFrom === 'salary'
@@ -275,8 +287,15 @@ function ExpenseForm({ onClose, onSuccess }) {
                 <CategoryPicker
                   id="subcategory"
                   value={formData.subcategory}
+                  preferred={stagesFor(
+                    projects.find((project) => project._id === formData.projectId)?.projectType,
+                    projects.find((project) => project._id === formData.projectId)?.name
+                  )}
                   onChange={(name) => setFormData((prev) => ({ ...prev, subcategory: name }))}
-                  placeholder="Search a detail already in the office"
+                  placeholder={stagesFor(
+                    projects.find((project) => project._id === formData.projectId)?.projectType,
+                    projects.find((project) => project._id === formData.projectId)?.name
+                  ).length ? 'Search a stage' : 'Search a detail already in the office'}
                 />
               </div>
 
@@ -338,6 +357,18 @@ function ExpenseForm({ onClose, onSuccess }) {
                 />
               </div>
             </div>
+
+            {looksLikeFarming(
+              formData.category,
+              formData.subcategory,
+              projects.find((project) => project._id === formData.projectId)?.projectType,
+              projects.find((project) => project._id === formData.projectId)?.name
+            ) && (
+              <FarmMeasure
+                value={formData}
+                onChange={(name, next) => setFormData((prev) => ({ ...prev, [name]: next }))}
+              />
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="receipt-file">Receipt</label>

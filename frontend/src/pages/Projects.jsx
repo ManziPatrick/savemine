@@ -16,7 +16,11 @@ import LinkPicker from '../components/LinkPicker';
 import SlideOver from '../components/SlideOver';
 import { exactMoney, formatMoney } from '../utils/money';
 import MoneyConnections from '../components/MoneyConnections';
+import SharePlan from '../components/SharePlan';
 import { fileExpenseCategory } from '../utils/fileExpense';
+import { farmFromForm, farmSummary } from '../utils/farmMeasure';
+import { repeatsMonthly, stageHint, stageKind, stagesFor, showsFarmMeasure } from '../utils/projectStages';
+import FarmMeasure from '../components/forms/FarmMeasure';
 import { uploadProof } from '../utils/uploadProof';
 
 function Projects() {
@@ -34,7 +38,7 @@ function Projects() {
   // Expense/Income modal states
   const [expenseTarget, setExpenseTarget] = useState(null);
   const [incomeTarget, setIncomeTarget] = useState(null);
-  const [expenseForm, setExpenseForm] = useState({ category: 'School fees', reason: '', amount: '', date: new Date().toISOString().split('T')[0], assetId: '', savingsId: '' });
+  const [expenseForm, setExpenseForm] = useState({ category: 'School fees', reason: '', amount: '', date: new Date().toISOString().split('T')[0], assetId: '', savingsId: '', kilograms: '', farmSize: '', farmSizeUnit: '', farmDays: '', farmLevel: '', repeat: 'once' });
   const [expenseReceipt, setExpenseReceipt] = useState(null);
   const [incomeForm, setIncomeForm] = useState({ date: new Date().toISOString().split('T')[0], title: '', amount: '', category: 'income' });
   const [analysisScope, setAnalysisScope] = useState('all');
@@ -145,6 +149,10 @@ function Projects() {
           projectId: expenseTarget._id,
           assetId: expenseForm.assetId || undefined,
           currency: 'FRW',
+          repeat: expenseForm.repeat === 'monthly' ? 'monthly' : undefined,
+          farm: showsFarmMeasure(expenseForm.category, expenseTarget.projectType, expenseTarget.name)
+            ? farmFromForm(expenseForm)
+            : undefined,
           source: account
             ? { type: 'savings', sourceId: account._id, sourceName: account.name, amount: parseFloat(expenseForm.amount) }
             : { type: 'cash' },
@@ -232,9 +240,10 @@ function Projects() {
         <div className="flex flex-wrap gap-2 self-start sm:self-auto">
           <ExportButtons
             filename="projects"
-            title="My Projects Report"
+            title="Business plan"
             sections={buildProjectSections(projectsList)}
           />
+          <SharePlan projects={projectsList} />
           <button onClick={() => { setSelectedProject(null); setShowForm(true); }} className="btn btn-primary">
             <PlusIcon className="h-5 w-5 mr-2" />
             New Project
@@ -427,7 +436,11 @@ function Projects() {
                         ))}
                         {linked.map((expense) => (
                           <li key={expense._id} className="flex justify-between gap-2 text-sm text-ink">
-                            <span className="truncate">{expense.title || expense.subcategory || expense.category || 'Expense'}</span>
+                            <span className="truncate">
+                              {expense.subcategory || expense.title || expense.category || 'Expense'}
+                              {farmSummary(expense.farm) ? ` · ${farmSummary(expense.farm)}` : ''}
+                              {expense.isRecurring && expense.recurringPattern === 'monthly' ? ' · Every month' : ''}
+                            </span>
                             <span className="tabular-nums">{formatCurrency(expense.amount)}</span>
                           </li>
                         ))}
@@ -438,7 +451,24 @@ function Projects() {
 
                     {/* Quick actions */}
                     <div className="flex flex-wrap gap-2 px-4 pb-3">
-                      <button onClick={() => { setExpenseTarget(project); }} className="btn btn-secondary btn-sm">
+                      <button onClick={() => {
+                        setExpenseReceipt(null);
+                        setExpenseForm({
+                          category: stagesFor(project.projectType, project.name).length ? '' : 'School fees',
+                          reason: '',
+                          amount: '',
+                          date: new Date().toISOString().split('T')[0],
+                          assetId: '',
+                          savingsId: '',
+                          kilograms: '',
+                          farmSize: '',
+                          farmSizeUnit: '',
+                          farmDays: '',
+                          farmLevel: '',
+                          repeat: 'once',
+                        });
+                        setExpenseTarget(project);
+                      }} className="btn btn-secondary btn-sm">
                         <PlusCircleIcon className="h-4 w-4 mr-1" /> Add Expense
                       </button>
                       <button onClick={() => { setIncomeTarget(project); }} className="btn btn-secondary btn-sm">
@@ -601,8 +631,38 @@ function Projects() {
         <SlideOver title={`Expense for ${expenseTarget.name}`} subtitle="Same expense across the office" onClose={() => setExpenseTarget(null)}>
               <form onSubmit={handleAddExpense} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <CategoryPicker value={expenseForm.category} onChange={(name) => setExpenseForm((prev) => ({ ...prev, category: name }))} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{stageKind(expenseTarget.projectType, expenseTarget.name) ? 'Stage' : 'Category'}</label>
+                  <p className="mb-1 text-xs text-ink/60">{stageHint(stageKind(expenseTarget.projectType, expenseTarget.name))}</p>
+                  <CategoryPicker
+                    value={expenseForm.category}
+                    preferred={stagesFor(expenseTarget.projectType, expenseTarget.name)}
+                    placeholder={stageKind(expenseTarget.projectType, expenseTarget.name) ? 'Search a stage' : 'Search school fees, home...'}
+                    onChange={(name) => setExpenseForm((prev) => ({
+                      ...prev,
+                      category: name,
+                      repeat: repeatsMonthly(name) ? 'monthly' : 'once',
+                    }))}
+                  />
+                </div>
+                <div>
+                  <p className="mb-1 text-sm font-medium text-gray-700">How often</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className={`btn ${expenseForm.repeat === 'monthly' ? 'btn-secondary' : 'btn-primary'}`}
+                      onClick={() => setExpenseForm((prev) => ({ ...prev, repeat: 'once' }))}
+                    >
+                      Once
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${expenseForm.repeat === 'monthly' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setExpenseForm((prev) => ({ ...prev, repeat: 'monthly' }))}
+                    >
+                      Every month
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-ink/60">AI subscription, VPS, and web hosting are charged again next month.</p>
                 </div>
                 <div>
                   <p className="mb-1 text-sm font-medium text-gray-700">Take the money from</p>
@@ -660,6 +720,12 @@ function Projects() {
                     placeholder="Search an asset, or create one"
                   />
                 </div>
+                {showsFarmMeasure(expenseForm.category, expenseTarget.projectType, expenseTarget.name) && (
+                  <FarmMeasure
+                    value={expenseForm}
+                    onChange={(name, next) => setExpenseForm((prev) => ({ ...prev, [name]: next }))}
+                  />
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="project-receipt">Receipt</label>
                   <input

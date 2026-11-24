@@ -4,6 +4,7 @@ const Project = require('../models/Project');
 const Asset = require('../models/Asset');
 const Savings = require('../models/Savings');
 const { findSalaryPlan } = require('../services/incomeSchedule');
+const { advanceSendDate } = require('../services/dispatchSchedule');
 const PettyCash = require('../models/PettyCash');
 const Transaction = require('../models/Transaction');
 const { asyncHandler } = require('../middleware/errorHandler');
@@ -48,6 +49,22 @@ const getExpenses = asyncHandler(async (req, res) => {
   res.json(createPaginatedResponse(expenses, page, limit, total));
 });
 
+function readFarm(farm) {
+  if (!farm || typeof farm !== 'object') return undefined;
+  const out = {};
+  const kilograms = Number(farm.kilograms);
+  const size = Number(farm.size);
+  const days = Number(farm.days);
+  if (kilograms > 0) out.kilograms = kilograms;
+  if (size > 0) out.size = size;
+  const sizeUnit = String(farm.sizeUnit || '').trim().slice(0, 30);
+  if (sizeUnit) out.sizeUnit = sizeUnit;
+  if (days > 0) out.days = days;
+  const level = String(farm.level || '').trim().slice(0, 40);
+  if (level) out.level = level;
+  return Object.keys(out).length ? out : undefined;
+}
+
 /**
  * @desc    Create new expense
  * @route   POST /expenses
@@ -75,7 +92,9 @@ const createExpense = asyncHandler(async (req, res) => {
     isTaxDeductible,
     source,
     projectId,
-    assetId
+    assetId,
+    farm,
+    repeat
   } = req.body;
 
   // Source is REQUIRED - expense must be deducted from somewhere
@@ -108,7 +127,8 @@ const createExpense = asyncHandler(async (req, res) => {
     isTaxDeductible: isTaxDeductible || false,
     source: source || null,
     projectId: null,
-    assetId: null
+    assetId: null,
+    farm: readFarm(farm)
   };
 
   if (projectId) {
@@ -273,6 +293,13 @@ const createExpense = asyncHandler(async (req, res) => {
     : sourceType === 'salary'
       ? 'salary'
       : 'wallet';
+  if (String(repeat || '').toLowerCase() === 'monthly') {
+    expense.isRecurring = true;
+    expense.recurringPattern = 'monthly';
+    expense.nextExpenseAt = advanceSendDate(expense.expenseDate, 'monthly');
+    await expense.save();
+  }
+
   await Transaction.create({
     userId: req.user._id,
     type: 'expense',

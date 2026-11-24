@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { syncBooks } from '../utils/syncBooks';
 import FilterMenu from '../components/FilterMenu';
 import { exactMoney, formatMoney } from '../utils/money';
+import { farmSummary } from '../utils/farmMeasure';
 
 function Expenses() {
   const [showForm, setShowForm] = useState(false);
@@ -344,6 +345,11 @@ function Expenses() {
                             {expense.description && (
                               <div className="text-sm text-gray-500">
                                 {expense.description}
+                              </div>
+                            )}
+                            {farmSummary(expense.farm) && (
+                              <div className="text-sm text-gray-500">
+                                {farmSummary(expense.farm)}
                               </div>
                             )}
                             {expense.vendor && (
