@@ -1,6 +1,8 @@
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
+import { useInstallApp } from '../hooks/useInstallApp';
 import { NavLink } from 'react-router-dom';
 import {
   HomeIcon,
@@ -101,6 +103,35 @@ function NavList({ onNavigate }) {
   );
 }
 
+function InstallNav() {
+  const { installed, install } = useInstallApp();
+  if (installed) return null;
+
+  const onClick = async () => {
+    const outcome = await install();
+    if (outcome === 'accepted') {
+      toast.success('SaveMine is installing. It will open from your apps.');
+      return;
+    }
+    if (outcome === 'dismissed') return;
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    toast(ios
+      ? 'Tap Share, then Add to Home Screen.'
+      : 'Open this site in Chrome, then press Install app again. Chrome adds SaveMine like an app.');
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-x-3 rounded-xl bg-white/10 px-2.5 py-2 text-sm font-medium text-paper hover:bg-white/15"
+    >
+      <ArrowDownTrayIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+      Install app
+    </button>
+  );
+}
+
 function Brand() {
   return (
     <div className="px-1">
@@ -146,6 +177,7 @@ function Sidebar({ open, setOpen }) {
                 </div>
                 <div className="flex grow flex-col gap-y-6 overflow-y-auto bg-ink px-5 pb-6 pt-6">
                   <Brand />
+                  <InstallNav />
                   <NavList onNavigate={() => setOpen(false)} />
                 </div>
               </Dialog.Panel>
@@ -157,6 +189,7 @@ function Sidebar({ open, setOpen }) {
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
         <div className="flex grow flex-col gap-y-6 overflow-y-auto bg-ink px-5 py-6">
           <Brand />
+          <InstallNav />
           <NavList />
         </div>
       </div>
