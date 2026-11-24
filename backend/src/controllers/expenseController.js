@@ -284,6 +284,7 @@ const createExpense = asyncHandler(async (req, res) => {
     description: String(title || 'Expense').slice(0, 200),
     notes: `Taken from ${fromName}`,
     expenseId: expense._id,
+    projectId: expense.projectId || null,
     status: 'completed'
   });
 

@@ -24,6 +24,10 @@ function ProjectForm({ project, onClose, onSuccess }) {
     expectedEndDate: '',
     status: 'planning',
     plannedBudget: '',
+    agreedAmount: '',
+    payWhen: 'after',
+    level: 1,
+    supportsProjectId: '',
     currency: 'FRW',
     notes: ''
   });
@@ -34,6 +38,7 @@ function ProjectForm({ project, onClose, onSuccess }) {
   const [newIncome, setNewIncome] = useState({ date: new Date().toISOString().split('T')[0], title: '', amount: '', quantity: '', unit: '', customer: '', category: 'income' });
   const [incomes, setIncomes] = useState([]);
   const [businesses, setBusinesses] = useState([]);
+  const [otherProjects, setOtherProjects] = useState([]);
   const [hasPartners, setHasPartners] = useState(false);
   const [partnerName, setPartnerName] = useState('');
 
@@ -51,6 +56,10 @@ function ProjectForm({ project, onClose, onSuccess }) {
         expectedEndDate: project.expectedEndDate ? new Date(project.expectedEndDate).toISOString().split('T')[0] : '',
         status: project.status || 'planning',
         plannedBudget: project.plannedBudget || '',
+        agreedAmount: project.agreedAmount || '',
+        payWhen: project.payWhen || 'after',
+        level: project.level || 1,
+        supportsProjectId: project.supportsProjectId?._id || project.supportsProjectId || '',
         currency: project.currency || 'FRW',
         notes: project.notes || ''
       });
@@ -73,6 +82,9 @@ function ProjectForm({ project, onClose, onSuccess }) {
     businessesAPI.getBusinesses({ limit: 100 })
       .then((response) => setBusinesses(response.data.data || []))
       .catch(() => setBusinesses([]));
+    projectsAPI.getProjects({ limit: 100 })
+      .then((response) => setOtherProjects(response.data.data || []))
+      .catch(() => setOtherProjects([]));
   }, []);
 
   const handleInputChange = (e) => {
@@ -113,6 +125,10 @@ function ProjectForm({ project, onClose, onSuccess }) {
       const data = {
         ...formData,
         plannedBudget: parseFloat(formData.plannedBudget) || 0,
+        agreedAmount: parseFloat(formData.agreedAmount) || 0,
+        level: Number(formData.level) || 1,
+        payWhen: formData.payWhen || 'after',
+        supportsProjectId: formData.supportsProjectId || null,
         expectedEndDate: formData.expectedEndDate || null,
         locationMode: formData.locationMode,
         location: formData.locationMode === 'online' ? 'Online' : formData.location,
@@ -195,6 +211,38 @@ function ProjectForm({ project, onClose, onSuccess }) {
                 placeholder="Search a business, or create one"
               />
               <p className="mt-1 text-sm text-ink/60">A business can hold several projects.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">When they pay</label>
+                <select name="payWhen" value={formData.payWhen} onChange={handleInputChange} className="block w-full px-3 py-2 border border-gray-300 rounded-md">
+                  <option value="before">Before the work</option>
+                  <option value="halfway">Halfway</option>
+                  <option value="after">After the work</option>
+                  <option value="other">Another arrangement</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Agreed amount</label>
+                <input type="number" min="0" name="agreedAmount" value={formData.agreedAmount} onChange={handleInputChange} className="block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Full amount they will pay" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Level</label>
+                <input type="number" min="1" name="level" value={formData.level} onChange={handleInputChange} className="block w-full px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">This project supports</label>
+              <LinkPicker
+                id="supports-project"
+                items={otherProjects.filter((row) => row._id !== project?._id).map((row) => ({ id: row._id, name: row.name }))}
+                value={formData.supportsProjectId}
+                onChange={(id) => setFormData((prev) => ({ ...prev, supportsProjectId: id }))}
+                emptyLabel="Stands on its own"
+                placeholder="Choose a project this one supports"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -34,6 +34,7 @@ import SavingsTrendChart from '../components/charts/SavingsTrendChart';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.jsx';
 import WalletStanding from '../components/WalletStanding';
+import MoneyConnections from '../components/MoneyConnections';
 import ReportDesk from '../components/ReportDesk';
 import BillForm from '../components/forms/BillForm';
 import { summarizeBills } from '../utils/billMath';
@@ -261,6 +262,8 @@ function Dashboard() {
           ))}
         </div>
       </div>
+
+      <MoneyConnections />
 
       <WalletStanding
         wallet={walletAccount?.data?.data?.currentBalance || 0}

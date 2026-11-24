@@ -16,6 +16,21 @@ describe('syncBooks', () => {
     expect(queryClient.getQueryState('billReminders').isInvalidated).toBe(false);
   });
 
+  it('keeps the money picture in step when the wallet or a savings jar changes', async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData('moneyMap', { remaining: 1 });
+    queryClient.setQueryData('pettyCash', { currentBalance: 1 });
+    queryClient.setQueryData(['savings', 'all'], []);
+
+    await syncBooks(queryClient, 'wallet');
+    expect(queryClient.getQueryState('moneyMap').isInvalidated).toBe(true);
+
+    queryClient.setQueryData('moneyMap', { remaining: 1 });
+    await syncBooks(queryClient, 'savings');
+    expect(queryClient.getQueryState('moneyMap').isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(['savings', 'all']).isInvalidated).toBe(true);
+  });
+
   it('connects a removed contact to the loan lists that show that person', async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(['contacts', 'all'], []);

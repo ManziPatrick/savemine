@@ -139,6 +139,26 @@ const projectSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  agreedAmount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  payWhen: {
+    type: String,
+    enum: ['before', 'halfway', 'after', 'other'],
+    default: 'after'
+  },
+  level: {
+    type: Number,
+    default: 1,
+    min: 1
+  },
+  supportsProjectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    default: null
+  },
   currency: {
     type: String,
     default: 'FRW',

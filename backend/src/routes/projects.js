@@ -9,6 +9,8 @@ const {
   removeExpense,
   addIncome,
   removeIncome,
+  confirmReceipt,
+  getMoneyMap,
   getProjectStats
 } = require('../controllers/projectController');
 const { authenticateToken } = require('../middleware/auth');
@@ -22,6 +24,7 @@ router.route('/')
   .post(createProject);
 
 router.route('/stats').get(getProjectStats);
+router.route('/money-map').get(getMoneyMap);
 
 router.route('/:id')
   .get(getProject)
@@ -33,6 +36,9 @@ router.route('/:id/expenses')
 
 router.route('/:id/expenses/:expenseId')
   .delete(removeExpense);
+
+router.route('/:id/receipts')
+  .post(confirmReceipt);
 
 router.route('/:id/incomes')
   .post(addIncome);

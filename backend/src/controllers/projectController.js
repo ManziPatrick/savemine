@@ -1,6 +1,10 @@
 const Project = require('../models/Project');
 const Expense = require('../models/Expense');
 const Business = require('../models/Business');
+const Transaction = require('../models/Transaction');
+const PettyCash = require('../models/PettyCash');
+const Savings = require('../models/Savings');
+const { placeIncome, isSalary } = require('../services/incomeSchedule');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { getPaginationParams, getSortParams, createPaginatedResponse } = require('../utils/pagination');
 
@@ -45,10 +49,16 @@ const getProjects = asyncHandler(async (req, res) => {
     if (!byProject[key]) byProject[key] = [];
     byProject[key].push(row);
   });
+  const names = new Map(projects.map((project) => [String(project._id), project.name]));
   const rows = projects.map((project) => {
     const json = project.toJSON();
     json.linkedExpenses = byProject[String(project._id)] || [];
     json.officeSpent = json.totalExpenses + json.linkedExpenses.reduce((sum, row) => sum + (row.amount || 0), 0);
+    json.supportsName = json.supportsProjectId ? (names.get(String(json.supportsProjectId)) || '') : '';
+    json.receivedAmount = (json.incomes || []).reduce((sum, row) => sum + (row.amount || 0), 0);
+    const agreed = json.agreedAmount || 0;
+    json.behindAmount = Math.max(0, agreed - json.receivedAmount);
+    json.receivedPercent = agreed > 0 ? Math.round((json.receivedAmount / agreed) * 100) : 0;
     return json;
   });
 
@@ -88,7 +98,7 @@ const createProject = asyncHandler(async (req, res) => {
   const {
     name, projectType, description, location, locationMode, businessId, partners,
     startDate, expectedEndDate, status, plannedBudget, currency,
-    expenses, incomes, tags, notes
+    expenses, incomes, tags, notes, agreedAmount, payWhen, level, supportsProjectId
   } = req.body;
 
   const where = locationMode === 'online' ? 'online' : 'place';
@@ -97,6 +107,14 @@ const createProject = asyncHandler(async (req, res) => {
     linkedBusiness = await Business.findOne({ _id: businessId, userId: req.user._id, isActive: true });
     if (!linkedBusiness) {
       return res.status(400).json({ success: false, message: 'Choose one of your businesses' });
+    }
+  }
+
+  let supports = null;
+  if (supportsProjectId) {
+    supports = await Project.findOne({ _id: supportsProjectId, userId: req.user._id, isActive: true });
+    if (!supports) {
+      return res.status(400).json({ success: false, message: 'Choose a project this one supports' });
     }
   }
 
@@ -113,6 +131,10 @@ const createProject = asyncHandler(async (req, res) => {
     expectedEndDate: expectedEndDate ? new Date(expectedEndDate) : null,
     status: status || 'planning',
     plannedBudget: plannedBudget || 0,
+    agreedAmount: Number(agreedAmount) || 0,
+    payWhen: ['before', 'halfway', 'after', 'other'].includes(payWhen) ? payWhen : 'after',
+    level: Math.max(1, Number(level) || 1),
+    supportsProjectId: supports ? supports._id : null,
     currency: currency || 'FRW',
     expenses: Array.isArray(expenses) ? expenses : [],
     incomes: Array.isArray(incomes) ? incomes : [],
@@ -156,6 +178,21 @@ const updateProject = asyncHandler(async (req, res) => {
   if (Array.isArray(updateData.partners)) {
     updateData.partners = updateData.partners.map((name) => String(name).trim()).filter(Boolean).slice(0, 20);
   }
+  if (updateData.supportsProjectId) {
+    if (String(updateData.supportsProjectId) === String(project._id)) {
+      return res.status(400).json({ success: false, message: 'A project cannot support itself' });
+    }
+    const supports = await Project.findOne({ _id: updateData.supportsProjectId, userId: req.user._id, isActive: true });
+    if (!supports) {
+      return res.status(400).json({ success: false, message: 'Choose a project this one supports' });
+    }
+    updateData.supportsProjectId = supports._id;
+  } else if (updateData.supportsProjectId === '' || updateData.supportsProjectId === null) {
+    updateData.supportsProjectId = null;
+  }
+  if (updateData.level != null) updateData.level = Math.max(1, Number(updateData.level) || 1);
+  if (updateData.agreedAmount != null) updateData.agreedAmount = Number(updateData.agreedAmount) || 0;
+
   if (updateData.businessId) {
     const linkedBusiness = await Business.findOne({ _id: updateData.businessId, userId: req.user._id, isActive: true });
     if (!linkedBusiness) {
@@ -413,6 +450,177 @@ const getProjectStats = asyncHandler(async (req, res) => {
   });
 });
 
+const confirmReceipt = asyncHandler(async (req, res) => {
+  const project = await Project.findOne({ _id: req.params.id, userId: req.user._id, isActive: true });
+  if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+
+  const agreed = Number(project.agreedAmount) || 0;
+  let amount = Number(req.body.amount);
+  const percent = Number(req.body.percent);
+  if (!(amount > 0) && percent > 0) {
+    if (!(agreed > 0)) {
+      return res.status(400).json({ success: false, message: 'Set the agreed amount before confirming a percent' });
+    }
+    amount = Math.round((agreed * percent) / 100);
+  }
+  if (!(amount > 0)) {
+    return res.status(400).json({ success: false, message: 'Enter the amount you received, or a percent' });
+  }
+
+  const slice = agreed > 0 ? Math.round((amount / agreed) * 100) : null;
+  project.incomes.push({
+    date: new Date(),
+    title: 'Payment received',
+    amount,
+    category: 'payment',
+    notes: slice != null ? `${slice}% confirmed` : 'Amount confirmed'
+  });
+  if (project.status === 'planning') project.status = 'active';
+  await project.save();
+
+  await placeIncome(req.user._id, amount, { depositTo: 'wallet' }, `Received for ${project.name}`);
+  await Transaction.create({
+    userId: req.user._id,
+    type: 'income',
+    amount,
+    currency: project.currency || 'FRW',
+    category: 'project',
+    date: new Date(),
+    description: `Payment received for ${project.name}`.slice(0, 200),
+    notes: `Added to wallet from ${project.name}`,
+    projectId: project._id,
+    depositTo: 'wallet',
+    status: 'completed'
+  });
+
+  const received = project.incomes.reduce((sum, row) => sum + (row.amount || 0), 0);
+  res.status(201).json({
+    success: true,
+    data: {
+      project,
+      receivedAmount: received,
+      behindAmount: Math.max(0, agreed - received),
+      receivedPercent: agreed > 0 ? Math.round((received / agreed) * 100) : 0
+    }
+  });
+});
+
+function useBucket(expense) {
+  const text = `${expense.category || ''} ${expense.subcategory || ''} ${expense.title || ''}`.toLowerCase();
+  if (/school|education|fee/.test(text)) return 'school';
+  if (/hous|rent|home/.test(text)) return 'house';
+  if (/internet|subscri|wifi|airtime|utilit/.test(text)) return 'internet';
+  if (/food|lunch|dining|market/.test(text)) return 'food';
+  if (/transport|taxi|bus|fuel|moto/.test(text)) return 'transport';
+  if (/invest/.test(text)) return 'investment';
+  return '';
+}
+
+const getMoneyMap = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const [projects, expenses, incomes, wallet, savings] = await Promise.all([
+    Project.find({ userId, isActive: true }),
+    Expense.find({ userId, isActive: true }).select('title category subcategory amount projectId'),
+    Transaction.find({ userId, type: 'income', status: { $ne: 'cancelled' } }).select('amount category description'),
+    PettyCash.findOne({ userId, isActive: { $ne: false } }),
+    Savings.find({ userId, isActive: { $ne: false } }).select('amount')
+  ]);
+
+  const salary = incomes.filter(isSalary).reduce((sum, row) => sum + (row.amount || 0), 0);
+  const otherIncome = incomes.filter((row) => !isSalary(row)).reduce((sum, row) => sum + (row.amount || 0), 0);
+  const uses = {
+    school: 0, house: 0, internet: 0, food: 0, transport: 0, investment: 0, other: 0
+  };
+  const projectSpend = {};
+  expenses.forEach((expense) => {
+    const bucket = useBucket(expense);
+    if (bucket) uses[bucket] += expense.amount || 0;
+    else if (expense.projectId) {
+      const key = String(expense.projectId);
+      projectSpend[key] = (projectSpend[key] || 0) + (expense.amount || 0);
+    } else uses.other += expense.amount || 0;
+  });
+
+  const labels = {
+    school: 'School fees',
+    house: 'House',
+    internet: 'Internet and subscriptions',
+    food: 'Food',
+    transport: 'Transport',
+    investment: 'Investments from salary',
+    other: 'Other spending'
+  };
+  const names = new Map(projects.map((project) => [String(project._id), project.name]));
+  const groups = new Map();
+  expenses.forEach((expense) => {
+    const bucket = useBucket(expense);
+    if (!bucket) return;
+    const projectId = expense.projectId ? String(expense.projectId) : '';
+    const key = `${bucket}:${projectId}`;
+    const row = groups.get(key) || { key, bucket, projectId, amount: 0 };
+    row.amount += expense.amount || 0;
+    groups.set(key, row);
+  });
+  const lines = [...groups.values()].map((row) => ({
+    key: row.key,
+    label: labels[row.bucket],
+    amount: row.amount,
+    note: row.projectId && names.get(row.projectId) ? `On ${names.get(row.projectId)}` : ''
+  }));
+  if (uses.other > 0) lines.push({ key: 'other', label: labels.other, amount: uses.other, note: '' });
+  const projectLines = projects.map((project) => {
+    const received = (project.incomes || []).reduce((sum, row) => sum + (row.amount || 0), 0);
+    const agreed = project.agreedAmount || 0;
+    const spent = (project.totalExpenses || 0) + (projectSpend[String(project._id)] || 0);
+    return {
+      id: project._id,
+      name: project.name,
+      level: project.level || 1,
+      payWhen: project.payWhen || 'after',
+      supportsName: project.supportsProjectId ? (names.get(String(project.supportsProjectId)) || '') : '',
+      agreed,
+      received,
+      behind: Math.max(0, agreed - received),
+      percent: agreed > 0 ? Math.round((received / agreed) * 100) : 0,
+      spent
+    };
+  });
+  projectLines.forEach((project) => {
+    if (project.spent > 0) {
+      lines.push({
+        key: `project-${project.id}`,
+        label: project.name,
+        amount: project.spent,
+        note: project.supportsName ? `Supports ${project.supportsName}` : ''
+      });
+    }
+  });
+
+  const inUse = lines.reduce((sum, line) => sum + line.amount, 0);
+  const walletBalance = wallet?.currentBalance || 0;
+  const savingsBalance = savings.reduce((sum, row) => sum + (row.amount || 0), 0);
+  const remaining = walletBalance + savingsBalance;
+  const cameIn = salary + otherIncome;
+  const unplaced = cameIn - inUse - remaining;
+
+  res.json({
+    success: true,
+    data: {
+      salary,
+      otherIncome,
+      cameIn,
+      inUse,
+      remaining,
+      wallet: walletBalance,
+      savings: savingsBalance,
+      behind: projectLines.reduce((sum, project) => sum + project.behind, 0),
+      unplaced,
+      uses: lines,
+      projects: projectLines
+    }
+  });
+});
+
 module.exports = {
   getProjects,
   getProject,
@@ -423,5 +631,7 @@ module.exports = {
   removeExpense,
   addIncome,
   removeIncome,
+  confirmReceipt,
+  getMoneyMap,
   getProjectStats
 };

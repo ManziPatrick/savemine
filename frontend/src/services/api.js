@@ -222,6 +222,8 @@ export const projectsAPI = {
   addIncome: (id, incomeData) => api.post(`/projects/${id}/incomes`, incomeData),
   removeIncome: (id, incomeId) => api.delete(`/projects/${id}/incomes/${incomeId}`),
   getProjectStats: () => api.get('/projects/stats'),
+  getMoneyMap: () => api.get('/projects/money-map'),
+  confirmReceipt: (id, payload) => api.post(`/projects/${id}/receipts`, payload),
 };
 
 // Petty Cash API

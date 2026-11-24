@@ -15,6 +15,7 @@ import CategoryPicker from '../components/CategoryPicker';
 import LinkPicker from '../components/LinkPicker';
 import SlideOver from '../components/SlideOver';
 import { exactMoney, formatMoney } from '../utils/money';
+import MoneyConnections from '../components/MoneyConnections';
 import { fileExpenseCategory } from '../utils/fileExpense';
 import { uploadProof } from '../utils/uploadProof';
 
@@ -241,6 +242,8 @@ function Projects() {
         </div>
       </div>
 
+      <MoneyConnections />
+
       {/* Statistics */}
       {stats.overview && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -358,6 +361,11 @@ function Projects() {
                         <div>
                           <div className="font-medium text-gray-900">{project.name}</div>
                           <div className="text-sm text-gray-500">
+                            {`Level ${project.level || 1}`}
+                            {project.payWhen ? ` • ${{ before: 'Paid before', halfway: 'Paid halfway', after: 'Paid after', other: 'Other payment' }[project.payWhen]}` : ''}
+                            {project.agreedAmount > 0 ? ` • ${project.receivedPercent || 0}% received • ${formatCurrency(project.behindAmount || 0)} behind` : ''}
+                            {project.supportsName ? ` • Supports ${project.supportsName}` : ''}
+                            {' • '}
                             {project.businessId?.name && `${project.businessId.name} • `}
                             {project.locationMode === 'online' ? 'Online' : (project.location || 'No place yet')}
                             {(project.partners || []).length > 0 && ` • Partners: ${project.partners.join(', ')}`}
@@ -425,6 +433,8 @@ function Projects() {
                         ))}
                       </ul>
                     )}
+
+                    <ConfirmPayment project={project} onDone={() => syncBooks(queryClient, 'projects')} />
 
                     {/* Quick actions */}
                     <div className="flex flex-wrap gap-2 px-4 pb-3">
@@ -696,6 +706,50 @@ function Projects() {
               </form>
         </SlideOver>
       )}
+    </div>
+  );
+}
+
+function ConfirmPayment({ project, onDone }) {
+  const [mode, setMode] = useState('amount');
+  const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    const number = Number(value);
+    if (!(number > 0)) {
+      toast.error('Enter the amount you received, or the percent');
+      return;
+    }
+    setSaving(true);
+    try {
+      await projectsAPI.confirmReceipt(project._id, mode === 'percent' ? { percent: number } : { amount: number });
+      toast.success('Received amount confirmed. The project and your remaining money are updated.');
+      setValue('');
+      onDone();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not confirm that payment');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
+      <span className="text-xs text-gray-500">Confirm what you received</span>
+      <button type="button" className={`btn btn-sm ${mode === 'amount' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('amount')}>Amount</button>
+      <button type="button" className={`btn btn-sm ${mode === 'percent' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('percent')}>Percent</button>
+      <input
+        type="number"
+        min="0"
+        className="input w-28"
+        placeholder={mode === 'percent' ? '%' : 'Amount'}
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+      />
+      <button type="button" className="btn btn-secondary btn-sm" onClick={submit} disabled={saving}>
+        {saving ? 'Saving...' : 'Confirm received'}
+      </button>
     </div>
   );
 }
