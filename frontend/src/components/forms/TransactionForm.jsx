@@ -77,6 +77,10 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
       .catch(() => setProjects([]));
   }, []);
 
+  const category = watch('category');
+  const subcategory = watch('subcategory');
+  const type = watch('type');
+
   useEffect(() => {
     if (/salary/i.test(category || '')) setRepeat('monthly');
   }, [category]);
@@ -108,10 +112,6 @@ function TransactionForm({ transaction, onClose, onSuccess }) {
       setLoading(false);
     }
   };
-
-  const category = watch('category');
-  const subcategory = watch('subcategory');
-  const type = watch('type');
 
   return (
     <SlideOver title={isEditing ? 'Edit transaction' : 'Add a transaction'} subtitle="Money" onClose={onClose}>
